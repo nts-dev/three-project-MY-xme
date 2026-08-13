@@ -30,21 +30,48 @@ function getStoredThumbnail(projectId) {
     if (typeof window === "undefined") return "";
 
     try {
-        return window.localStorage.getItem(`${THUMBNAIL_STORAGE_PREFIX}${projectId}`) || "";
+        const key = `${THUMBNAIL_STORAGE_PREFIX}${projectId}`;
+        const storedUrl = window.localStorage.getItem(key) || "";
+        if (/^data:image\//i.test(storedUrl)) {
+            window.localStorage.removeItem(key);
+            return "";
+        }
+        return storedUrl;
     } catch {
         return "";
     }
 }
 
 function resolveApiAssetUrl(url) {
-    if (!url) return "";
-    if (/^https?:\/\//i.test(url)) return url;
+    const rawUrl = String(url || "").trim();
+    if (!rawUrl) return "";
+    if (/^data:image\//i.test(rawUrl)) return "";
+    if (!API_BASE_URL) return rawUrl;
 
     try {
-        const apiUrl = new URL(API_BASE_URL);
-        return `${apiUrl.origin}${url.startsWith("/") ? url : `/${url}`}`;
+        const apiUrl = new URL(`${API_BASE_URL}/`);
+        const apiBasePath = apiUrl.pathname.replace(/\/+$/, "");
+        const assetUrl = /^https?:\/\//i.test(rawUrl)
+            ? new URL(rawUrl)
+            : null;
+
+        let assetPath = assetUrl ? assetUrl.pathname : rawUrl;
+        if (assetUrl && assetUrl.origin !== apiUrl.origin) {
+            return rawUrl;
+        }
+
+        assetPath = `/${assetPath.replace(/^\/+/, "")}`;
+        if (apiBasePath && assetPath.startsWith(`${apiBasePath}/`)) {
+            return `${apiUrl.origin}${assetPath}${assetUrl?.search || ""}`;
+        }
+
+        if (assetPath.startsWith("/api/") && apiBasePath !== "/api") {
+            assetPath = assetPath.replace(/^\/api\//, "/");
+        }
+
+        return `${API_BASE_URL}/${assetPath.replace(/^\/+/, "")}${assetUrl?.search || ""}`;
     } catch {
-        return url;
+        return rawUrl;
     }
 }
 
@@ -140,7 +167,7 @@ export default function ProjectTileLanding() {
     const setIsPackage = useGame((state) => state.setIsPackage);
     const [thumbnails, setThumbnails] = useState(() => {
         return PROJECTS.reduce((next, project) => {
-            next[project.id] = getStoredThumbnail(project.id);
+            next[project.id] = resolveApiAssetUrl(getStoredThumbnail(project.id));
             return next;
         }, {});
     });
@@ -197,14 +224,6 @@ export default function ProjectTileLanding() {
     };
 
     const updateThumbnail = async (projectId, file, dataUrl) => {
-        setThumbnails((current) => ({ ...current, [projectId]: dataUrl }));
-
-        try {
-            window.localStorage.setItem(`${THUMBNAIL_STORAGE_PREFIX}${projectId}`, dataUrl);
-        } catch (error) {
-            console.error("Failed to store project thumbnail:", error);
-        }
-
         if (!API_BASE_URL) return;
 
         setUploadStates((current) => ({ ...current, [projectId]: "saving" }));
@@ -230,7 +249,11 @@ export default function ProjectTileLanding() {
             const nextThumbnail = resolveApiAssetUrl(payload.url);
             if (nextThumbnail) {
                 setThumbnails((current) => ({ ...current, [projectId]: nextThumbnail }));
-                window.localStorage.setItem(`${THUMBNAIL_STORAGE_PREFIX}${projectId}`, nextThumbnail);
+                try {
+                    window.localStorage.setItem(`${THUMBNAIL_STORAGE_PREFIX}${projectId}`, nextThumbnail);
+                } catch (error) {
+                    console.error("Failed to store project thumbnail URL:", error);
+                }
             }
             setUploadStates((current) => ({ ...current, [projectId]: "saved" }));
         } catch (error) {
