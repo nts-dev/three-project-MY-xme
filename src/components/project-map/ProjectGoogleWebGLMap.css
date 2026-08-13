@@ -1,0 +1,98 @@
+.project-google-webgl-composite {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.project-google-webgl-viewport-switch {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.project-google-webgl-viewport-switch__three,
+.project-google-webgl-viewport-switch__google {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.project-google-webgl-viewport-switch__three {
+    z-index: 1;
+}
+
+.project-google-webgl-viewport-switch__google {
+    z-index: 2;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.project-google-webgl-viewport-switch__google.is-active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.project-google-webgl-composite > .canvas-element {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: transparent;
+}
+
+.project-google-webgl-composite > .canvas-element canvas {
+    background: transparent !important;
+}
+
+.project-google-webgl-map,
+.project-google-webgl-map__stage {
+    width: 100%;
+    height: 100%;
+}
+
+.project-google-webgl-map {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: #0b1114;
+}
+
+.project-google-webgl-map__stage {
+    position: absolute;
+    inset: 0;
+}
+
+.project-google-webgl-map__error {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 3;
+    display: grid;
+    gap: 6px;
+    width: min(420px, calc(100vw - 36px));
+    padding: 16px 18px;
+    border: 1px solid rgba(212, 231, 238, 0.34);
+    border-radius: 8px;
+    background: rgba(7, 17, 20, 0.92);
+    color: #edf9fb;
+    font-family: Inter, Roboto, Arial, sans-serif;
+    transform: translate(-50%, -50%);
+}
+
+.project-google-webgl-composite .project-google-webgl-map__error {
+    position: fixed;
+}
+
+.project-google-webgl-map__error strong {
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.project-google-webgl-map__error span {
+    color: rgba(237, 249, 251, 0.72);
+    font-size: 12px;
+}

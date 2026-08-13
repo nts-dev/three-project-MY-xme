@@ -1,0 +1,240 @@
+@font-face {
+    font-family: 'PlayRegular';
+    src: url('./Play-Regular.ttf') format('truetype');
+}
+
+.l-input-field {
+    min-width: 1rem !important;
+    /* max-width: 3rem !important; */
+    background: rgba(18, 15, 15, 0.48) !important;
+    color: #fff !important;
+    /* font-size: 0.6rem !important; */
+    height: 2rem;
+    margin-top: 0;
+    border-color: rgba(255, 180, 174, 0.18) !important;
+    box-shadow: inset 0 1px 8px rgba(0, 0, 0, 0.28);
+}
+.p-dropdown-items-wrapper{
+    background: rgba(18, 15, 15, 0.96) !important;
+}
+
+.l-action-btn {
+    font-weight: 600;
+    color: #fff !important;
+    border: 1px solid rgba(255, 180, 174, 0.16) !important;
+    padding: 0.5rem !important;
+    border-radius: 5px;
+    transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    text-wrap: nowrap;
+    /* width: 4rem; */
+    text-overflow: ellipsis;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+    font-size: 0.6rem !important;
+    padding: 0.2rem 0.48rem !important;
+    background-size: contain;
+    height: 2rem;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.06)),
+        rgba(32, 28, 28, 0.54) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.14),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.42);
+    text-shadow: 0 0 10px rgba(255, 82, 70, 0.28);
+}
+
+.l-action-btn:hover {
+    border-color: rgba(255, 150, 140, 0.34) !important;
+    background:
+        linear-gradient(180deg, rgba(255, 96, 84, 0.22), rgba(255, 78, 66, 0.09)),
+        rgba(34, 28, 28, 0.9) !important;
+    box-shadow:
+        0 0 0 1px rgba(255, 82, 70, 0.08),
+        0 0 12px rgba(255, 82, 70, 0.16),
+        0 6px 18px rgba(0, 0, 0, 0.24);
+}
+
+.l-action-btn .p-button-icon {
+    font-size: 0.72rem;
+}
+
+.l-action-btn .p-button-label {
+    line-height: 1;
+}
+
+.motion-icon-button {
+    justify-content: center;
+}
+
+.motion-icon-button.p-button {
+    overflow: hidden;
+}
+
+.motion-morph-icon {
+    width: 0.95rem;
+    height: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 0.95rem;
+    border-radius: 999px;
+    color: rgba(255, 255, 255, 0.96);
+    background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.24), rgba(125, 211, 252, 0.1) 52%, rgba(255, 255, 255, 0) 72%);
+}
+
+.motion-morph-icon .pi {
+    font-size: 0.72rem;
+}
+
+.motion-button-label {
+    line-height: 1;
+}
+
+.motion-icon-button:hover .motion-morph-icon {
+    color: #ffffff;
+    background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.36), rgba(34, 211, 238, 0.22) 56%, rgba(255, 255, 255, 0) 74%);
+}
+
+.motion-danger-control .motion-icon-button:hover .motion-morph-icon {
+    background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.34), rgba(248, 113, 113, 0.22) 56%, rgba(255, 255, 255, 0) 74%);
+}
+.max-min-action-btn{
+    font-weight: 600;
+    color: #fff !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    padding: 0.5rem !important;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+    font-size: 0.6rem !important;
+    padding: 0.2rem 0;
+    background-size: contain;
+    height: 2rem;
+
+}
+.p-dropdown-label {
+  padding: 0.5rem 0.5rem !important;
+
+}
+
+.button-box{
+   display: flex;
+   flex-direction: column;
+   gap: 0.3rem;
+   align-items: center;
+   padding: 0.24rem;
+   border-radius: 6px;
+   background:
+       radial-gradient(circle at 14% 0%, rgba(255, 82, 70, 0.18), transparent 32%),
+       linear-gradient(180deg, rgba(80, 75, 75, 0.7) 0%, rgba(57, 54, 53, 0.64) 42%, rgba(48, 45, 45, 0.6) 100%);
+   border: 1px solid rgba(255, 180, 174, 0.18);
+   box-shadow:
+       inset 0 1px 0 rgba(255, 255, 255, 0.22),
+       inset 0 -1px 0 rgba(0, 0, 0, 0.62),
+       0 14px 28px rgba(0, 0, 0, 0.36);
+   backdrop-filter: blur(5px);
+}
+
+.motion-level-toolbar-items {
+    align-items: center;
+}
+
+.motion-level-control {
+    display: inline-flex;
+    align-items: center;
+    transform-origin: center;
+}
+
+.motion-level-control.is-active-mode .l-action-btn {
+    border-color: rgba(255, 195, 188, 0.42) !important;
+    background: linear-gradient(180deg, #ff6b61 0%, #ff4f45 100%) !important;
+    box-shadow:
+        0 0 0 1px rgba(255, 82, 70, 0.08),
+        0 0 14px rgba(255, 82, 70, 0.24);
+}
+
+.motion-danger-control .l-action-btn:hover {
+    border-color: rgba(248, 113, 113, 0.75) !important;
+    box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.16), 0 6px 18px rgba(127, 29, 29, 0.22);
+}
+
+.motion-level-dropdown {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 5.2rem !important;
+    height: 2rem !important;
+    line-height: 1 !important;
+    padding: 0 !important;
+    overflow: hidden;
+}
+
+.motion-level-dropdown .p-dropdown-trigger {
+    width: 1.4rem;
+    height: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 !important;
+}
+
+.motion-level-dropdown .p-dropdown-label {
+    height: 100%;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0.5rem !important;
+    line-height: 1 !important;
+}
+
+.motion-level-dropdown .p-dropdown-trigger-icon {
+    font-size: 0.72rem;
+}
+
+.motion-floor-dropdown {
+    min-width: 8.8rem;
+}
+
+.motion-floor-dropdown .p-multiselect {
+    display: inline-flex;
+    align-items: center;
+    min-width: 8.8rem;
+    height: 2rem;
+    background: rgba(18, 15, 15, 0.48);
+    border-color: rgba(255, 180, 174, 0.18);
+    color: #fff;
+    box-shadow: inset 0 1px 8px rgba(0, 0, 0, 0.28);
+}
+
+.motion-floor-dropdown .p-multiselect-label {
+    display: inline-flex;
+    align-items: center;
+    height: 100%;
+    padding: 0 0.5rem;
+    line-height: 1;
+}
+
+.motion-floor-dropdown .p-multiselect-trigger {
+    width: 1.4rem;
+}
+
+@media (max-width: 768px) {
+
+    .l-input-field {
+         max-width: 3rem !important;
+
+    }
+    .l-action-btn {
+        width: 4rem !important;
+    }
+    .max-min-action-btn{
+       width: 2rem !important;
+    }
+    .p-dropdown-label {
+     font-size: 0.6rem !important;
+    }
+    .top-left-container{
+        left: 50% !important;
+        padding: 0.1rem;
+        transform: translate(-50%, 50%);
+    }
+}

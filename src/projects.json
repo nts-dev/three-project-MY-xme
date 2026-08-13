@@ -1,0 +1,375 @@
+[
+  {
+    "children": {
+      "48": {
+        "children": [],
+        "id": "48",
+        "name": "Room 3 - Server Room",
+        "floors": [0,240],
+        "landing_point": {
+          "x": 675,
+          "y": 64.9,
+          "z": 1893
+        },
+        "branch_name": "NTS Computers Technology BV (Oudenbosch)",
+        "branch_id": "1"
+      }
+    },
+    "id": "4",
+    "name": "Oudenbosch",
+    "branch_name": "NTS Computers Technology BV (Oudenbosch)",
+    "branch_id": "1"
+  },
+  {
+    "children": {
+      "132": {
+        "children": [],
+        "id": "132",
+        "name": "Floor",
+        "floors": [0,250,500],
+        "landing_point": {
+          "x": 544,
+          "y": 64.9,
+          "z": 1417
+        },
+        "branch_name": "NTS Computers Technology BV (Rotterdam)",
+        "branch_id": "5"
+      }
+    },
+    "id": "130",
+    "name": "Office",
+    "branch_name": "NTS Computers Technology BV (Rotterdam)",
+    "branch_id": "5"
+  },
+  {
+    "children": {
+      "115": {
+        "children": [],
+        "id": "115",
+        "name": "Mwingi Farm",
+        "floors": [0],
+        "landing_point": {
+          "x": 544,
+          "y": 64.9,
+          "z": 1417
+        },
+        "branch_name": "TradeStar Kenya Ltd",
+        "branch_id": "6"
+      },
+      "120": {
+        "children": [],
+        "id": "120",
+        "name": "Longonot",
+        "floors": [0,400],
+        "landing_point": {
+          "x": 14468,
+          "y": 105,
+          "z": 4053
+        },
+        "branch_name": "TradeStar Kenya Ltd",
+        "branch_id": "6"
+      },
+      "125": {
+        "children": [],
+        "id": "125",
+        "name": "Floors",
+        "floors": [-460,0,460,920],
+        "landing_point": {
+          "x": 766,
+          "y": 64,
+          "z": 538
+        },
+        "branch_name": "TradeStar Kenya Ltd",
+        "branch_id": "6"
+      },
+
+
+      "135": {
+        "children": [],
+        "id": "135",
+        "name": "Virtual Show Room(webshop) ",
+        "floors": [0],
+        "landing_point": {
+          "x": 223.6,
+          "y": 64,
+          "z": 2314
+        },
+        "branch_name": "TradeStar Kenya Ltd",
+        "branch_id": "6"
+      },
+      "136": {
+        "children": [],
+        "id": "136",
+        "name": "Digital Assets",
+        "floors": [0],
+        "landing_point": {
+          "x": 223.6,
+          "y": 64,
+          "z": 2314
+        },
+        "branch_name": "TradeStar Kenya Ltd",
+        "branch_id": "6"
+      },
+      "137": {
+        "children": [],
+        "id": "137",
+        "name": "Virtual Show Room 2",
+        "floors": [0,400],
+        "landing_point": {
+          "x": 223.6,
+          "y": 64,
+          "z": 2314
+        },
+        "branch_name": "TradeStar Kenya Ltd",
+        "branch_id": "6"
+      }
+    },
+    "id": "21",
+    "name": "Eco Bank",
+    "branch_name": "TradeStar Kenya Ltd",
+    "branch_id": "6"
+  },
+  {
+    "children": {
+      "32": {
+        "children": [],
+        "id": "32",
+        "name": "Room 1 - Showroom",
+        "floors": [0,560,880,1380],
+        "landing_point": {
+          "x": 274.6,
+          "y": 624.9,
+          "z": 806.9
+        },
+        "branch_name": "NTS Computers SDN BHD",
+        "branch_id": "8"
+      },
+          "33": {
+        "children": [],
+        "id": "33",
+        "name": "MY Map",
+        "floors": [0,560,880,1380],
+        "landing_point": {
+          "x": 274.6,
+          "y": 624.9,
+          "z": 806.9
+        },
+        "branch_name": "NTS Computers SDN BHD",
+        "branch_id": "8"
+      },
+      "153": {
+        "children": [],
+        "id": "153_L0",
+        "name": "New Office",
+        "floors": [0,560,880,1380],
+        "landing_point": {
+          "x": 274.6,
+          "y": 624.9,
+          "z": 806.9
+        },
+        "branch_name": "NTS Computers SDN BHD",
+        "branch_id": "8"
+      },
+       "153_L1": {
+        "children": [],
+        "id": "153_L1",
+        "name": "New Office Extended",
+        "floors": [0,560,880,1380],
+        "landing_point": {
+          "x": 274.6,
+          "y": 624.9,
+          "z": 806.9
+        },
+        "branch_name": "NTS Computers SDN BHD",
+        "branch_id": "8"
+      }
+    },
+    "id": "30",
+    "name": "First Floor",
+    "floors": [0,350],
+    "branch_name": "NTS Computers SDN BHD",
+    "branch_id": "8"
+  },
+  {
+    "children": {
+      "139": {
+        "children": [],
+        "id": "139",
+        "name": "Building",
+        "floors": [0,350],
+        "landing_point": {
+          "x":558,
+          "y": 64,
+          "z": 2081
+        },
+        "branch_name": "Salland Computers BV (danzigweg 15 )",
+        "branch_id": "17"
+      }
+    },
+    "id": "139",
+    "name": "Deventer",
+    "branch_name": "Salland Computers BV (danzigweg 15 )",
+    "branch_id": "17"
+  }
+,
+  {
+    "children": {
+      "140": {
+        "children": [],
+        "id": "140",
+        "name": "Packaging List",
+        "branch_name": "Package",
+        "branch_id": "25",
+        "landing_point": {
+          "x":0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    "id": "140",
+    "name": "Packaging",
+    "branch_name": "Packaging",
+    "branch_id": "25"
+  },
+  {
+    "children": {
+      "141": {
+        "children": [],
+        "id": "142",
+        "name": "Workstation",
+        "branch_name": "PC",
+        "branch_id": "18",
+        "landing_point": {
+          "x":0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "144": {
+        "children": [],
+        "id": "144",
+        "name": "3D platform Game",
+        "floors": [0],
+        "landing_point": {
+          "x":3700,
+          "y": 300,
+          "z": 242
+        },
+        "branch_name": "PC",
+        "branch_id": "18"
+      },
+      "145": {
+        "children": [],
+        "id": "145",
+        "name": "Car Race Game",
+        "floors": [0],
+        "landing_point": {
+          "x":0,
+          "y": 30,
+          "z": 0
+        },
+        "branch_name": "PC",
+        "branch_id": "18"
+      }
+    },
+    "id": "142",
+    "name": "Workstation",
+    "branch_name": "Computers",
+    "branch_id": "18"
+  },
+  
+  
+  {
+    "children": {
+      "148": {
+        "children": [],
+        "id": "148",
+        "name": "AI",
+        "floors": [0],
+        "landing_point": {
+          "x":160,
+          "y": 0,
+          "z": 160
+        },
+        "branch_name": "3D  Games",
+        "branch_id": "20"
+      }
+    },
+    
+    "id": "151",
+    "name": "3D  Games",
+    "branch_name": "3D  Games",
+    "branch_id": "20"
+  },
+    {
+    "children": {
+      "151": {
+        "children": [],
+        "id": "151",
+        "name": "autoCAD",
+        "floors": [0],
+        "landing_point": {
+          "x":160,
+          "y": 0,
+          "z": 160
+        },
+        "branch_name": "2D autoCAD",
+        "branch_id": "26"
+      }
+    },
+    
+    "id": "152",
+    "name": "2D autoCAD",
+    "branch_name": "2D autoCAD",
+    "branch_id": "26"
+  },
+  {
+    "children": {
+      "147": {
+        "children": [],
+        "id": "147",
+        "name": "Level 1",
+        "floors": [0],
+        "landing_point": {
+          "x":160,
+          "y": 0,
+          "z": 160
+        },
+        "branch_name": "PC",
+        "branch_id": "19"
+      },
+      "149": {
+        "children": [],
+        "id": "149",
+        "name": "Test",
+        "floors": [0],
+        "landing_point": {
+          "x":160,
+          "y": 0,
+          "z": 160
+        },
+        "branch_name": "PC",
+        "branch_id": "19"
+      },  "150": {
+        "children": [],
+        "id": "150",
+        "name": "3D Store",
+        "floors": [0],
+        "landing_point": {
+          "x":160,
+          "y": 0,
+          "z": 160
+        },
+        "branch_name": "PC",
+        "branch_id": "19"
+      }
+      
+    },
+    "id": "146",
+    "name": "Template #1",
+    "branch_name": "Puzzle Game",
+    "branch_id": "19"
+  }
+
+]

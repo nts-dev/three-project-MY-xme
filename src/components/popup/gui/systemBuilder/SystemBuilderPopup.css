@@ -1,0 +1,142 @@
+.system-builder-popup {
+    position: fixed;
+    inset: 0;
+    z-index: 1000008;
+    display: grid;
+    place-items: center;
+    pointer-events: auto;
+}
+
+.system-builder-popup__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.54);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+.system-builder-popup__panel {
+    position: relative;
+    width: min(1600px, calc(100vw - 280px));
+    height: calc(100vh - 28px);
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+    border-top: 1px solid rgba(201, 225, 229, 0.44);
+    border-bottom: 1px solid rgba(201, 225, 229, 0.44);
+    background: #ffffff;
+    box-shadow: 0 26px 70px rgba(0, 0, 0, 0.55);
+}
+
+.system-builder-popup__panel::before,
+.system-builder-popup__panel::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    pointer-events: none;
+}
+
+.system-builder-popup__panel::before {
+    top: -2px;
+    left: -2px;
+    border-top: 3px solid #23f4f8;
+    border-left: 3px solid #23f4f8;
+}
+
+.system-builder-popup__panel::after {
+    right: -2px;
+    bottom: -2px;
+    border-right: 3px solid #23f4f8;
+    border-bottom: 3px solid #23f4f8;
+}
+
+.system-builder-popup__header {
+    min-height: 21px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 8px;
+    color: #f2fbff;
+    font-family: var(--game-play-hud-font, "New Science", "Roboto Mono", "Consolas", monospace);
+    background: linear-gradient(180deg, rgba(11, 18, 20, 0.94), rgba(5, 10, 12, 0.9));
+}
+
+.system-builder-popup__header div {
+    display: grid;
+    gap: 1px;
+}
+
+.system-builder-popup__header strong {
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.system-builder-popup__eyebrow {
+    color: #23f4f8;
+    font-size: 7px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.system-builder-popup__header button {
+    width: 16px;
+    height: 16px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid rgba(35, 244, 248, 0.72);
+    background: rgba(0, 12, 14, 0.62);
+    color: #23f4f8;
+    font: inherit;
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.system-builder-popup__frame {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #ffffff;
+}
+
+.system-builder-popup__system-only {
+    min-height: 0;
+    overflow: auto;
+    background: #ffffff;
+}
+
+.system-builder-popup__system-only .sb-native-preview {
+    width: 100%;
+    min-height: 100%;
+    border: 0;
+    box-shadow: none;
+}
+
+.system-builder-popup__system-only .sb-native-preview__image {
+    min-height: 390px;
+}
+
+.system-builder-popup__status {
+    display: grid;
+    place-items: center;
+    min-height: 100%;
+    color: #061018;
+    background: #ffffff;
+    font-family: "Inter", "Arial", sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+@media screen and (max-width: 900px) {
+    .system-builder-popup__panel {
+        width: calc(100vw - 24px);
+        height: calc(100vh - 24px);
+        min-width: 0;
+        min-height: 0;
+    }
+}

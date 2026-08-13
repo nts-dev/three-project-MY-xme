@@ -1,0 +1,764 @@
+{
+  "589896": {
+    "assetName": "Wall",
+    "assetId": "8724",
+    "fbx": "block_brick_black_3_LOD2.fbx",
+    "textures": [
+      "cubeworld_tex.jpg"
+    ]
+  },
+  "589898": {
+    "assetName": "platform",
+    "assetId": "8725",
+    "fbx": "platform.fbx",
+    "textures": []
+  },
+  "593572": {
+    "assetName": "block_brick_black_1_LOD0",
+    "assetId": "8728",
+    "fbx": "block_brick_black_1_LOD0.fbx",
+    "textures": []
+  },
+  "593576": {
+    "assetName": "block_brick_black_1_LOD1",
+    "assetId": "8729",
+    "fbx": "block_brick_black_1_LOD1.fbx",
+    "textures": []
+  },
+  "593578": {
+    "assetName": "block_brick_black_1_LOD2",
+    "assetId": "8730",
+    "fbx": "block_brick_black_1_LOD2.fbx",
+    "textures": []
+  },
+  "593580": {
+    "assetName": "block_brick_black_2_LOD0",
+    "assetId": "8731",
+    "fbx": "block_brick_black_2_LOD0.fbx",
+    "textures": []
+  },
+  "593582": {
+    "assetName": "block_brick_black_2_LOD1",
+    "assetId": "8732",
+    "fbx": "block_brick_black_2_LOD1.fbx",
+    "textures": []
+  },
+  "593584": {
+    "assetName": "block_brick_black_2_LOD2",
+    "assetId": "8733",
+    "fbx": "block_brick_black_2_LOD2.fbx",
+    "textures": []
+  },
+  "593586": {
+    "assetName": "block_brick_black_3_LOD0",
+    "assetId": "8734",
+    "fbx": "block_brick_black_3_LOD0.fbx",
+    "textures": []
+  },
+  "593588": {
+    "assetName": "block_brick_black_3_LOD1",
+    "assetId": "8735",
+    "fbx": "block_brick_black_3_LOD1.fbx",
+    "textures": []
+  },
+  "593590": {
+    "assetName": "block_brick_black_3_LOD2",
+    "assetId": "8736",
+    "fbx": "block_brick_black_3_LOD2.fbx",
+    "textures": [
+      "cubeworld_tex.jpg"
+    ]
+  },
+  "593592": {
+    "assetName": "block_brick_black_4_LOD0",
+    "assetId": "8737",
+    "fbx": "block_brick_black_4_LOD0.fbx",
+    "textures": []
+  },
+  "593594": {
+    "assetName": "block_brick_black_4_LOD1",
+    "assetId": "8738",
+    "fbx": "block_brick_black_4_LOD1.fbx",
+    "textures": []
+  },
+  "593596": {
+    "assetName": "block_brick_black_4_LOD2",
+    "assetId": "8739",
+    "fbx": "block_brick_black_4_LOD2.fbx",
+    "textures": []
+  },
+  "593598": {
+    "assetName": "block_brick_brown_1_LOD0",
+    "assetId": "8740",
+    "fbx": "block_brick_brown_1_LOD0.fbx",
+    "textures": []
+  },
+  "593600": {
+    "assetName": "block_brick_brown_1_LOD1",
+    "assetId": "8741",
+    "fbx": "block_brick_brown_1_LOD1.fbx",
+    "textures": []
+  },
+  "593602": {
+    "assetName": "block_brick_brown_1_LOD2",
+    "assetId": "8742",
+    "fbx": "block_brick_brown_1_LOD2.fbx",
+    "textures": []
+  },
+  "593610": {
+    "assetName": "Character1",
+    "assetId": "8743",
+    "fbx": "Character1.fbx",
+    "textures": []
+  },
+  "593612": {
+    "assetName": "block_brick_brown_2_LOD0",
+    "assetId": "8744",
+    "fbx": "block_brick_brown_2_LOD0.fbx",
+    "textures": []
+  },
+  "593614": {
+    "assetName": "arrow_diamond_LOD0",
+    "assetId": "8745",
+    "fbx": "arrow_diamond_LOD0.fbx",
+    "textures": []
+  },
+  "593618": {
+    "assetName": "powerup_coin_1_LOD0",
+    "assetId": "8746",
+    "fbx": "powerup_coin_1_LOD0.fbx",
+    "textures": []
+  },
+  "593620": {
+    "assetName": "powerup_coin_1_LOD1",
+    "assetId": "8747",
+    "fbx": "powerup_coin_1_LOD1.fbx",
+    "textures": []
+  },
+  "593622": {
+    "assetName": "powerup_coin_1_LOD2",
+    "assetId": "8748",
+    "fbx": "powerup_coin_1_LOD2.fbx",
+    "textures": []
+  },
+  "604116": {
+    "assetName": "tavern_ladder_LOD0",
+    "assetId": "8749",
+    "fbx": "tavern_ladder_LOD0.fbx",
+    "textures": []
+  },
+  "604438": {
+    "assetName": "Tile",
+    "assetId": "8750",
+    "fbx": "Tile.fbx",
+    "textures": [
+      "cobble-stone.png"
+    ]
+  },
+  "608356": {
+    "assetName": "tavern_ladder_LOD1",
+    "assetId": "8751",
+    "fbx": "tavern_ladder_LOD1.fbx",
+    "textures": []
+  },
+  "608358": {
+    "assetName": "tavern_ladder_LOD2",
+    "assetId": "8752",
+    "fbx": "tavern_ladder_LOD2.fbx",
+    "textures": []
+  },
+  "608364": {
+    "assetName": "sandstone_stair_corner_conc_LOD0",
+    "assetId": "8753",
+    "fbx": "sandstone_stair_corner_conc_LOD0.fbx",
+    "textures": []
+  },
+  "608366": {
+    "assetName": "sandstone_stair_corner_conc_LOD1",
+    "assetId": "8754",
+    "fbx": "sandstone_stair_corner_conc_LOD1.fbx",
+    "textures": []
+  },
+  "608368": {
+    "assetName": "sandstone_stair_corner_conc_LOD2",
+    "assetId": "8755",
+    "fbx": "sandstone_stair_corner_conc_LOD2.fbx",
+    "textures": []
+  },
+  "608370": {
+    "assetName": "sandstone_stair_corner_conv_LOD0",
+    "assetId": "8756",
+    "fbx": "sandstone_stair_corner_conv_LOD0.fbx",
+    "textures": []
+  },
+  "608372": {
+    "assetName": "sandstone_stair_corner_conv_LOD1",
+    "assetId": "8757",
+    "fbx": "sandstone_stair_corner_conv_LOD1.fbx",
+    "textures": []
+  },
+  "608374": {
+    "assetName": "sandstone_stair_corner_conv_LOD2",
+    "assetId": "8758",
+    "fbx": "sandstone_stair_corner_conv_LOD2.fbx",
+    "textures": []
+  },
+  "608376": {
+    "assetName": "sandstone_stair_straight_LOD0",
+    "assetId": "8759",
+    "fbx": "sandstone_stair_straight_LOD0.fbx",
+    "textures": []
+  },
+  "608378": {
+    "assetName": "sandstone_stair_straight_LOD1",
+    "assetId": "8760",
+    "fbx": "sandstone_stair_straight_LOD1.fbx",
+    "textures": []
+  },
+  "608380": {
+    "assetName": "sandstone_stair_straight_LOD2",
+    "assetId": "8761",
+    "fbx": "sandstone_stair_straight_LOD2.fbx",
+    "textures": []
+  },
+  "608382": {
+    "assetName": "sandstone_ricks_small_LOD0",
+    "assetId": "8762",
+    "fbx": "sandstone_ricks_small_LOD0.fbx",
+    "textures": []
+  },
+  "608386": {
+    "assetName": "sandstone_ricks_small_LOD1",
+    "assetId": "8763",
+    "fbx": "sandstone_ricks_small_LOD1.fbx",
+    "textures": []
+  },
+  "608388": {
+    "assetName": "sandstone_ricks_small_LOD2",
+    "assetId": "8764",
+    "fbx": "sandstone_pillar_top_LOD0.fbx",
+    "textures": []
+  },
+  "608398": {
+    "assetName": "sandstone_pillar_top_LOD0",
+    "assetId": "8765",
+    "fbx": "sandstone_pillar_top_LOD0.fbx",
+    "textures": []
+  },
+  "608400": {
+    "assetName": "sandstone_pillar_top_LOD1",
+    "assetId": "8766",
+    "fbx": "sandstone_pillar_top_LOD1.fbx",
+    "textures": []
+  },
+  "608402": {
+    "assetName": "sandstone_pillar_top_LOD2",
+    "assetId": "8767",
+    "fbx": "sandstone_pillar_top_LOD2.fbx",
+    "textures": []
+  },
+  "608404": {
+    "assetName": "sandstone_pillar_LOD0",
+    "assetId": "8768",
+    "fbx": "sandstone_pillar_LOD0.fbx",
+    "textures": []
+  },
+  "608406": {
+    "assetName": "sandstone_pillar_LOD1",
+    "assetId": "8769",
+    "fbx": "sandstone_pillar_LOD1.fbx",
+    "textures": []
+  },
+  "608408": {
+    "assetName": "sandstone_pillar_LOD2",
+    "assetId": "8770",
+    "fbx": "sandstone_pillar_LOD2.fbx",
+    "textures": []
+  },
+  "608942": {
+    "assetName": "sandstone_pillar_deco2_LOD0",
+    "assetId": "8771",
+    "fbx": "sandstone_pillar_deco2_LOD0.fbx",
+    "textures": []
+  },
+  "608944": {
+    "assetName": "sandstone_pillar_deco2_LOD1",
+    "assetId": "8772",
+    "fbx": "sandstone_pillar_deco2_LOD1.fbx",
+    "textures": []
+  },
+  "608946": {
+    "assetName": "sandstone_pillar_deco2_LOD2",
+    "assetId": "8773",
+    "fbx": "sandstone_pillar_deco2_LOD2.fbx",
+    "textures": []
+  },
+  "609108": {
+    "assetName": "palm_tree_big_LOD0",
+    "assetId": "8774",
+    "fbx": "palm_tree_big_LOD0.fbx",
+    "textures": []
+  },
+  "609110": {
+    "assetName": "palm_tree_big_LOD1",
+    "assetId": "8775",
+    "fbx": "palm_tree_big_LOD1.fbx",
+    "textures": []
+  },
+  "609112": {
+    "assetName": "palm_tree_big_LOD2",
+    "assetId": "8776",
+    "fbx": "palm_tree_big_LOD2.fbx",
+    "textures": []
+  },
+  "609114": {
+    "assetName": "palm_tree_big_LOD3",
+    "assetId": "8777",
+    "fbx": "palm_tree_big_LOD3.fbx",
+    "textures": []
+  },
+  "609116": {
+    "assetName": "block_brick_brown_2_LOD1",
+    "assetId": "8778",
+    "fbx": "block_brick_brown_2_LOD1.fbx",
+    "textures": []
+  },
+  "609118": {
+    "assetName": "block_brick_brown_2_LOD2",
+    "assetId": "8779",
+    "fbx": "block_brick_brown_2_LOD2.fbx",
+    "textures": []
+  },
+  "609120": {
+    "assetName": "block_brick_brown_3_LOD0",
+    "assetId": "8780",
+    "fbx": "block_brick_brown_3_LOD0.fbx",
+    "textures": []
+  },
+  "609122": {
+    "assetName": "block_brick_brown_3_LOD2",
+    "assetId": "8781",
+    "fbx": "block_brick_brown_3_LOD2.fbx",
+    "textures": []
+  },
+  "609124": {
+    "assetName": "block_brick_brown_3_LOD1",
+    "assetId": "8782",
+    "fbx": "block_brick_brown_3_LOD1.fbx",
+    "textures": []
+  },
+  "609126": {
+    "assetName": "block_brick_brown_4_LOD0",
+    "assetId": "8783",
+    "fbx": "block_brick_brown_4_LOD0.fbx",
+    "textures": []
+  },
+  "609128": {
+    "assetName": "block_brick_brown_4_LOD1",
+    "assetId": "8784",
+    "fbx": "block_brick_brown_4_LOD1.fbx",
+    "textures": []
+  },
+  "609130": {
+    "assetName": "block_brick_brown_4_LOD2",
+    "assetId": "8785",
+    "fbx": "block_brick_brown_4_LOD2.fbx",
+    "textures": []
+  },
+  "609134": {
+    "assetName": "bed_rock",
+    "assetId": "8786",
+    "fbx": "bed_rock.fbx",
+    "textures": []
+  },
+  "609136": {
+    "assetName": "wall_torch",
+    "assetId": "8787",
+    "fbx": "wall_torch.fbx",
+    "textures": []
+  },
+  "609288": {
+    "assetName": "tavern_ladder",
+    "assetId": "8788",
+    "fbx": "tavern_ladder.fbx",
+    "textures": []
+  },
+  "609290": {
+    "assetName": "palm_tree_big_red_LOD0",
+    "assetId": "8789",
+    "fbx": "palm_tree_big_red_LOD0.fbx",
+    "textures": []
+  },
+  "609292": {
+    "assetName": "palm_tree_big_red_LOD1",
+    "assetId": "8790",
+    "fbx": "palm_tree_big_red_LOD1.fbx",
+    "textures": []
+  },
+  "609294": {
+    "assetName": "palm_tree_big_red_LOD2",
+    "assetId": "8791",
+    "fbx": "palm_tree_big_red_LOD2.fbx",
+    "textures": []
+  },
+  "609296": {
+    "assetName": "palm_tree_big_red_LOD3",
+    "assetId": "8792",
+    "fbx": "palm_tree_big_red_LOD3.fbx",
+    "textures": []
+  },
+  "609298": {
+    "assetName": "coop_door_LOD0",
+    "assetId": "8793",
+    "fbx": "coop_door_LOD0.fbx",
+    "textures": []
+  },
+  "609300": {
+    "assetName": "coop_door_LOD1",
+    "assetId": "8794",
+    "fbx": "coop_door_LOD1.fbx",
+    "textures": []
+  },
+  "609302": {
+    "assetName": "coop_door_LOD2",
+    "assetId": "8795",
+    "fbx": "coop_door_LOD2.fbx",
+    "textures": []
+  },
+  "609308": {
+    "assetName": "barn_door_left_Open_animation",
+    "assetId": "8796",
+    "fbx": "barn_door_left_Open_animation.fbx",
+    "textures": []
+  },
+  "609326": {
+    "assetName": "barn_door_right_Open_animation",
+    "assetId": "8797",
+    "fbx": "barn_door_right_Open_animation.fbx",
+    "textures": []
+  },
+  "609328": {
+    "assetName": "barn_door_rounded_frame_LOD0",
+    "assetId": "8798",
+    "fbx": "barn_door_rounded_frame_LOD0.fbx",
+    "textures": []
+  },
+  "609330": {
+    "assetName": "barn_door_rounded_left_Open_animation",
+    "assetId": "8799",
+    "fbx": "barn_door_rounded_left_Open_animation.fbx",
+    "textures": []
+  },
+  "609332": {
+    "assetName": "barn_door_rounded_Open_animation",
+    "assetId": "8800",
+    "fbx": "barn_door_rounded_Open_animation.fbx",
+    "textures": []
+  },
+  "609334": {
+    "assetName": "barn_doorframe_LOD0",
+    "assetId": "8801",
+    "fbx": "barn_doorframe_LOD0.fbx",
+    "textures": []
+  },
+  "609336": {
+    "assetName": "barn_door_rounded_right_open_animation",
+    "assetId": "8802",
+    "fbx": "barn_door_rounded_right_open_animation.fbx",
+    "textures": []
+  },
+  "609338": {
+    "assetName": "barn_doubledoor_rounded_frame_LOD0",
+    "assetId": "8803",
+    "fbx": "barn_doubledoor_rounded_frame_LOD0.fbx",
+    "textures": []
+  },
+  "609346": {
+    "assetName": "crop_carrot_1",
+    "assetId": "8804",
+    "fbx": "crop_carrot_1.fbx",
+    "textures": []
+  },
+  "609348": {
+    "assetName": "crop_carrot_2",
+    "assetId": "8805",
+    "fbx": "crop_carrot_2.fbx",
+    "textures": []
+  },
+  "609388": {
+    "assetName": "crop_carrot_3_Animated",
+    "assetId": "8806",
+    "fbx": "crop_carrot_3_Animated.fbx",
+    "textures": []
+  },
+  "609398": {
+    "assetName": "sack_carrots_LOD0",
+    "assetId": "8807",
+    "fbx": "sack_carrots_LOD0.fbx",
+    "textures": []
+  },
+  "609402": {
+    "assetName": "crop_carrot_sign_LOD0",
+    "assetId": "8808",
+    "fbx": "crop_carrot_sign_LOD0.fbx",
+    "textures": []
+  },
+  "609404": {
+    "assetName": "crop_corn_1_LOD0",
+    "assetId": "8809",
+    "fbx": "crop_corn_1_LOD0.fbx",
+    "textures": []
+  },
+  "609412": {
+    "assetName": "crop_corn_2_LOD0",
+    "assetId": "8810",
+    "fbx": "crop_corn_2_LOD0.fbx",
+    "textures": []
+  },
+  "609414": {
+    "assetName": "crop_corn_single_LOD0",
+    "assetId": "8811",
+    "fbx": "crop_corn_single_LOD0.fbx",
+    "textures": []
+  },
+  "609416": {
+    "assetName": "crop_corn_sack_LOD0",
+    "assetId": "8812",
+    "fbx": "crop_corn_sack_LOD0.fbx",
+    "textures": []
+  },
+  "609418": {
+    "assetName": "crop_corn_sign_LOD0",
+    "assetId": "8813",
+    "fbx": "crop_corn_sign_LOD0.fbx",
+    "textures": []
+  },
+  "609420": {
+    "assetName": "crop_ground_lines_LOD0",
+    "assetId": "8814",
+    "fbx": "crop_ground_lines_LOD0.fbx",
+    "textures": []
+  },
+  "609422": {
+    "assetName": "crop_ground_mounds_LOD0",
+    "assetId": "8815",
+    "fbx": "crop_ground_mounds_LOD0.fbx",
+    "textures": []
+  },
+  "609424": {
+    "assetName": "crop_potato_1_LOD0",
+    "assetId": "8816",
+    "fbx": "crop_potato_1_LOD0.fbx",
+    "textures": []
+  },
+  "609426": {
+    "assetName": "crop_potato_2_LOD0",
+    "assetId": "8817",
+    "fbx": "crop_potato_2_LOD0.fbx",
+    "textures": []
+  },
+  "609648": {
+    "assetName": "crop_potato_3_LOD0",
+    "assetId": "8818",
+    "fbx": "crop_potato_3_LOD0.fbx",
+    "textures": []
+  },
+  "609664": {
+    "assetName": "crop_potato_sack_LOD0",
+    "assetId": "8819",
+    "fbx": "crop_potato_sack_LOD0.fbx",
+    "textures": []
+  },
+  "609666": {
+    "assetName": "crop_potato_sign_LOD0",
+    "assetId": "8820",
+    "fbx": "crop_potato_sign_LOD0.fbx",
+    "textures": []
+  },
+  "609668": {
+    "assetName": "crop_potato_single_LOD0",
+    "assetId": "8821",
+    "fbx": "crop_potato_single_LOD0.fbx",
+    "textures": []
+  },
+  "609670": {
+    "assetName": "crop_salad_1_LOD0",
+    "assetId": "8822",
+    "fbx": "crop_salad_1_LOD0.fbx",
+    "textures": []
+  },
+  "609672": {
+    "assetName": "crop_salad_2_LOD0",
+    "assetId": "8823",
+    "fbx": "crop_salad_2_LOD0.fbx",
+    "textures": []
+  },
+  "609674": {
+    "assetName": "crop_salad_3_LOD0",
+    "assetId": "8824",
+    "fbx": "crop_salad_3_LOD0.fbx",
+    "textures": []
+  },
+  "609676": {
+    "assetName": "Potatoes in sack",
+    "assetId": "8825",
+    "fbx": "crop_salad_sack_LOD0.fbx",
+    "textures": []
+  },
+  "609678": {
+    "assetName": "crop_salad_single_LOD0",
+    "assetId": "8826",
+    "fbx": "crop_salad_single_LOD0.fbx",
+    "textures": []
+  },
+  "609680": {
+    "assetName": "crop_salad_single_LOD0",
+    "assetId": "8827",
+    "fbx": "crop_salad_single_LOD0.fbx",
+    "textures": []
+  },
+  "609784": {
+    "assetName": "crop_tomato_1_LOD0",
+    "assetId": "8828",
+    "fbx": "crop_tomato_1_LOD0.fbx",
+    "textures": []
+  },
+  "609786": {
+    "assetName": "crop_tomato_2_LOD0",
+    "assetId": "8829",
+    "fbx": "crop_tomato_2_LOD0.fbx",
+    "textures": []
+  },
+  "609788": {
+    "assetName": "crop_tomato_3_LOD0",
+    "assetId": "8830",
+    "fbx": "crop_tomato_3_LOD0.fbx",
+    "textures": []
+  },
+  "609790": {
+    "assetName": "sack_tomatoes_LOD0",
+    "assetId": "8831",
+    "fbx": "sack_tomatoes_LOD0.fbx",
+    "textures": []
+  },
+  "609794": {
+    "assetName": "banana_tree_big_LOD0",
+    "assetId": "8832",
+    "fbx": "banana_tree_big_LOD0.fbx",
+    "textures": []
+  },
+  "609850": {
+    "assetName": "banana_tree_big_1",
+    "assetId": "8834",
+    "fbx": "banana_tree_big_1.fbx",
+    "textures": []
+  },
+  "609852": {
+    "assetName": "palm_tree_big",
+    "assetId": "8833",
+    "fbx": "palm_tree_big.fbx",
+    "textures": []
+  },
+  "609856": {
+    "assetName": "banana_tree_big",
+    "assetId": "8835",
+    "fbx": "banana_tree_big.fbx",
+    "textures": []
+  },
+  "610138": {
+    "assetName": "powerup_booster",
+    "assetId": "8837",
+    "fbx": "powerup_booster.fbx",
+    "textures": []
+  },
+  "610160": {
+    "assetName": "Frog Enemy Animation",
+    "assetId": "8838",
+    "fbx": "Frog Enemy Animation.fbx",
+    "textures": []
+  },
+  "610246": {
+    "assetName": "Palm Tree Animated",
+    "assetId": "8839",
+    "fbx": "Palm tree animated 2.fbx",
+    "textures": []
+  },
+  "610248": {
+    "assetName": "Palm tree animated 2",
+    "assetId": "8840",
+    "fbx": "Palm tree animated 2.fbx",
+    "textures": []
+  },
+  "611048": {
+    "assetName": "Location",
+    "assetId": "8842",
+    "fbx": "Location.FBX",
+    "textures": []
+  },
+  "611062": {
+    "assetName": "Location Animation 1",
+    "assetId": "8841",
+    "fbx": "Location Animation 1.fbx",
+    "textures": []
+  },
+  "611066": {
+    "assetName": "powerup_coin_1",
+    "assetId": "8843",
+    "fbx": "powerup_coin_1.fbx",
+    "textures": []
+  },
+  "611070": {
+    "assetName": "powerup_booster_2",
+    "assetId": "8844",
+    "fbx": "powerup_booster_2.fbx",
+    "textures": []
+  },
+  "611386": {
+    "assetName": "Black Ramp",
+    "assetId": "8845",
+    "fbx": "Black Ramp.fbx",
+    "textures": []
+  },
+  "611388": {
+    "assetName": "Brown Ramp",
+    "assetId": "8846",
+    "fbx": "Brown Ramp.fbx",
+    "textures": []
+  },
+  "611390": {
+    "assetName": "Frog Enemy Head Animation",
+    "assetId": "8847",
+    "fbx": "Frog Enemy Head Animation.fbx",
+    "textures": []
+  },
+  "611392": {
+    "assetName": "Frog Arrow Animation",
+    "assetId": "8848",
+    "fbx": "Frog Arrow Animation.fbx",
+    "textures": []
+  },
+  "611416": {
+    "assetName": "Gold Key",
+    "assetId": "8849",
+    "fbx": "Gold Key.fbx",
+    "textures": []
+  },
+  "611438": {
+    "assetName": "Arrow",
+    "assetId": "8850",
+    "fbx": "Arrow.fbx",
+    "textures": []
+  },
+  "611440": {
+    "assetName": "TNT Bomb",
+    "assetId": "8851",
+    "fbx": "TNT Bomb.fbx",
+    "textures": []
+  },
+  "611500": {
+    "assetName": "Barn Door Animated",
+    "assetId": "8852",
+    "fbx": "Barn Door Animated.fbx",
+    "textures": []
+  }
+}

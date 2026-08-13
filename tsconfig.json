@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",                         // Modern output
+    "module": "ESNext",                         // Let Vite handle modules
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],   // Full modern API support
+    "jsx": "react-jsx",                         // For React 17+ JSX transform
+    "strict": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "typeRoots": [
+      "./node_modules/@types",
+      "./src/types"
+    ],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true, // optional, but some libs need it
+    "useDefineForClassFields": false // often needed with decorators
+  },
+  "include": ["src/**/*"],
+  "types": [
+    "@react-three/fiber",
+    "@types/three",
+    "vite/client",
+    "three"
+  ]
+}

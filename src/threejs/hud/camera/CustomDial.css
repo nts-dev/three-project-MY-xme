@@ -1,0 +1,58 @@
+.custom-speed-dial {
+    position: relative;
+    display: inline-block;
+}
+.camera-buttons {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    right: 0.8rem;
+    bottom: 12rem;
+    z-index: 9;
+}
+.speed-dial-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    /*background-color: #007bff;*/
+    /*color: white;*/
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s;
+}
+
+/*.speed-dial-button:hover {*/
+/*    background-color: #e9ecef;*/
+/*}*/
+
+.speed-dial-items {
+    transform: translateY(calc(-100% - 50px));
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    gap: 1.2rem;
+    width: 100%;
+    /*transform: translate(-50%, -50%);*/
+}
+
+.speed-dial-item {
+    border-radius: 60%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s;
+    padding: 0.5rem
+}
+
+/*.speed-dial-item:hover {*/
+/*    background-color: #e9ecef;*/
+/*}*/
+
+/*.speed-dial-item i {*/
+/*    margin-right: 8px;*/
+/*}*/

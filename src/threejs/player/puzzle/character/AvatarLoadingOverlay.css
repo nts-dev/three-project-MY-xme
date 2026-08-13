@@ -1,0 +1,95 @@
+.avatar-loading-hud-root {
+    position: relative;
+    z-index: 2147483000;
+}
+
+.avatar-loading-overlay {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 2147483000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: none !important;
+    pointer-events: none;
+    isolation: isolate;
+    contain: layout paint style;
+    background:
+        radial-gradient(circle at 50% 52%, rgba(39, 235, 235, 0.14), transparent 28%),
+        rgba(0, 8, 10, 0.58);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+
+.avatar-loading-panel {
+    position: relative;
+    width: min(280px, calc(100vw - 40px));
+    min-height: 150px;
+    padding: 24px 28px 22px;
+    border: 1px solid rgba(41, 238, 238, 0.52);
+    background: linear-gradient(135deg, rgba(3, 18, 20, 0.9), rgba(5, 13, 15, 0.74));
+    box-shadow:
+        0 0 26px rgba(30, 230, 232, 0.22),
+        inset 0 0 22px rgba(30, 230, 232, 0.08);
+    color: #31f4f4;
+    text-align: center;
+    font-family: var(--game-hud-font, "PlayRegular", monospace);
+}
+
+.avatar-loading-panel__dot {
+    display: block;
+    width: 12px;
+    height: 12px;
+    margin: 0 auto 16px;
+    background: #31f4f4;
+    box-shadow: 0 0 14px rgba(49, 244, 244, 0.9);
+}
+
+.avatar-loading-panel__title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-shadow: 0 0 10px rgba(49, 244, 244, 0.65);
+}
+
+.avatar-loading-panel__text {
+    margin-top: 12px;
+    color: rgba(218, 247, 247, 0.86);
+    font-size: 11px;
+}
+
+.avatar-loading-ring {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    margin: 18px auto 0;
+}
+
+.avatar-loading-ring__track {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid transparent;
+}
+
+.avatar-loading-ring__track--outer {
+    border-top-color: #31f4f4;
+    border-right-color: rgba(49, 244, 244, 0.24);
+    animation: avatar-loading-spin 0.9s linear infinite;
+}
+
+.avatar-loading-ring__track--inner {
+    inset: 10px;
+    border-bottom-color: #f8e84b;
+    border-left-color: rgba(248, 232, 75, 0.24);
+    animation: avatar-loading-spin 1.4s linear infinite reverse;
+}
+
+@keyframes avatar-loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

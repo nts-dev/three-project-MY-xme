@@ -1,0 +1,270 @@
+.project-tile-landing {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    overflow: auto;
+    background:
+        linear-gradient(90deg, rgba(19, 78, 105, 0.045) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(19, 78, 105, 0.04) 1px, transparent 1px),
+        linear-gradient(135deg, rgba(7, 33, 64, 0.05) 0 22%, transparent 22% 100%),
+        #f4f7fb;
+    background-size: 48px 48px, 48px 48px, 100% 100%, auto;
+    color: #071b39;
+    font-family: Roboto, Arial, sans-serif;
+}
+
+.project-tile-landing::before {
+    content: "";
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    width: min(58vw, 920px);
+    height: min(52vh, 520px);
+    pointer-events: none;
+    background:
+        linear-gradient(90deg, transparent 0 18%, rgba(13, 112, 138, 0.12) 18% 18.5%, transparent 18.5% 34%, rgba(13, 112, 138, 0.09) 34% 34.4%, transparent 34.4%),
+        linear-gradient(0deg, transparent 0 28%, rgba(8, 45, 84, 0.1) 28% 28.5%, transparent 28.5% 54%, rgba(8, 45, 84, 0.08) 54% 54.5%, transparent 54.5%),
+        linear-gradient(135deg, transparent 0 49%, rgba(5, 123, 151, 0.09) 49% 50%, transparent 50% 100%);
+    opacity: 0.9;
+}
+
+.project-tile-landing::after {
+    content: "";
+    position: fixed;
+    inset: 68px 0 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(ellipse at 180px 132px, rgba(13, 38, 72, 0.16) 0, rgba(13, 38, 72, 0.08) 24%, transparent 58%),
+        radial-gradient(ellipse at 520px 144px, rgba(13, 38, 72, 0.12) 0, rgba(13, 38, 72, 0.06) 25%, transparent 56%),
+        linear-gradient(180deg, rgba(11, 31, 58, 0.08) 0, transparent 90px);
+    box-shadow:
+        inset 0 18px 34px rgba(9, 34, 66, 0.08),
+        inset 0 -42px 80px rgba(255, 255, 255, 0.46);
+}
+
+.project-tile-landing-header {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    min-height: 68px;
+    padding: 0 24px;
+    border-bottom: 1px solid rgba(163, 185, 209, 0.58);
+    background:
+        linear-gradient(90deg, #ffffff 0%, rgba(255, 255, 255, 0.82) 54%, rgba(235, 246, 250, 0.94) 100%);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.82) inset,
+        0 16px 42px rgba(20, 48, 82, 0.12);
+}
+
+.project-tile-landing-header h1 {
+    margin: 0;
+    color: #001b3f;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 0;
+}
+
+.project-tile-grid {
+    position: relative;
+    z-index: 1;
+    isolation: isolate;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(260px, 303px));
+    gap: 22px;
+    padding: 18px 24px;
+}
+
+.project-tile-grid::before {
+    content: "";
+    position: absolute;
+    top: 22px;
+    left: 18px;
+    width: min(680px, calc(100vw - 36px));
+    height: 330px;
+    z-index: -1;
+    pointer-events: none;
+    border-radius: 18px;
+    background:
+        linear-gradient(90deg, rgba(8, 31, 58, 0.08), rgba(8, 31, 58, 0.035) 52%, transparent),
+        radial-gradient(ellipse at 24% 46%, rgba(5, 32, 61, 0.16), transparent 62%);
+    filter: blur(18px);
+}
+
+.project-tile-card {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    padding: 16px 16px 15px;
+    border: 1px solid rgba(197, 215, 233, 0.92);
+    border-radius: 6px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.91)),
+        #ffffff;
+    box-shadow:
+        0 2px 3px rgba(31, 55, 83, 0.05),
+        0 18px 36px rgba(30, 62, 104, 0.16),
+        0 44px 90px rgba(30, 62, 104, 0.08);
+    cursor: pointer;
+    transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+    backdrop-filter: blur(4px);
+}
+
+.project-tile-card:hover,
+.project-tile-card:focus-within {
+    border-color: #9fc3dc;
+    box-shadow:
+        0 2px 4px rgba(31, 55, 83, 0.06),
+        0 22px 42px rgba(30, 62, 104, 0.2),
+        0 52px 100px rgba(30, 62, 104, 0.1);
+    transform: translateY(-1px);
+}
+
+.project-tile-thumbnail {
+    width: 100%;
+    aspect-ratio: 2.05 / 1;
+    overflow: hidden;
+    border-radius: 4px;
+    background: #d9dde1;
+    box-shadow: inset 0 0 0 1px rgba(8, 31, 54, 0.08);
+}
+
+.project-tile-thumbnail img,
+.project-tile-placeholder {
+    width: 100%;
+    height: 100%;
+}
+
+.project-tile-thumbnail img {
+    object-fit: cover;
+}
+
+.project-tile-placeholder {
+    background:
+        linear-gradient(155deg, rgba(5, 21, 28, 0.84), rgba(255, 255, 255, 0) 54%),
+        linear-gradient(25deg, #e4ecef 0 30%, #2d3a42 31% 45%, #f6f8f9 46% 64%, #121a20 65% 100%);
+}
+
+.project-tile-meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 12px;
+    color: #5c7ea9;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.project-tile-meta span {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.project-tile-card h2 {
+    margin: 13px 0 8px;
+    overflow: hidden;
+    color: #002250;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.project-tile-card p {
+    min-height: 16px;
+    margin: 0;
+    overflow: hidden;
+    color: #5f7faa;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.project-tile-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 17px;
+}
+
+.project-tile-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 84px;
+    height: 32px;
+    gap: 7px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.project-tile-view-button {
+    border: 1px solid #0899b4;
+    background: #0698b3;
+    color: #ffffff;
+}
+
+.project-tile-view-button:hover,
+.project-tile-view-button:focus-visible {
+    background: #057f99;
+}
+
+.project-tile-upload-button {
+    border: 1px solid #d5e0ee;
+    background: rgba(255, 255, 255, 0.86);
+    color: #285482;
+}
+
+.project-tile-upload-button:hover,
+.project-tile-upload-button:focus-visible {
+    border-color: #9fc3dc;
+    background: #f5fbff;
+}
+
+.project-tile-actions input {
+    display: none;
+}
+
+@media (max-width: 680px) {
+    .project-tile-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .project-tile-landing-header h1 {
+        font-size: 16px;
+    }
+}
+
+.project-viewer-back-button {
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 2000000;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid rgba(18, 42, 62, 0.22);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.9);
+    color: #07254a;
+    box-shadow: 0 8px 20px rgba(12, 28, 48, 0.18);
+    backdrop-filter: blur(8px);
+}
+
+.project-viewer-back-button:hover,
+.project-viewer-back-button:focus-visible {
+    background: #ffffff;
+    color: #0391ae;
+}

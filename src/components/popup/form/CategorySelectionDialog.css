@@ -1,0 +1,260 @@
+.asset-category-dialog.p-dialog {
+    width: min(380px, calc(100vw - 32px));
+    margin-top: 118px;
+    border: 1px solid #3a555c;
+    border-radius: 4px;
+    background: #1f2f35;
+    color: #f4f7f8;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.42);
+}
+
+.asset-category-dialog .p-dialog-header {
+    padding: 14px 16px 8px;
+    border-bottom: 1px solid #30484f;
+    background: #1f2f35;
+    color: #ffffff;
+    border-radius: 4px 4px 0 0;
+    font-size: 0.85rem;
+}
+
+.asset-category-dialog .p-dialog-content {
+    padding: 0 16px 14px;
+    background: #1f2f35;
+    color: #c6d4d8;
+}
+
+.asset-category-dialog .p-dialog-footer {
+    padding: 0 16px 16px;
+    border-top: 1px solid #30484f;
+    background: #1f2f35;
+    color: #f4f7f8;
+    border-radius: 0 0 4px 4px;
+}
+
+.asset-category-dialog .p-dialog-header-icon {
+    color: #f4f7f8;
+}
+
+.asset-category-dialog .p-dialog-header-icon:hover {
+    background: #2b4249;
+    color: #ffffff;
+}
+
+.asset-category-dialog-body {
+    display: grid;
+    gap: 12px;
+}
+
+.asset-category-dialog-message {
+    margin: 0;
+    color: #8fb8c0;
+    font-size: 0.85rem;
+}
+
+.asset-category-select-shell {
+    width: 100%;
+}
+
+.asset-category-select-button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 36px;
+    padding: 0 10px;
+    border: 1px solid #597178;
+    border-radius: 3px;
+    background: #2a2d35;
+    color: #ffffff;
+    font-size: 0.82rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.asset-category-select-button:hover,
+.asset-category-select-button:focus {
+    border-color: #78dbe8;
+    outline: none;
+    box-shadow: 0 0 0 1px rgba(120, 219, 232, 0.3);
+}
+
+.asset-category-tree-panel {
+    width: 100%;
+    margin-top: 6px;
+    border: 1px solid #405a62;
+    border-radius: 4px;
+    background: #22343a;
+    color: #f4f7f8;
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.46);
+}
+
+.asset-category-search-row {
+    display: grid;
+    grid-template-columns: 1fr 32px;
+    gap: 8px;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid #30484f;
+}
+
+.asset-category-search-box {
+    display: grid;
+    grid-template-columns: 1fr 24px;
+    align-items: center;
+    height: 38px;
+    border: 1px solid #597178;
+    border-radius: 4px;
+    background: #17242a;
+}
+
+.asset-category-search-box input {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    padding: 0 10px;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: #ffffff;
+    font-size: 0.82rem;
+}
+
+.asset-category-search-box input::placeholder {
+    color: #8da5ab;
+}
+
+.asset-category-search-box i {
+    color: #a8c5cc;
+    font-size: 0.9rem;
+}
+
+.asset-category-search-clear {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: #a8c5cc;
+    cursor: pointer;
+}
+
+.asset-category-search-clear:hover {
+    background: #2f4a52;
+    color: #ffffff;
+}
+
+.asset-category-tree-scroll {
+    max-height: min(272px, 34vh);
+    padding: 6px 8px 10px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-color: #78dbe8 #17282e;
+    scrollbar-width: thin;
+}
+
+.asset-category-tree-scroll::-webkit-scrollbar {
+    width: 8px;
+}
+
+.asset-category-tree-scroll::-webkit-scrollbar-track {
+    background: #17282e;
+}
+
+.asset-category-tree-scroll::-webkit-scrollbar-thumb {
+    background: #78dbe8;
+    border-radius: 999px;
+}
+
+.asset-category-tree-row {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    align-items: center;
+    min-height: 32px;
+    border-radius: 3px;
+    color: #e8f2f4;
+}
+
+.asset-category-tree-row:hover,
+.asset-category-tree-row.is-selected {
+    background: #2f4a52;
+    color: #ffffff;
+}
+
+.asset-category-tree-toggle,
+.asset-category-tree-label {
+    min-height: 30px;
+    border: 0;
+    background: transparent;
+}
+
+.asset-category-tree-toggle {
+    display: inline-grid;
+    place-items: center;
+    width: 20px;
+    padding: 0;
+    color: #9fd4dd;
+    cursor: pointer;
+}
+
+.asset-category-tree-toggle:disabled {
+    cursor: default;
+    opacity: 0.35;
+}
+
+.asset-category-tree-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 0 8px;
+    color: #e8f2f4;
+    font-size: 0.82rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.asset-category-tree-label:hover {
+    color: #ffffff;
+}
+
+.asset-category-node-icon {
+    width: 16px;
+    color: #9fd4dd;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.asset-category-empty {
+    padding: 12px;
+    color: #9eb3b8;
+    font-size: 0.82rem;
+}
+
+.asset-category-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.asset-category-dialog-actions .p-button {
+    min-height: 30px;
+    padding: 0.35rem 0.75rem;
+    border-radius: 3px;
+    font-size: 0.82rem;
+}
+
+.asset-category-dialog-actions .p-button:not(.p-button-text) {
+    border-color: #4dc6d7;
+    background: #2a6f7a;
+}
+
+.asset-category-dialog-actions .p-button:not(.p-button-text):enabled:hover {
+    border-color: #67e2ef;
+    background: #327f8b;
+}
+
+.asset-category-dialog-actions .p-button-text {
+    color: #ffffff;
+}

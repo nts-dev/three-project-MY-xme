@@ -1,0 +1,144 @@
+/* Define the local font */
+@font-face {
+    font-family: 'PlayRegular';
+    src: url('./Play-Regular.ttf') format('truetype'); /* Adjust path as needed */
+}
+
+/* Leaderboard Container */
+.leaderboard-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background:
+            linear-gradient(to right, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.2) 40%, rgba(0, 0, 0, 0) 100%),
+            linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)),
+            url("./BG.png") no-repeat left center;
+    background-size: cover;
+    opacity: 0.82;
+    font-family: 'PlayRegular', sans-serif; /* Use the local font */
+    color: #ffffff;
+    z-index: 99999; /* ensure it's above canvas or other layers */
+    overflow-y: auto; /* scroll if content exceeds height */
+}
+
+.leaderboard-title {
+    font-size: 2.5rem;
+    text-align: center;
+    /*margin-bottom: 30px;*/
+    color: #4da3ff;
+    /*text-shadow: 0 0 10px #4da3ff;*/
+}
+
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    /*background-color: rgba(20, 20, 30, 0.9);*/
+    /*box-shadow: 0 0 20px rgba(77, 163, 255, 0.3);*/
+    border-radius: 8px;
+    cursor: pointer;
+    overflow: hidden;
+    color: #fff;
+}
+
+.leaderboard-table th {
+    padding: 0.1rem 0.1rem;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    text-transform: uppercase;
+}
+
+.leaderboard-table td {
+    padding: 0.1rem 0.1rem;
+    text-align: center;
+}
+
+.leaderboard-table th {
+    /*background-color: rgba(30, 30, 50, 0.9);*/
+    color: #4da3ff;
+    font-weight: 600;
+    /*text-shadow: 0 0 6px #4da3ff;*/
+}
+
+.leaderboard-table tbody tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.leaderboard-table tbody tr:hover {
+    background-color: rgba(253, 36, 36, 0.41);
+}
+
+.close-button {
+    position: absolute;
+    top: 3rem;
+    right: 28rem;
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    color: #ffffff;
+    cursor: pointer;
+    z-index: 100001;
+    text-shadow: 0 0 6px #4da3ff;
+}
+
+.back-button {
+    position: absolute;
+    bottom: 17.5rem;
+    right: 27rem;
+    /* background-color: #4da3ff; */
+    color: #4da3ff; /* Blue text color */
+    border: 2px solid #4da3ff; /* Blue border, 2px width */
+    padding: 10px 20px;
+    font-family: 'PlayRegular', sans-serif; /* Use the local font */
+    font-size: 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    /* box-shadow: 0 0 10px #4da3ff; */
+    transition: background 0.3s ease;
+}
+
+.back-button:hover {
+    background-color: #3390ff;
+}
+
+.leaderboard-scroll-wrapper {
+    overflow-y: auto;
+    background: url("./15Leaderboards.png") no-repeat left center;
+    background-size: 100% 100%; /* scales image to fill the div */
+    padding: 2.5rem 2rem;
+    width: 60%;
+    height: 75%;
+}
+
+/* Media query for smaller screens (e.g., phones) */
+@media (max-width: 768px) {
+    .leaderboard-scroll-wrapper {
+        width: 95%;
+    }
+    .leaderboard-table th {
+        font-size: 0.9rem;
+    }
+    .close-button {
+    display: none;
+    }
+    .back-button {
+        bottom: 16rem;
+        right: 2rem;
+    }
+    .leaderboard-table tr {
+        font-size: 0.8rem;
+        text-wrap: nowrap;
+        /*text-shadow: 0 0 6px #4da3ff;*/
+    }
+    .leaderboard-table td {
+        padding: 0.1rem 0.1rem;
+        text-align: center;
+        max-width: 0.8rem;
+        text-overflow: ellipsis;
+        overflow: hidden;
+    }
+}

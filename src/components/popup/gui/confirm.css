@@ -1,0 +1,242 @@
+@font-face {
+    font-family: 'PlayRegular';
+    src: url('./Play-Regular.ttf') format('truetype');
+}
+.game-header{
+    display: none;
+}
+
+.game-token-header{
+    width: 100%;
+    text-align: center;
+    background: transparent !important;
+}
+.p-component-overlay-enter{
+    z-index: 999999999 !important;
+}
+
+/* Dialog wrapper with background image */
+.game-dialog .p-dialog {
+    border: none;
+    z-index: 99999999 !important;
+    border-radius: 0;
+    background: url("./bg1.png") no-repeat left center;
+    background-size:100% 100%; /* scales image to fill the div */
+    box-shadow: none;
+    width: 30rem;
+    height: 10rem;
+    align-items: center;
+}
+
+.game-dialog .p-dialog-content {
+    background: transparent;
+
+    opacity: 0.82;
+    padding: 40px 30px 60px; /* adjust to fit your bg image spacing */
+    font-family: 'PlayRegular', sans-serif;
+    color: #fff;
+    text-align: center;
+    /*min-width: 360px; !* force size to fit bg1.png *!*/
+    /*min-height: 200px;*/
+}
+
+.p-dialog-content-info {
+    background: transparent;
+
+    opacity: 0.82;
+
+    font-family: 'PlayRegular', sans-serif;
+    color: #fff;
+    text-align: center;
+    /*min-width: 360px; !* force size to fit bg1.png *!*/
+    /*min-height: 200px;*/
+}
+
+/* Message text */
+.game-message {
+    font-size: 1.2rem;
+    margin-bottom: 30px;
+}
+.game-dialog-token{
+    border: none;
+    z-index: 99999999 !important;
+    border-radius: 0;
+    background: url("./bg1.png") no-repeat left center !important;
+    background-size:100% 100%; /* scales image to fill the div */
+    box-shadow: none !important;
+
+    align-items: center !important;
+    font-size: 0.8rem;
+}
+.game-dialog-token .p-dialog-footer {
+    background: transparent !important;
+    border: none;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    padding: 0;
+    margin-bottom: -0.5rem;
+}
+.game-dialog-token .p-dialog-content {
+    background: transparent;
+
+    opacity: 0.82;
+    padding: 40px 30px 60px; /* adjust to fit your bg image spacing */
+    font-family: 'PlayRegular', sans-serif;
+    color: #fff;
+    text-align: center;
+    /*min-width: 360px; !* force size to fit bg1.png *!*/
+    /*min-height: 200px;*/
+}
+
+.inventory-action-dialog {
+    overflow: visible !important;
+    transform-origin: top center;
+    animation: inventory-action-pop 360ms cubic-bezier(0.2, 0.95, 0.25, 1.2);
+}
+
+.inventory-action-dialog .p-dialog-header {
+    padding: 1rem 1.25rem 0.35rem;
+    border: 0;
+    color: #ffffff;
+}
+
+.inventory-action-dialog .p-dialog-title {
+    width: 100%;
+    text-align: center;
+    font-size: 0.95rem;
+    letter-spacing: 0;
+    text-shadow: 0 1px 0 #000, 0 0 12px rgba(42, 199, 255, 0.42);
+}
+
+.inventory-action-dialog .p-dialog-header-icons {
+    position: absolute;
+    right: 0.75rem;
+    top: 0.62rem;
+}
+
+.inventory-action-dialog .p-dialog-header-icon {
+    width: 1.7rem;
+    height: 1.7rem;
+    color: #ffffff;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.02)),
+        rgba(18, 19, 23, 0.92);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.34);
+    transition: transform 180ms ease, border-color 180ms ease;
+}
+
+.inventory-action-dialog .p-dialog-header-icon:hover {
+    transform: translateY(-1px) scale(1.06);
+    border-color: rgba(42, 199, 255, 0.9);
+}
+
+.inventory-action-dialog .p-dialog-content {
+    opacity: 1;
+    min-height: 5.3rem;
+    padding: 0.65rem 2rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.inventory-action-message {
+    max-width: 24rem;
+    color: #ffffff;
+    font-family: 'PlayRegular', sans-serif;
+    font-size: 1rem;
+    line-height: 1.35;
+    text-align: center;
+    text-shadow: 0 1px 0 #000, 0 0 10px rgba(42, 199, 255, 0.36);
+}
+
+.inventory-action-dialog .p-dialog-footer {
+    padding: 0 1.2rem 1.15rem;
+    margin-bottom: 0;
+}
+
+.inventory-action-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.35rem 0.55rem;
+}
+
+.inventory-action-footer > div {
+    display: inline-flex;
+}
+
+.inventory-action-btn.game-btn {
+    width: 6.85rem;
+    height: 2.65rem;
+    font-size: 0.78rem;
+    text-transform: none;
+    color: #d8dde2;
+    filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.28));
+}
+
+.inventory-action-btn.game-btn .p-button-icon {
+    font-size: 0.75rem;
+}
+
+@keyframes inventory-action-pop {
+    0% {
+        opacity: 0;
+        transform: translateY(-16px) scale(0.94);
+        filter: blur(6px);
+    }
+    70% {
+        opacity: 1;
+        transform: translateY(2px) scale(1.015);
+        filter: blur(0);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
+}
+
+/* Footer with transparent bg */
+.game-dialog .p-dialog-footer {
+    background: transparent;
+    border: none;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    padding: 0;
+    margin-bottom: -0.5rem;
+}
+
+/* Button base */
+.game-btn {
+    border: none;
+    background: transparent;
+    font-family: 'PlayRegular', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    width: 120px;   /* match btn0/btn1 size */
+    height: 45px;
+    text-transform: uppercase;
+    background: url('./btn0.png') no-repeat center center;
+    background-size: contain;
+    color: #aaa;
+    transition: all 0.2s ease;
+}
+
+/* Hover / active state → btn1 */
+.game-btn.p-button:hover,
+.game-btn.p-button:focus,
+.game-btn.p-button:active {
+    background-image: url('./btn1.png');
+    color: #fff;
+}
+
+.l-action-btn:hover,
+.l-action-btn:focus,
+.l-action-btn:active {
+    background-image: url('./btn1.png');
+    color: #fff;
+}

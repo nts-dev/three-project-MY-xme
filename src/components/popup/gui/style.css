@@ -1,0 +1,365 @@
+/* Define the local font */
+@font-face {
+    font-family: 'PlayRegular';
+    src: url('./Play-Regular.ttf') format('truetype'); /* Adjust path as needed */
+}
+
+/* Game Menu Panel */
+.game-menu-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(to right, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.2) 40%, rgba(0, 0, 0, 0) 100%),
+    linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)),
+    url("./BG.png") no-repeat left center;
+    background-size: cover;
+    z-index: 999999;
+    opacity: 0.82;
+    color: white;
+    font-family: 'PlayRegular', sans-serif; /* Use the local font */
+    padding: 60px 30px;
+    overflow: hidden;
+}
+.circular-loading-screen-lazy{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+.game-title {
+    font-size: 2.4rem;
+    font-weight: 700;
+    margin-bottom: 40px;
+}
+
+.menu-list {
+    list-style: none;
+    width: 15rem;
+    padding: 0;
+    margin: 0;
+}
+
+.menu-button {
+    font-size: 1.2rem;
+    color: #637786;
+    text-align: left;
+    width: 100%;
+    border: none;
+    background: transparent;
+    /*transition: all 0.2s ease-in-out;*/
+    box-shadow: none;
+    padding: 0.5rem 0;
+    font-weight: 400; /* Regular weight */
+}
+
+.elements {
+    font-size: 1.2rem;
+    color: #637786;
+    text-align: left;
+    width: 100%;
+    border: none;
+    background: transparent;
+    /*transition: all 0.2s ease-in-out;*/
+    box-shadow: none;
+    padding: 0.3rem 0;
+    font-weight: 400; /* Regular weight */
+}
+.list-header{
+    text-align: center;
+    background: #637786;
+    color: #fff;
+    border-radius: 0.3rem;
+    /*opacity: 0.2;*/
+}
+.countdown-circle {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 20px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.count-text {
+    font-size: 42px;
+    font-weight: 700;
+    /*color: #4caf50;*/
+    transition: transform 0.5s ease-out;
+}
+
+.count-text.pulse {
+    transform: scale(1.5);
+    /*color: #66bb6a;*/
+    text-shadow: 0 0 10px #c4f4ff;
+}
+
+.player-record {
+    background: #637786;
+    border-radius: 0.3rem;
+    opacity: 0.1;
+}
+
+.menu-button:hover,
+.menu-button.active {
+    color: #c4f4ff;
+    background: url("./selected.png") no-repeat left center;
+    background-size: 100% 100%;
+    cursor: pointer;
+
+}
+
+.menu-button:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+/* Loading Panel */
+.game-loading-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to right, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.2) 40%, rgba(0, 0, 0, 0) 100%),
+    linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)),
+    url("./BG.png") no-repeat left center;
+    background-size: cover;
+    z-index: 99999;
+    opacity: 0.82;
+    color: white;
+    font-family: 'PlayRegular', sans-serif; /* Use the local font */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.loading-content {
+    text-align: center;
+}
+
+.loading-title {
+    position: fixed;
+    bottom: 20px;
+    font-size: 2.4rem;
+    text-shadow: 0 0 15px rgba(77, 163, 255, 0.7);
+    /*margin-top: 5rem;*/
+}
+
+.loading-status p {
+    margin: 5px 0;
+    font-size: 1rem;
+}
+
+.loading-bar {
+    position: fixed;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    height: 10px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress {
+    height: 100%;
+    background: #4da3ff;
+    transition: width 0.5s ease-in-out;
+}
+
+.b-waiting-screen {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    font-family: 'PlayRegular', sans-serif; /* Use the local font */
+    padding: 0.5rem;
+    z-index: 100000;
+    /*border: solid;*/
+    /*border-radius: 0.5rem;*/
+    /*border-color: #aaa;*/
+}
+
+.p-button-waiting {
+    border: none;
+    background: transparent;
+    font-family: 'PlayRegular', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    width: 120px; /* match btn0/btn1 size */
+    height: 45px;
+    text-transform: uppercase;
+    background: url('./btn0.png') no-repeat center center;
+    background-size: contain;
+    color: #aaa;
+    transition: all 0.2s ease;
+}
+
+/* Hover / active state → btn1 */
+.p-button-waiting:hover,
+.p-button-waiting:focus,
+.p-button-waiting:active {
+    background-image: url('./btn1.png');
+    color: #fff;
+}
+
+/* Circular Loading Spinner */
+.circular-loading-screen-waiting {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: 'PlayRegular', sans-serif; /* Use the local font */
+    color: #4da3ff;
+    z-index: 100000;
+    background: linear-gradient(to right, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.2) 40%, rgba(0, 0, 0, 0) 100%), linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url("/src/components/popup/gui/BG.png") no-repeat left center;
+    background-size: cover;
+    height: 100%
+}
+
+.t-waiting-screen {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-end;
+    height: 100%;
+    width: 100%;
+    z-index: 999999;
+    opacity: 0.82;
+    color: white;
+    font-family: 'PlayRegular', sans-serif;
+    padding: 60px 30px;
+    overflow: hidden;
+}
+
+.u-waiting-screen {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    z-index: 999999;
+    opacity: 0.82;
+    color: white;
+    font-family: 'PlayRegular', sans-serif;
+    padding: 0 30px;
+    overflow: hidden;
+}
+
+.m-waiting-screen {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    z-index: 999999;
+    opacity: 0.82;
+    color: white;
+    font-family: 'PlayRegular', sans-serif;
+    align-items: center;
+    /*padding: 60px 30px;*/
+    overflow: hidden;
+}
+
+.circular-loading-screen {
+    position: fixed;
+    bottom: 20px;
+    right: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: 'PlayRegular', sans-serif; /* Use the local font */
+    color: #4da3ff;
+    z-index: 100000;
+}
+
+.loading-ring {
+    position: relative;
+    width: 90px;
+    height: 90px;
+    margin-bottom: 8px;
+}
+
+.ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-radius: 50%;
+    border: 2px solid transparent;
+}
+
+.ring-blue {
+    border-top: 4px solid #4da3ff;
+    animation: spin 1.2s linear infinite;
+}
+
+.ring-orange {
+    border-bottom: 4px solid orange;
+    animation: spinReverse 2s linear infinite;
+}
+
+.outer {
+    width: 90px;
+    height: 90px;
+}
+
+.middle {
+    width: 60px;
+    height: 60px;
+    top: 15px;
+    left: 15px;
+}
+
+.inner {
+    width: 30px;
+    height: 30px;
+    top: 30px;
+    left: 30px;
+}
+
+.loading-text {
+    font-size: 1rem;
+    text-shadow: 0 0 8px #4da3ff;
+    letter-spacing: 1px;
+}
+
+/* Media query for smaller screens (e.g., phones) */
+@media (max-width: 768px) {
+    .leaderboard-scroll-wrapper {
+        width: 95%;
+    }
+    .circular-loading-screen {
+        position: fixed;
+        bottom: 30px;
+    }
+
+    .loading-bar {
+
+        bottom: 10px;
+    }
+    .loading-text {
+
+        margin-bottom: 30px;
+    }
+
+}
+
+/* Animations */
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes spinReverse {
+    0% {
+        transform: rotate(360deg);
+    }
+    100% {
+        transform: rotate(0deg);
+    }
+}

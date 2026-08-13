@@ -1,0 +1,25 @@
+{
+  "short_name": "NTS Project",
+  "name": "Create React App Sample",
+  "icons": [
+    {
+      "src": "nts logo.png",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "nts logo.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "nts logo.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+}

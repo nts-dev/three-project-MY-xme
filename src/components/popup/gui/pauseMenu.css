@@ -1,0 +1,126 @@
+@font-face {
+    font-family: 'PlayRegular';
+    src: url('./Play-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+}
+
+:root{
+    --neon: #66caff;
+    --neon-soft: rgba(102,202,255,.55);
+    --panel: #0a1018;
+    --panel2: #0b111a;
+    --text: #e8f2ff;
+    --muted: #a1b4c6;
+}
+
+/* Full-screen dim + blur */
+.pause-overlay{
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+            linear-gradient(to right, rgba(0,0,0,.6) 0%, rgba(0,0,0,.2) 40%, rgba(0,0,0,0) 100%),
+            linear-gradient(rgba(0,0,0,.4), rgba(0,0,0,.4)),
+            url("./BG.png") no-repeat left center;
+    background-size: cover;
+    opacity: .82;
+    font-family: 'PlayRegular', sans-serif;
+}
+
+/* Top-right X */
+.pause-close{
+    position: absolute;
+    top: 18px; right: 24px;
+    width: 36px; height: 36px;
+    /*background: transparent;*/
+    border-radius: 50%;
+    /*border: 1px solid rgba(255,255,255,.75);*/
+    /*background: transparent;*/
+    color: #dddcdc;
+    font-size: 2rem;
+    line-height: 34px;
+    text-align: center;
+    cursor: pointer;
+}
+.pause-close:hover{
+    background: rgba(255,255,255,.18);
+}
+
+/* Menu shell */
+.pause-menu{
+    width: 40rem;
+    padding: 1rem 0;
+    outline: none;
+}
+
+/* Items list */
+.pause-list{
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* Single item */
+.pause-item{
+    position: relative;
+    width: 50%;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+
+    color: #637786;
+    text-transform: uppercase;
+    /*letter-spacing: 1px;*/
+    font-size: 1.5rem;
+    padding: 0.3rem 0;
+
+    /*transition: color .15s ease, filter .15s ease;*/
+}
+.pause-item-list{
+    display: flex;
+    justify-content: center;
+}
+
+
+.pause-item:hover{
+    color: #c4e7ff;
+    background: url("./pauseButtons.png") no-repeat left center;
+    background-size: 100% 100%;
+}
+/* Footer buttons row */
+.pause-footer{
+    margin-top: 18px;
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 26px;
+}
+.btn-secondary{
+    border: 1px solid rgba(255,255,255,.25);
+    background: transparent;
+    color: var(--muted);
+    padding: 8px 14px;
+    border-radius: 8px;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    cursor: pointer;
+}
+.btn-secondary:hover{
+    color: var(--text);
+    border-color: rgba(255,255,255,.35);
+}
+
+/* Small screens */
+@media (max-width: 520px){
+    .pause-menu{ width: 92vw; }
+    .pause-item{
+        /*padding: 12px 18px;*/
+        font-size: 1rem;
+    }
+}

@@ -1,0 +1,15 @@
+.pcui-test-panel {
+    position: fixed;
+    right: 16px;
+    top: 64px;
+    width: 280px;
+    z-index: 10000;
+    pointer-events: auto;
+}
+
+.pcui-test-panel .pcui-panel-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+}

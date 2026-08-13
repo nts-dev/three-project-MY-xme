@@ -1,0 +1,480 @@
+{
+  "612684": {
+    "assetName": "Aztec Building",
+    "assetId": "8853",
+    "fbx": "Aztec Building.fbx",
+    "textures": []
+  },
+  "612692": {
+    "assetName": "Floor_Plane_10x10.fbx",
+    "assetId": "8857",
+    "fbx": "Floor_Plane_10x10.fbx",
+    "textures": []
+  },
+  "612694": {
+    "assetName": "Wall_LED_0.5x10.fbx",
+    "assetId": "8858",
+    "fbx": "Wall_LED_0.5x10.fbx",
+    "textures": []
+  },
+  "612696": {
+    "assetName": "Wall_Right_Panel_10x10.fbx",
+    "assetId": "8859",
+    "fbx": "Wall_Right_Panel_10x10.fbx",
+    "textures": []
+  },
+  "612754": {
+    "assetName": "Wall_Left_Panel_10x10.fbx",
+    "assetId": "8861",
+    "fbx": "Wall_Left_Panel_10x10.fbx",
+    "textures": []
+  },
+  "612866": {
+    "assetName": "Ceiling_LED.fbx",
+    "assetId": "8862",
+    "fbx": "Ceiling_LED.fbx",
+    "textures": []
+  },
+  "612868": {
+    "assetName": "Ceiling_10x10.fbx",
+    "assetId": "8863",
+    "fbx": "Ceiling_10x10.fbx",
+    "textures": []
+  },
+  "613056": {
+    "assetName": "Character.fbx",
+    "assetId": "8865",
+    "fbx": "Character.fbx",
+    "textures": []
+  },
+  "613292": {
+    "assetName": "Floor_Plane_1_10x10.fbx",
+    "assetId": "8866",
+    "fbx": "Floor_Plane_1_10x10.fbx",
+    "textures": []
+  },
+  "613324": {
+    "assetName": "Floor_Yellow_Plane_10x10",
+    "assetId": "8868",
+    "fbx": "Floor_Yellow_Plane_10x10.fbx",
+    "textures": []
+  },
+  "613440": {
+    "assetName": "Wall_Floor_Right_10x10",
+    "assetId": "8869",
+    "fbx": "Wall_Floor_Right_10x10.fbx",
+    "textures": []
+  },
+  "613458": {
+    "assetName": "Floor Cube",
+    "assetId": "8871",
+    "fbx": "Floor_Cube.fbx",
+    "textures": [
+      "White_Bluish.jpg"
+    ]
+  },
+  "613662": {
+    "assetName": "Wall_DarkGrey_Cube.fbx",
+    "assetId": "8872",
+    "fbx": "Wall_DarkGrey_Cube.fbx",
+    "textures": [
+      "Dark Grey Wall.jpg"
+    ]
+  },
+  "613664": {
+    "assetName": "Wall Glass Cube",
+    "assetId": "8873",
+    "fbx": "Wall_Glass_Cube.fbx",
+    "textures": []
+  },
+  "613672": {
+    "assetName": "Wall Glass Cube 1",
+    "assetId": "8874",
+    "fbx": "Wall_Glass_Cube_1.fbx",
+    "textures": []
+  },
+  "613690": {
+    "assetName": "Ceiling_Cube_Test_Name",
+    "assetId": "8875",
+    "fbx": "Ceiling_Cube.fbx",
+    "textures": [
+      "White_Bluish_1.jpg"
+    ]
+  },
+  "613856": {
+    "assetName": "Wall + floor Cube",
+    "assetId": "8877",
+    "fbx": "Wall_Floor_Cube.fbx",
+    "textures": []
+  },
+  "613860": {
+    "assetName": "New Floor Wall",
+    "assetId": "8888",
+    "fbx": "New_Floor_wall.fbx",
+    "textures": []
+  },
+  "613960": {
+    "assetName": "Ramp",
+    "assetId": "8889",
+    "fbx": "Ramp_20x10x10.fbx",
+    "textures": []
+  },
+  "613998": {
+    "assetName": "Ladder",
+    "assetId": "8890",
+    "fbx": "Ladder_10x10x0.1.fbx",
+    "textures": []
+  },
+  "614004": {
+    "assetName": "Forcefield Door",
+    "assetId": "8891",
+    "fbx": "Forcefield_Door.fbx",
+    "textures": [
+      "White_Bluish.jpg",
+      "Forcefield_door.png"
+    ]
+  },
+  "614596": {
+    "assetName": "Wall Ceiling Cube",
+    "assetId": "8892",
+    "fbx": "Wall_Ceiling_Cube.fbx",
+    "textures": []
+  },
+  "614624": {
+    "assetName": "Stairs Block",
+    "assetId": "8893",
+    "fbx": "Stairs_Block.fbx",
+    "textures": []
+  },
+  "615814": {
+    "assetName": "Ramp 1",
+    "assetId": "8894",
+    "fbx": "Ramp_1.fbx",
+    "textures": []
+  },
+  "616322": {
+    "assetName": "Floor Wall Cube",
+    "assetId": "8896",
+    "fbx": "Floor_Wall_Cube.fbx",
+    "textures": []
+  },
+  "616754": {
+    "assetName": "Floor Wall Cube 1",
+    "assetId": "8897",
+    "fbx": "Floor_Wall_Cube_1.fbx",
+    "textures": []
+  },
+  "616758": {
+    "assetName": "Floor Wall Cube 2",
+    "assetId": "8898",
+    "fbx": "Floor_Wall_Cube_2.fbx",
+    "textures": []
+  },
+  "616760": {
+    "assetName": "Floor Wall Cube 3",
+    "assetId": "8899",
+    "fbx": "Floor_Wall_Cube_3.fbx",
+    "textures": []
+  },
+  "616820": {
+    "assetName": "Support Columns",
+    "assetId": "8900",
+    "fbx": "Support_Columns.fbx",
+    "textures": []
+  },
+  "617120": {
+    "assetName": "Escalator",
+    "assetId": "8901",
+    "fbx": "Escalator16x70.fbx",
+    "textures": []
+  },
+  "617126": {
+    "assetName": "Wall LED Cube",
+    "assetId": "8902",
+    "fbx": "Wall_LED_Cube.fbx",
+    "textures": []
+  },
+  "617196": {
+    "assetName": "Elevator fbx",
+    "assetId": "8905",
+    "fbx": "Elevator_fbx.fbx",
+    "textures": []
+  },
+  "618614": {
+    "assetName": "Moving Tile",
+    "assetId": "8906",
+    "fbx": "Moving_Floor_Cube.fbx",
+    "textures": [
+      "White_Bluish.jpg"
+    ]
+  },
+  "618634": {
+    "assetName": "Elevator_Cage",
+    "assetId": "8907",
+    "fbx": "Elevator_Cage.fbx",
+    "textures": []
+  },
+  "618644": {
+    "assetName": "Elevator_Right_Door",
+    "assetId": "8908",
+    "fbx": "Elevator_Right_Door.fbx",
+    "textures": []
+  },
+  "618646": {
+    "assetName": "Elevator_Left_Door",
+    "assetId": "8909",
+    "fbx": "Elevator_Left_Door.fbx",
+    "textures": []
+  },
+  "619188": {
+    "assetName": "Wall Solid Cube",
+    "assetId": "8910",
+    "fbx": "Wall Solid Door.fbx",
+    "textures": []
+  },
+  "619214": {
+    "assetName": "Wall Glass Door",
+    "assetId": "8911",
+    "fbx": "Wall_Glass_Door.glb",
+    "textures": []
+  },
+  "619228": {
+    "assetName": "Wall Solid Door",
+    "assetId": "8912",
+    "fbx": "Wall_Solid_Door.fbx",
+    "textures": []
+  },
+  "619486": {
+    "assetName": "Cylindrical_Rings",
+    "assetId": "8913",
+    "fbx": "Cylindrical_Rings.fbx",
+    "textures": []
+  },
+  "619866": {
+    "assetName": "Wall Window",
+    "assetId": "8914",
+    "fbx": "Wall_Window.fbx",
+    "textures": []
+  },
+  "619910": {
+    "assetName": "Cable",
+    "assetId": "8915",
+    "fbx": "Cable.fbx",
+    "textures": []
+  },
+  "619998": {
+    "assetName": "Monorail",
+    "assetId": "8917",
+    "fbx": "Monorail.fbx",
+    "textures": []
+  },
+  "620042": {
+    "assetName": "Hyperloop",
+    "assetId": "8916",
+    "fbx": "Hyperloop.fbx",
+    "textures": []
+  },
+  "620122": {
+    "assetName": "Round Disc",
+    "assetId": "8918",
+    "fbx": "Round Disc.fbx",
+    "textures": []
+  },
+  "620552": {
+    "assetName": "Orb",
+    "assetId": "8919",
+    "fbx": "Orb.fbx",
+    "textures": []
+  },
+  "620680": {
+    "assetName": "Sliding Door",
+    "assetId": "8920",
+    "fbx": "Sliding_Door.fbx",
+    "textures": []
+  },
+  "620798": {
+    "assetName": "Drone_Enemy",
+    "assetId": "8922",
+    "fbx": "Drone_Enemy.fbx",
+    "textures": [
+      "White_Bluish_1.jpg",
+      "Greenish.JPG",
+      "Floor Blue Plane 4x10.jpg",
+      "Floor Plane 10x10.jpg"
+    ]
+  },
+  "620828": {
+    "assetName": "Sphere Dome Outside",
+    "assetId": "8923",
+    "fbx": "Sphere_Dome_Outside.fbx",
+    "textures": []
+  },
+  "620830": {
+    "assetName": "Sphere Dome Inside",
+    "assetId": "8924",
+    "fbx": "Sphere_Dome_Inside.fbx",
+    "textures": []
+  },
+  "621006": {
+    "assetName": "Humanoid Enemy",
+    "assetId": "8925",
+    "fbx": "Humanoid_Enemy.glb",
+    "textures": []
+  },
+  "621188": {
+    "assetName": "Arrow Triangle",
+    "assetId": "8926",
+    "fbx": "Arrow_Triangle.fbx",
+    "textures": []
+  },
+  "621198": {
+    "assetName": "Plast Tile",
+    "assetId": "8927",
+    "fbx": "Plast_Tile.fbx",
+    "textures": []
+  },
+  "621200": {
+    "assetName": "Ramp Corner",
+    "assetId": "8928",
+    "fbx": "Ramp_Corner.fbx",
+    "textures": []
+  },
+  "621218": {
+    "assetName": "Fence Metal",
+    "assetId": "8929",
+    "fbx": "Fence_Metal.fbx",
+    "textures": []
+  },
+  "621230": {
+    "assetName": "Ceiling Lights",
+    "assetId": "8930",
+    "fbx": "Ceiling_Lights.fbx",
+    "textures": []
+  },
+  "621236": {
+    "assetName": "Teleport",
+    "assetId": "8931",
+    "fbx": "Teleport.fbx",
+    "textures": []
+  },
+  "621246": {
+    "assetName": "Cylindrical Rings 1",
+    "assetId": "8932",
+    "fbx": "Cylindrical_Rings_1.fbx",
+    "textures": []
+  },
+  "621268": {
+    "assetName": "Half Ramp",
+    "assetId": "8933",
+    "fbx": "Half Ramp.fbx",
+    "textures": []
+  },
+  "621272": {
+    "assetName": "Ramp Long",
+    "assetId": "8934",
+    "fbx": "Ramp Long.fbx",
+    "textures": []
+  },
+  "621288": {
+    "assetName": "Ceiling Full Block",
+    "assetId": "8935",
+    "fbx": "Ceiling Full Block.fbx",
+    "textures": []
+  },
+  "621296": {
+    "assetName": "Corner Quarter Circle Tile",
+    "assetId": "8936",
+    "fbx": "Corner Quarter Circle Tile.fbx",
+    "textures": []
+  },
+  "621310": {
+    "assetName": "Half Square  Diagonal 1",
+    "assetId": "8937",
+    "fbx": "Half Square  Diagonal 1.fbx",
+    "textures": []
+  },
+  "621312": {
+    "assetName": "Half Square  Diagonal",
+    "assetId": "8938",
+    "fbx": "Half Square  Diagonal.fbx",
+    "textures": []
+  },
+  "621322": {
+    "assetName": "Ladder 2",
+    "assetId": "8939",
+    "fbx": "Ladder 2.fbx",
+    "textures": []
+  },
+  "621658": {
+    "assetName": "LED Display 10x5x1",
+    "assetId": "8940",
+    "fbx": "LED Display 10x5x1.fbx",
+    "textures": []
+  },
+  "621664": {
+    "assetName": "LED Display 10x5x1 Frame",
+    "assetId": "8941",
+    "fbx": "LED Display 10x5x1 Frame.fbx",
+    "textures": []
+  },
+  "621732": {
+    "assetName": "LED Display 1x0.5x0.2",
+    "assetId": "8944",
+    "fbx": "LED Display 1x0.5x0.2.fbx",
+    "textures": []
+  },
+  "621734": {
+    "assetName": "LED Display 1x0.5x0.2 Frame",
+    "assetId": "8945",
+    "fbx": "LED Display 1x0.5x0.2 Frame.fbx",
+    "textures": []
+  },
+  "621736": {
+    "assetName": "Grid Tile",
+    "assetId": "8946",
+    "fbx": "Grid Tile.fbx",
+    "textures": []
+  },
+  "621738": {
+    "assetName": "Glass Panel",
+    "assetId": "8947",
+    "fbx": "Glass Panel.fbx",
+    "textures": []
+  },
+  "621766": {
+    "assetName": "14-Segment Display 1",
+    "assetId": "8948",
+    "fbx": "14-Segment Display 1.fbx",
+    "textures": []
+  },
+  "621768": {
+    "assetName": "14-Segment Display",
+    "assetId": "8949",
+    "fbx": "14-Segment Display.fbx",
+    "textures": []
+  },
+  "621798": {
+    "assetName": "14-Segment Display 2",
+    "assetId": "8950",
+    "fbx": "14-Segment Display 2.fbx",
+    "textures": []
+  },
+  "621872": {
+    "assetName": "LED Display 20x10x1 Frame",
+    "assetId": "8951",
+    "fbx": "LED Display 20x10x1 Frame.fbx",
+    "textures": []
+  },
+  "622804": {
+    "assetName": "Corner Quarter Circle Tile Wall",
+    "assetId": "8952",
+    "fbx": "Corner Quarter Circle Tile Wall.fbx",
+    "textures": []
+  },
+  "623696": {
+    "assetName": "Hologram 3d Panel Small Balls",
+    "assetId": "8953",
+    "fbx": "Hologram 3d Panel Small Balls.fbx",
+    "textures": []
+  }
+}

@@ -1,0 +1,14 @@
+#container-close-button {
+  position: absolute;
+  right: 1rem;
+  top: 10px;
+  height: auto;
+  width: auto;
+  z-index: 1;
+  font-size: 20px;
+  color: white;
+  cursor: pointer;
+  border-radius: 5px;
+  padding: 0.6rem;
+
+}
