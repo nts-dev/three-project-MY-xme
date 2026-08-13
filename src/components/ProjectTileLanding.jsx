@@ -25,39 +25,6 @@ const PROJECTS = [
 
 const API_BASE_URL = String(import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
-function resolveApiAssetUrl(url) {
-    const rawUrl = String(url || "").trim();
-    if (!rawUrl) return "";
-    if (/^data:/i.test(rawUrl)) return "";
-    if (!API_BASE_URL) return rawUrl;
-
-    try {
-        const apiUrl = new URL(`${API_BASE_URL}/`);
-        const apiBasePath = apiUrl.pathname.replace(/\/+$/, "");
-        const assetUrl = /^https?:\/\//i.test(rawUrl)
-            ? new URL(rawUrl)
-            : null;
-
-        let assetPath = assetUrl ? assetUrl.pathname : rawUrl;
-        if (assetUrl && assetUrl.origin !== apiUrl.origin) {
-            return rawUrl;
-        }
-
-        assetPath = `/${assetPath.replace(/^\/+/, "")}`;
-        if (apiBasePath && assetPath.startsWith(`${apiBasePath}/`)) {
-            return `${apiUrl.origin}${assetPath}${assetUrl?.search || ""}`;
-        }
-
-        if (assetPath.startsWith("/api/") && apiBasePath !== "/api") {
-            assetPath = assetPath.replace(/^\/api\//, "/");
-        }
-
-        return `${API_BASE_URL}/${assetPath.replace(/^\/+/, "")}${assetUrl?.search || ""}`;
-    } catch {
-        return rawUrl;
-    }
-}
-
 function arrayBufferToBase64(buffer) {
     const bytes = new Uint8Array(buffer);
     const chunkSize = 0x8000;
@@ -184,7 +151,7 @@ export default function ProjectTileLanding() {
                 for (const image of payload?.images || []) {
                     const projectId = image?.projectId;
                     if (!projectId || latestByProject[projectId]) continue;
-                    latestByProject[projectId] = resolveApiAssetUrl(image.url);
+                    latestByProject[projectId] = image.url || "";
                 }
 
                 setThumbnails((current) => ({ ...current, ...latestByProject }));
@@ -238,7 +205,7 @@ export default function ProjectTileLanding() {
             }
 
             const payload = await response.json();
-            const nextThumbnail = resolveApiAssetUrl(payload.url);
+            const nextThumbnail = payload.url;
             if (nextThumbnail) {
                 setThumbnails((current) => ({ ...current, [projectId]: nextThumbnail }));
             }
