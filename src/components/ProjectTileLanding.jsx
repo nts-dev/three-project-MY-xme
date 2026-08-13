@@ -23,29 +23,12 @@ const PROJECTS = [
     },
 ];
 
-const THUMBNAIL_STORAGE_PREFIX = "nts-project-thumbnail:";
 const API_BASE_URL = String(import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
-
-function getStoredThumbnail(projectId) {
-    if (typeof window === "undefined") return "";
-
-    try {
-        const key = `${THUMBNAIL_STORAGE_PREFIX}${projectId}`;
-        const storedUrl = window.localStorage.getItem(key) || "";
-        if (/^data:image\//i.test(storedUrl)) {
-            window.localStorage.removeItem(key);
-            return "";
-        }
-        return storedUrl;
-    } catch {
-        return "";
-    }
-}
 
 function resolveApiAssetUrl(url) {
     const rawUrl = String(url || "").trim();
     if (!rawUrl) return "";
-    if (/^data:image\//i.test(rawUrl)) return "";
+    if (/^data:/i.test(rawUrl)) return "";
     if (!API_BASE_URL) return rawUrl;
 
     try {
@@ -75,8 +58,17 @@ function resolveApiAssetUrl(url) {
     }
 }
 
-function getBase64Payload(dataUrl) {
-    return String(dataUrl || "").split(",")[1] || "";
+function arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    const chunkSize = 0x8000;
+    let binary = "";
+
+    for (let index = 0; index < bytes.length; index += chunkSize) {
+        const chunk = bytes.subarray(index, index + chunkSize);
+        binary += String.fromCharCode(...chunk);
+    }
+
+    return window.btoa(binary);
 }
 
 function ProjectTile({ project, thumbnail, uploadState, onOpen, onThumbnailChange }) {
@@ -88,9 +80,9 @@ function ProjectTile({ project, thumbnail, uploadState, onOpen, onThumbnailChang
 
         const reader = new FileReader();
         reader.onload = () => {
-            onThumbnailChange(project.id, file, String(reader.result || ""));
+            onThumbnailChange(project.id, file, arrayBufferToBase64(reader.result));
         };
-        reader.readAsDataURL(file);
+        reader.readAsArrayBuffer(file);
         event.target.value = "";
     };
 
@@ -167,7 +159,7 @@ export default function ProjectTileLanding() {
     const setIsPackage = useGame((state) => state.setIsPackage);
     const [thumbnails, setThumbnails] = useState(() => {
         return PROJECTS.reduce((next, project) => {
-            next[project.id] = resolveApiAssetUrl(getStoredThumbnail(project.id));
+            next[project.id] = "";
             return next;
         }, {});
     });
@@ -223,7 +215,7 @@ export default function ProjectTileLanding() {
         window.dispatchEvent(new Event("resize"));
     };
 
-    const updateThumbnail = async (projectId, file, dataUrl) => {
+    const updateThumbnail = async (projectId, file, contentBase64) => {
         if (!API_BASE_URL) return;
 
         setUploadStates((current) => ({ ...current, [projectId]: "saving" }));
@@ -236,7 +228,7 @@ export default function ProjectTileLanding() {
                     projectId,
                     tileId: projectId,
                     fileName: file.name,
-                    contentBase64: getBase64Payload(dataUrl),
+                    contentBase64,
                 }),
             });
 
@@ -249,11 +241,6 @@ export default function ProjectTileLanding() {
             const nextThumbnail = resolveApiAssetUrl(payload.url);
             if (nextThumbnail) {
                 setThumbnails((current) => ({ ...current, [projectId]: nextThumbnail }));
-                try {
-                    window.localStorage.setItem(`${THUMBNAIL_STORAGE_PREFIX}${projectId}`, nextThumbnail);
-                } catch (error) {
-                    console.error("Failed to store project thumbnail URL:", error);
-                }
             }
             setUploadStates((current) => ({ ...current, [projectId]: "saved" }));
         } catch (error) {
