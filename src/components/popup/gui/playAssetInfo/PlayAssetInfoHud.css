@@ -605,7 +605,7 @@
 
 .play-asset-info__tabs {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
     gap: 0;
     margin-bottom: 8px;
     border-bottom: 1px solid rgba(201, 225, 229, 0.2);

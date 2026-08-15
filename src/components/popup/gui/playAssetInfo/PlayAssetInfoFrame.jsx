@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { FaBoxOpen, FaCamera, FaChevronLeft, FaChevronRight, FaDownload, FaEdit, FaFileAlt, FaHeart, FaInfoCircle } from "react-icons/fa";
+import { FaCamera, FaChevronLeft, FaChevronRight, FaDownload, FaEdit, FaHeart } from "react-icons/fa";
 import { Q } from "@nozbe/watermelondb";
 import database from "../../../../database";
 import useGame from "../../../../hooks/useGame";
@@ -9,12 +9,17 @@ import { publicAssetCssUrl } from "../../../../puzzleUi/publicAssetUrl";
 const leftAnchorUrl = publicAssetCssUrl("left.svg");
 const rightAnchorUrl = publicAssetCssUrl("right.svg");
 
+const getAssetImageUrl = (fileName) => {
+    if (String(fileName || "").startsWith("project33-")) {
+        return `${import.meta.env.VITE_API_URL}/files/${encodeURIComponent(fileName)}`;
+    }
+
+    return `${import.meta.env.VITE_FILE_URL}/${fileName}`;
+};
+
 const TAB_ITEMS = [
-    { value: "spec", label: "Spec", icon: FaEdit },
-    { value: "info", label: "Info", icon: FaInfoCircle },
+    { value: "spec", label: "Meta", icon: FaEdit },
     { value: "media", label: "Media", icon: FaCamera },
-    { value: "files", label: "Files", icon: FaFileAlt },
-    { value: "logs", label: "Logs", icon: FaBoxOpen },
 ];
 
 const specGroupsCache = new Map();
@@ -45,6 +50,34 @@ const normalizeDateValue = (value) => {
 };
 
 const fieldValue = (field) => field?.value ?? "";
+const HIDDEN_META_ROW_NAMES = new Set([
+    "id",
+    "assetid",
+    "asset id",
+    "assetname",
+    "asset name",
+    "date",
+    "date in",
+    "angle",
+    "x-pos",
+    "y-pos",
+    "z-pos",
+    "x pos",
+    "y pos",
+    "z pos",
+    "position",
+    "rotation",
+    "scale",
+    "scale factor",
+    "color",
+    "status",
+    "v-align",
+    "vertical align",
+    "room",
+    "branch",
+]);
+
+const shouldShowMetaRow = (field) => !HIDDEN_META_ROW_NAMES.has(String(field?.name || "").trim().toLowerCase());
 
 const imageObject = (imageList) => {
     if (!imageList || imageList.length === 0) {
@@ -53,7 +86,7 @@ const imageObject = (imageList) => {
     }
 
     return imageList.map((image, index) => {
-        const url = `${import.meta.env.VITE_FILE_URL}/${image.name}`;
+        const url = getAssetImageUrl(image.name);
         return {
             id: image.id,
             itemImageSrc: url,
@@ -241,6 +274,12 @@ const PlaySpecTab = ({ assetInfo }) => {
         let cancelDeferred = null;
 
         const load = async () => {
+            if (assetInfo?.hasSceneFields) {
+                setGroups(apiGroups);
+                setStatus(apiGroups.length ? "ready" : "idle");
+                return;
+            }
+
             if (!selectedAssetId || !categoryIndex) {
                 setGroups(apiGroups);
                 setStatus(apiGroups.length ? "ready" : "idle");
@@ -277,27 +316,25 @@ const PlaySpecTab = ({ assetInfo }) => {
             cancelled = true;
             cancelDeferred?.();
         };
-    }, [apiGroups, assetInfo?.title, categoryIndex, selectedAssetId]);
+    }, [apiGroups, assetInfo?.hasSceneFields, assetInfo?.title, categoryIndex, selectedAssetId]);
 
     if (status === "loading") return <div className="play-asset-info__empty">Loading fields...</div>;
     if (status === "error") return <div className="play-asset-info__empty">Unable to load fields</div>;
     if (!groups.length) return <div className="play-asset-info__empty">No fields available</div>;
 
+    const rows = groups.flatMap((group) => group.children || []).filter(shouldShowMetaRow);
+    if (!rows.length) return <div className="play-asset-info__empty">No fields available</div>;
+
     return (
-        <div className="play-asset-info__groups">
-            {groups.map((group, index) => (
-                <details className="play-asset-info__group" open={index < 2} key={`${group.name}-${group.fieldId}`}>
-                    <summary>{group.name}</summary>
-                    <div className="play-asset-info__rows">
-                        {group.children.map((field) => (
-                            <div className="play-asset-info__row" key={`${group.fieldId}-${field.fieldId}`}>
-                                <span>{field.name}</span>
-                                <strong>{field.name === "Date In" ? normalizeDateValue(fieldValue(field)) : fieldValue(field) || "Not Defined"}</strong>
-                            </div>
-                        ))}
+        <div className="play-asset-info__groups play-asset-info__groups--flat">
+            <div className="play-asset-info__rows">
+                {rows.map((field, index) => (
+                    <div className="play-asset-info__row" key={`${field.fieldId || field.name}-${index}`}>
+                        <span>{field.name}</span>
+                        <strong>{field.name === "Date In" ? normalizeDateValue(fieldValue(field)) : fieldValue(field) || "Not Defined"}</strong>
                     </div>
-                </details>
-            ))}
+                ))}
+            </div>
         </div>
     );
 };
@@ -626,10 +663,7 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
 
             <div className="play-asset-info__content">
                 {activeTab === "spec" && <PlaySpecTab assetInfo={assetInfo} />}
-                {activeTab === "info" && <PlayInfoTab selectedAssetId={selectedAssetId} />}
                 {activeTab === "media" && <PlayMediaTab assetInfo={assetInfo} />}
-                {activeTab === "files" && <PlayFilesTab selectedAssetId={selectedAssetId} />}
-                {activeTab === "logs" && <PlayLogsTab selectedAssetId={selectedAssetId} />}
             </div>
         </aside>
     );

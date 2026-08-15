@@ -849,10 +849,6 @@ export default function Events() {
            
           
          
-            if (buttonMode === 'Play mode' || (!editorSelectionEnabled && !allowReadOnlyOpen)) {
-                return;
-            }
-             
             event.preventDefault();
             raycaster.setFromCamera(mouse, camera);
 
@@ -872,6 +868,16 @@ export default function Events() {
                     ObjectStructure = intersectInstance[1];
                     if (!ObjectStructure) return;
                 }
+
+                if (buttonMode === 'Play mode') {
+                    openPlayAssetInfoFromHit(ObjectStructure);
+                    return;
+                }
+
+                if (!editorSelectionEnabled && !allowReadOnlyOpen) {
+                    return;
+                }
+
                 fileName = ObjectStructure.object.name;
 
 

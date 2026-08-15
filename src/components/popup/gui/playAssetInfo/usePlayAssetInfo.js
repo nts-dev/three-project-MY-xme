@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import useGame from "../../../../hooks/useGame";
-import { loadPlayAssetInfo } from "./assetInfoData";
+import { hasPlaySceneMetadata, loadPlayAssetInfo } from "./assetInfoData";
 
 export const usePlayAssetInfo = ({ active }) => {
     const [assetInfo, setAssetInfo] = useState(null);
@@ -18,6 +18,12 @@ export const usePlayAssetInfo = ({ active }) => {
         const instanceId = playAssetInfoRequest?.instanceId;
         const requestKey = playAssetInfoRequest?.requestKey || playAssetInfoRequest;
         if (!instanceId) {
+            return;
+        }
+
+        if (!hasPlaySceneMetadata(instanceId)) {
+            activeIdRef.current = null;
+            setAssetInfo(null);
             return;
         }
 
@@ -56,7 +62,13 @@ export const usePlayAssetInfo = ({ active }) => {
             instanceId,
             fallbackName: playAssetInfoRequest.name,
         }).then((nextInfo) => {
-            if (requestId !== requestIdRef.current || !nextInfo) {
+            if (requestId !== requestIdRef.current) {
+                return;
+            }
+
+            if (!nextInfo) {
+                activeIdRef.current = null;
+                setAssetInfo(null);
                 return;
             }
 

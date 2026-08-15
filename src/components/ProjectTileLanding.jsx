@@ -25,6 +25,36 @@ const PROJECTS = [
 
 const API_BASE_URL = String(import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
+function normalizeProjectTileImageUrl(image) {
+    const rawUrl = String(image?.url || "").trim();
+    const fileName = image?.fileName ? encodeURIComponent(image.fileName) : "";
+
+    if (!rawUrl && fileName) {
+        return `${API_BASE_URL}/project-tile-images/${fileName}`;
+    }
+
+    if (!rawUrl) {
+        return "";
+    }
+
+    try {
+        const apiUrl = new URL(API_BASE_URL, window.location.href);
+        const imageUrl = new URL(rawUrl, window.location.href);
+
+        if (
+            fileName &&
+            imageUrl.pathname.startsWith("/project-tile-images/") &&
+            apiUrl.pathname.replace(/\/$/, "").endsWith("/api")
+        ) {
+            return `${apiUrl.origin}${apiUrl.pathname.replace(/\/$/, "")}/project-tile-images/${fileName}`;
+        }
+    } catch {
+        return rawUrl;
+    }
+
+    return rawUrl;
+}
+
 function arrayBufferToBase64(buffer) {
     const bytes = new Uint8Array(buffer);
     const chunkSize = 0x8000;
@@ -40,6 +70,11 @@ function arrayBufferToBase64(buffer) {
 
 function ProjectTile({ project, thumbnail, uploadState, onOpen, onThumbnailChange }) {
     const inputRef = useRef(null);
+    const [thumbnailFailed, setThumbnailFailed] = useState(false);
+
+    useEffect(() => {
+        setThumbnailFailed(false);
+    }, [thumbnail]);
 
     const handleFileChange = (event) => {
         const file = event.target.files?.[0];
@@ -56,8 +91,12 @@ function ProjectTile({ project, thumbnail, uploadState, onOpen, onThumbnailChang
     return (
         <article className="project-tile-card" onClick={() => onOpen(project.id)}>
             <div className="project-tile-thumbnail">
-                {thumbnail ? (
-                    <img src={thumbnail} alt={`${project.title} thumbnail`} />
+                {thumbnail && !thumbnailFailed ? (
+                    <img
+                        src={thumbnail}
+                        alt=""
+                        onError={() => setThumbnailFailed(true)}
+                    />
                 ) : (
                     <div className="project-tile-placeholder" aria-hidden="true" />
                 )}
@@ -151,7 +190,7 @@ export default function ProjectTileLanding() {
                 for (const image of payload?.images || []) {
                     const projectId = image?.projectId;
                     if (!projectId || latestByProject[projectId]) continue;
-                    latestByProject[projectId] = image.url || "";
+                    latestByProject[projectId] = normalizeProjectTileImageUrl(image);
                 }
 
                 setThumbnails((current) => ({ ...current, ...latestByProject }));
@@ -205,7 +244,7 @@ export default function ProjectTileLanding() {
             }
 
             const payload = await response.json();
-            const nextThumbnail = payload.url;
+            const nextThumbnail = normalizeProjectTileImageUrl(payload);
             if (nextThumbnail) {
                 setThumbnails((current) => ({ ...current, [projectId]: nextThumbnail }));
             }

@@ -749,8 +749,8 @@ export default function InstanceExperience() {
                 const existingIndex = assetIndexById.get(assetId);
                 if (existingIndex !== undefined) {
                     const existing = currentAssets[existingIndex];
-                    existing.fields = { ...(existing.fields || {}), ...(asset.fields || {}) };
-                    const mergedAsset = { ...existing, ...asset, fields: existing.fields };
+                    const mergedFields = { ...(existing.fields || {}), ...(asset.fields || {}) };
+                    const mergedAsset = { ...existing, ...asset, fields: mergedFields };
                     if (assetsAreArray) {
                         nextAssets[existingIndex] = mergedAsset;
                     } else {
