@@ -23,6 +23,7 @@ import Materials from "./rack/Materials";
 import AddLabels from "./rack/AddLabels";
 import Building from "./environment/Building1";
 import { AnnotationData } from "./label/AttachLabel";
+import { disposeBuildingLabelSprite } from "./label/BuildingLabelSprite";
 import {
     assetCommands,
     instanceMesh,
@@ -857,6 +858,11 @@ export default function InstanceExperience() {
     const removeCategoryFromGlobals = (categoryKey, categoryName) => {
         const assetIds = categoryAssetsRef.current.get(categoryKey) || [];
         for (const assetId of assetIds) {
+            const sceneAsset = sceneAssets[assetId];
+            if (sceneAsset?.buildingLabel) {
+                sceneAsset.buildingLabel.parent?.remove?.(sceneAsset.buildingLabel);
+                disposeBuildingLabelSprite(sceneAsset.buildingLabel);
+            }
             delete sceneAssets[assetId];
         }
 
@@ -956,7 +962,14 @@ export default function InstanceExperience() {
         modelDimensionsCacheRef.current = new WeakMap();
         bagModelPromiseRef.current = null;
 
-        Object.keys(sceneAssets).forEach((key) => delete sceneAssets[key]);
+        Object.keys(sceneAssets).forEach((key) => {
+            const sceneAsset = sceneAssets[key];
+            if (sceneAsset?.buildingLabel) {
+                sceneAsset.buildingLabel.parent?.remove?.(sceneAsset.buildingLabel);
+                disposeBuildingLabelSprite(sceneAsset.buildingLabel);
+            }
+            delete sceneAssets[key];
+        });
         Object.keys(objects).forEach((key) => delete objects[key]);
         Object.keys(instanceMesh).forEach((key) => delete instanceMesh[key]);
 
@@ -1697,6 +1710,16 @@ export default function InstanceExperience() {
     }, []);
 
 
+    const disposeMaterial = (material) => {
+        if (!material) {
+            return;
+        }
+
+        material.map?.dispose?.();
+        material.alphaMap?.dispose?.();
+        material.dispose?.();
+    };
+
     const disposeScene = (SceneObj) => {
         // Traverse the existing SceneObj to dispose of its resources
         SceneObj.traverse((object) => {
@@ -1708,9 +1731,9 @@ export default function InstanceExperience() {
             // Dispose materials
             if (object.material) {
                 if (Array.isArray(object.material)) {
-                    object.material.forEach((material) => material.dispose());
+                    object.material.forEach(disposeMaterial);
                 } else {
-                    object.material.dispose();
+                    disposeMaterial(object.material);
                 }
             }
 
@@ -1726,9 +1749,9 @@ export default function InstanceExperience() {
             SceneObj.remove(child);
             child.geometry?.dispose();
             if (Array.isArray(child.material)) {
-                child.material.forEach((material) => material.dispose());
+                child.material.forEach(disposeMaterial);
             } else {
-                child.material?.dispose();
+                disposeMaterial(child.material);
             }
             child.texture?.dispose();
         }

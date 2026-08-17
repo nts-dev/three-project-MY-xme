@@ -249,7 +249,7 @@
     position: fixed;
     top: 14px;
     left: 14px;
-    z-index: 2000000;
+    /* z-index: 2000000; */
     display: inline-flex;
     align-items: center;
     justify-content: center;

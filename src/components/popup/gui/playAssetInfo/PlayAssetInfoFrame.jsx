@@ -1,5 +1,27 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { FaCamera, FaChevronLeft, FaChevronRight, FaDownload, FaEdit, FaHeart } from "react-icons/fa";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+    FaArrowLeft,
+    FaBuilding,
+    FaCamera,
+    FaCar,
+    FaChevronLeft,
+    FaChevronRight,
+    FaDownload,
+    FaEdit,
+    FaGlobe,
+    FaHeart,
+    FaHospital,
+    FaMapMarkerAlt,
+    FaPhoneAlt,
+    FaRegClock,
+    FaSchool,
+    FaSearch,
+    FaShareAlt,
+    FaStore,
+    FaTimes,
+    FaUpload,
+    FaUtensils,
+} from "react-icons/fa";
 import { Q } from "@nozbe/watermelondb";
 import database from "../../../../database";
 import useGame from "../../../../hooks/useGame";
@@ -606,19 +628,296 @@ const PlayLogsTab = ({ selectedAssetId }) => {
     );
 };
 
+const valueText = (value) => {
+    if (value === null || value === undefined) return "";
+    if (Array.isArray(value)) return value.filter(Boolean).join(", ");
+    if (typeof value === "object") return Object.values(value).filter(Boolean).join(", ");
+    return String(value).trim();
+};
+
+const findMetaValue = (rows, names) => {
+    const targets = names.map((name) => String(name).trim().toLowerCase());
+    const exactMatch = rows.find((row) => targets.includes(String(row?.name || "").trim().toLowerCase()));
+    if (exactMatch) return valueText(exactMatch.value);
+
+    const looseMatch = rows.find((row) => {
+        const rowName = String(row?.name || "").trim().toLowerCase();
+        return targets.some((target) => rowName.includes(target));
+    });
+
+    return looseMatch ? valueText(looseMatch.value) : "";
+};
+
+const getBusinessKind = (businessType, title, description) => {
+    const text = `${businessType || ""} ${title || ""} ${description || ""}`.toLowerCase();
+
+    if (/restaurant|food|cafe|coffee|dining|tomyam|kitchen|catering|bistro|bakery/.test(text)) {
+        return { label: businessType || "Restaurant", Icon: FaUtensils, className: "restaurant" };
+    }
+    if (/school|education|academy|college|university|tuition|training/.test(text)) {
+        return { label: businessType || "School", Icon: FaSchool, className: "school" };
+    }
+    if (/clinic|hospital|medical|pharmacy|health|dental/.test(text)) {
+        return { label: businessType || "Healthcare", Icon: FaHospital, className: "healthcare" };
+    }
+    if (/car|auto|vehicle|garage|workshop|tyre|parking/.test(text)) {
+        return { label: businessType || "Automotive", Icon: FaCar, className: "automotive" };
+    }
+    if (/store|shop|retail|market|mall|mart|trading/.test(text)) {
+        return { label: businessType || "Store", Icon: FaStore, className: "store" };
+    }
+
+    return { label: businessType || "Company", Icon: FaBuilding, className: "company" };
+};
+
+const linkWithProtocol = (url) => {
+    const text = valueText(url);
+    if (!text) return "";
+    return /^https?:\/\//i.test(text) ? text : `https://${text}`;
+};
+
+const buildMetaModel = (assetInfo, title) => {
+    const groups = normalizeApiSpecGroups(assetInfo?.specGroups);
+    const rows = groups.flatMap((group) => group.children || []).filter(shouldShowMetaRow);
+    const companyName = findMetaValue(rows, ["Company Name", "AssetName"]) || title;
+    const description = findMetaValue(rows, ["Business Description", "Description", "Comments"]);
+    const businessType = findMetaValue(rows, ["Business Type", "Company Type", "Category", "Type"]);
+    const streetName = findMetaValue(rows, ["Street Name", "Street", "Address"]);
+    const buildingNumber = findMetaValue(rows, ["Building Number", "Building No", "Unit"]);
+    const address = [streetName, buildingNumber].filter(Boolean).join(", ") || streetName || buildingNumber;
+    const city = findMetaValue(rows, ["City", "Town", "State"]) || "Seri Kembangan, Selangor, Malaysia";
+    const openingHours = findMetaValue(rows, ["Opening Hours", "Hours"]);
+    const website = findMetaValue(rows, ["Website Url", "Website URL", "Website"]);
+    const telephone = findMetaValue(rows, ["Telephone", "Phone", "Contact"]);
+    const businessKind = getBusinessKind(businessType, companyName, description);
+    const consumedNames = new Set([
+        "company name",
+        "assetname",
+        "business description",
+        "description",
+        "comments",
+        "business type",
+        "company type",
+        "category",
+        "type",
+        "street name",
+        "street",
+        "address",
+        "building number",
+        "building no",
+        "unit",
+        "city",
+        "town",
+        "state",
+        "opening hours",
+        "hours",
+        "website url",
+        "website",
+        "telephone",
+        "phone",
+        "contact",
+    ]);
+    const extraRows = rows
+        .filter((row) => !consumedNames.has(String(row?.name || "").trim().toLowerCase()))
+        .map((row) => ({ label: row.name, value: valueText(row.value) }))
+        .filter((row) => row.value);
+
+    return {
+        address,
+        businessKind,
+        businessType,
+        city,
+        companyName,
+        description,
+        extraRows,
+        openingHours,
+        rows,
+        telephone,
+        website,
+    };
+};
+
+const PlaySidebarGallery = ({ assetInfo }) => {
+    const [images, setImages] = useState([]);
+    const [activeIndex, setActiveIndex] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const [uploadStatus, setUploadStatus] = useState("");
+    const selectedAssetId = assetInfo?.instanceId;
+    const sceneAsset = sceneAssets?.[selectedAssetId];
+    const assetID = assetInfo?.assetID || sceneAsset?.assetID || sceneAsset?.assetId || selectedAssetId;
+    const cacheKey = `${selectedAssetId}:${assetID}`;
+
+    const fetchImages = useCallback(async ({ force = false } = {}) => {
+        try {
+            setLoading(true);
+            if (!force) {
+                const cached = mediaCache.get(cacheKey);
+                if (cached) {
+                    setImages(cached);
+                    setActiveIndex(0);
+                    setLoading(false);
+                    return;
+                }
+            }
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/getImages`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ assetID, id: selectedAssetId }),
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const allImages = await response.json();
+            const imageList = allImages?.images?.length ? allImages.images : allImages?.category_images;
+            const nextImages = imageObject(imageList);
+            mediaCache.set(cacheKey, nextImages);
+            setImages(nextImages);
+            setActiveIndex(0);
+        } catch (error) {
+            console.error("Failed to fetch play asset images:", error);
+            setImages(imageObject([]));
+        } finally {
+            setLoading(false);
+        }
+    }, [assetID, cacheKey, selectedAssetId]);
+
+    useEffect(() => {
+        fetchImages();
+    }, [fetchImages]);
+
+    const uploadImages = async (event) => {
+        const files = Array.from(event.target.files || []);
+        event.target.value = "";
+        if (!files.length || !selectedAssetId) return;
+
+        try {
+            setUploadStatus("Uploading...");
+            const formData = new FormData();
+            formData.append("asset_id", selectedAssetId);
+            files.forEach((file) => formData.append("files", file, file.name));
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
+                method: "POST",
+                body: formData,
+            });
+            if (!response.ok) throw new Error(response.statusText || `HTTP ${response.status}`);
+
+            mediaCache.delete(cacheKey);
+            await fetchImages({ force: true });
+            setUploadStatus(files.length > 1 ? "Images uploaded" : "Image uploaded");
+        } catch (error) {
+            console.error("Failed to upload play asset images:", error);
+            setUploadStatus("Upload failed");
+        }
+    };
+
+    const activeImage = images[activeIndex] || images[0];
+    const hasMultipleImages = images.length > 1;
+    const goToPrevious = () => setActiveIndex((index) => (index <= 0 ? images.length - 1 : index - 1));
+    const goToNext = () => setActiveIndex((index) => (index >= images.length - 1 ? 0 : index + 1));
+
+    return (
+        <div className="play-asset-info__hero-gallery">
+            <div className="play-asset-info__hero-image">
+                {loading ? (
+                    <div className="play-asset-info__empty">Loading photos...</div>
+                ) : (
+                    <img src={activeImage?.itemImageSrc} alt={activeImage?.alt || ""} />
+                )}
+                {hasMultipleImages && (
+                    <>
+                        <button type="button" className="play-asset-info__gallery-nav play-asset-info__gallery-nav--left" aria-label="Previous photo" onClick={goToPrevious}>
+                            <FaChevronLeft aria-hidden="true" />
+                        </button>
+                        <button type="button" className="play-asset-info__gallery-nav play-asset-info__gallery-nav--right" aria-label="Next photo" onClick={goToNext}>
+                            <FaChevronRight aria-hidden="true" />
+                        </button>
+                    </>
+                )}
+            </div>
+
+            <div className="play-asset-info__gallery-footer">
+                <div className="play-asset-info__gallery-thumbs" aria-label="Business photos">
+                    {images.map((image, index) => (
+                        <button
+                            type="button"
+                            key={`${image.thumbnailImageSrc}-${index}`}
+                            className={activeIndex === index ? "is-active" : ""}
+                            onClick={() => setActiveIndex(index)}
+                            aria-label={`Show photo ${index + 1}`}
+                        >
+                            <img src={image.thumbnailImageSrc} alt="" />
+                        </button>
+                    ))}
+                </div>
+                <label className="play-asset-info__upload-button">
+                    <FaUpload aria-hidden="true" />
+                    <span>Upload</span>
+                    <input type="file" accept="image/*" multiple onChange={uploadImages} />
+                </label>
+            </div>
+            {uploadStatus && <div className="play-asset-info__upload-status">{uploadStatus}</div>}
+        </div>
+    );
+};
+
 export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilderOpen }) {
-    const [activeTab, setActiveTab] = useState("spec");
     const projectId = useGame((state) => state.projectID);
     const selectedAssetId = assetInfo?.instanceId;
     const title = useMemo(() => assetInfo?.title || `Asset ${selectedAssetId}`, [assetInfo?.title, selectedAssetId]);
     const showSystemBuilder = String(projectId ?? "").includes("137");
+    const meta = useMemo(() => buildMetaModel(assetInfo, title), [assetInfo, title]);
+    const [isEditing, setIsEditing] = useState(false);
+    const [draftRows, setDraftRows] = useState([]);
+    const [searchTerm, setSearchTerm] = useState("");
+    const BusinessIcon = meta.businessKind.Icon;
+
+    useEffect(() => {
+        setDraftRows(meta.rows.map((row) => ({
+            fieldId: row.fieldId,
+            name: row.name,
+            value: valueText(row.value),
+        })));
+        setIsEditing(false);
+        setSearchTerm("");
+    }, [meta.rows, selectedAssetId]);
+
+    const handleEditRequest = () => {
+        setIsEditing(true);
+        if (typeof window === "undefined") return;
+        window.dispatchEvent(new CustomEvent("play-asset-info-edit-request", {
+            detail: {
+                assetInfo,
+                instanceId: selectedAssetId,
+                meta,
+            },
+        }));
+    };
+
+    const handleDraftChange = (index, value) => {
+        setDraftRows((rows) => rows.map((row, rowIndex) => (
+            rowIndex === index ? { ...row, value } : row
+        )));
+    };
+
+    const handleSaveRequest = () => {
+        if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("play-asset-info-save-request", {
+                detail: {
+                    assetInfo,
+                    fields: draftRows,
+                    instanceId: selectedAssetId,
+                },
+            }));
+        }
+        setIsEditing(false);
+    };
 
     
     if (!assetInfo) return null;
 
     return (
         <aside
-            className="play-asset-info"
+            className="play-asset-info play-asset-info--sidebar"
             style={{
                 "--play-asset-info-left-anchor-url": leftAnchorUrl,
                 "--play-asset-info-right-anchor-url": rightAnchorUrl,
@@ -633,37 +932,127 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                 ×
             </button>
 
-            <div className="play-asset-info__header">
-                <h2>{title}</h2>
-                {showSystemBuilder && (
-                    <button
-                        type="button"
-                        className="play-asset-info__systembuilder"
-                        onClick={onSystemBuilderOpen}
-                    >
-                        Systembuilder
+            <div className="play-asset-info__hero">
+                <PlaySidebarGallery assetInfo={assetInfo} />
+                <div className="play-asset-info__topbar">
+                    <input
+                        aria-label="Search metadata"
+                        value={searchTerm}
+                        onChange={(event) => setSearchTerm(event.target.value)}
+                    />
+                    <button type="button" aria-label="Search">
+                        <FaSearch aria-hidden="true" />
                     </button>
-                )}
-            </div>
-            <div className="play-asset-info__tabs" role="tablist" aria-label="Asset fields">
-                {TAB_ITEMS.map(({ value, label, icon: Icon }) => (
-                    <button
-                        key={value}
-                        type="button"
-                        role="tab"
-                        aria-selected={activeTab === value}
-                        className={activeTab === value ? "is-active" : ""}
-                        onClick={() => setActiveTab(value)}
-                    >
-                        <Icon aria-hidden="true" />
-                        <span>{label}</span>
+                    <button type="button" aria-label="Clear search" onClick={() => setSearchTerm("")}>
+                        <FaTimes aria-hidden="true" />
                     </button>
-                ))}
+                </div>
+                <button type="button" className="play-asset-info__sidebar-back" aria-label="Close asset info" onClick={onClose}>
+                    <FaArrowLeft aria-hidden="true" />
+                </button>
             </div>
 
-            <div className="play-asset-info__content">
-                {activeTab === "spec" && <PlaySpecTab assetInfo={assetInfo} />}
-                {activeTab === "media" && <PlayMediaTab assetInfo={assetInfo} />}
+            <div className="play-asset-info__body">
+                <div className="play-asset-info__title-block">
+                    <div className={`play-asset-info__business-badge play-asset-info__business-badge--${meta.businessKind.className}`}>
+                        <BusinessIcon aria-hidden="true" />
+                        <span>{meta.businessKind.label}</span>
+                    </div>
+                    <h2>{meta.companyName || title}</h2>
+                    {meta.description && <p>{meta.description}</p>}
+                </div>
+
+                <div className="play-asset-info__body-actions">
+                    <button type="button" className="play-asset-info__edit-button" onClick={handleEditRequest}>
+                        <FaEdit aria-hidden="true" />
+                        <span>{isEditing ? "Editing" : "Edit info"}</span>
+                    </button>
+                    {showSystemBuilder && (
+                        <button
+                            type="button"
+                            className="play-asset-info__systembuilder"
+                            onClick={onSystemBuilderOpen}
+                        >
+                            Systembuilder
+                        </button>
+                    )}
+                </div>
+
+                <section className="play-asset-info__meta-section" aria-label="Business metadata">
+                    <h3>Meta</h3>
+                    {isEditing ? (
+                        <div className="play-asset-info__edit-form">
+                            {draftRows.map((row, index) => (
+                                <label key={`${row.fieldId || row.name}-${index}`}>
+                                    <span>{row.name}</span>
+                                    <textarea
+                                        rows={String(row.value || "").length > 80 ? 3 : 1}
+                                        value={row.value}
+                                        onChange={(event) => handleDraftChange(index, event.target.value)}
+                                    />
+                                </label>
+                            ))}
+                            <div className="play-asset-info__edit-actions">
+                                <button type="button" onClick={handleSaveRequest}>Save</button>
+                                <button type="button" onClick={() => setIsEditing(false)}>Cancel</button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="play-asset-info__meta-list">
+                        {meta.address && (
+                            <div className="play-asset-info__meta-item">
+                                <FaMapMarkerAlt aria-hidden="true" />
+                                <div>
+                                    <strong>{meta.address}</strong>
+                                    {meta.city && <span>{meta.city}</span>}
+                                </div>
+                            </div>
+                        )}
+                        {meta.openingHours && (
+                            <div className="play-asset-info__meta-item">
+                                <FaRegClock aria-hidden="true" />
+                                <div>
+                                    <strong>{meta.openingHours}</strong>
+                                </div>
+                            </div>
+                        )}
+                        {meta.website && (
+                            <a className="play-asset-info__meta-item" href={linkWithProtocol(meta.website)} target="_blank" rel="noreferrer">
+                                <FaGlobe aria-hidden="true" />
+                                <div>
+                                    <strong>{meta.website}</strong>
+                                </div>
+                            </a>
+                        )}
+                        {meta.telephone && (
+                            <a className="play-asset-info__meta-item" href={`tel:${meta.telephone.replace(/[^\d+]/g, "")}`}>
+                                <FaPhoneAlt aria-hidden="true" />
+                                <div>
+                                    <strong>{meta.telephone}</strong>
+                                </div>
+                            </a>
+                        )}
+                        <button type="button" className="play-asset-info__meta-item play-asset-info__meta-action">
+                            <FaShareAlt aria-hidden="true" />
+                            <div>
+                                <strong>Send to your phone</strong>
+                            </div>
+                        </button>
+                        {meta.extraRows.slice(0, 6).map((row) => (
+                            <div className="play-asset-info__meta-item play-asset-info__meta-item--plain" key={row.label}>
+                                <BusinessIcon aria-hidden="true" />
+                                <div>
+                                    <span>{row.label}</span>
+                                    <strong>{row.value}</strong>
+                                </div>
+                            </div>
+                        ))}
+                        {!meta.address && !meta.openingHours && !meta.website && !meta.telephone && !meta.extraRows.length && (
+                            <div className="play-asset-info__empty">No metadata available</div>
+                        )}
+                        </div>
+                    )}
+                </section>
             </div>
         </aside>
     );

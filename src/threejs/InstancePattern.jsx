@@ -3,6 +3,7 @@ import { Box3, Vector3 } from 'three';
 import { PointText3D } from "./scene/3DText";
 import AnimationComponent from "./animations/AnimationComponent";
 import AttachLabel from "./label/AttachLabel";
+import { createBuildingLabelSprite } from "./label/BuildingLabelSprite";
 import Composite from './Composite';
 import { applyDslAnimations, clearDslAnimations, readDslAnimations } from './dslAnimationRuntime';
 import { isGeneratedAssetReference, normalizeSceneAssetName } from './generatedAssetPaths';
@@ -194,6 +195,7 @@ export default async function InstancedPattern(
     const rotationQuaternionTmp = new THREE.Quaternion();
     const finalQuaternionTmp = new THREE.Quaternion();
     const matrixTmp = new THREE.Matrix4();
+    const labelBoxTmp = new THREE.Box3();
     const animatedDummy = new THREE.Object3D();
     const animatedEuler = new THREE.Euler();
     const animatedQuaternion = new THREE.Quaternion();
@@ -467,6 +469,7 @@ export default async function InstancedPattern(
 
         matrixTmp.compose(position, finalQuaternion, absScale);
         instancedMesh.setMatrixAt(index, matrixTmp);
+        labelBoxTmp.copy(pivotBox).applyMatrix4(matrixTmp);
 
         const assetOjb = { description, assetId: instanceId, fields, categoryIndex: raw.category_index, content };
 
@@ -515,6 +518,20 @@ export default async function InstancedPattern(
             vAlignValue: va,
             commandLine: assetCommandLines[assetCommandLines.length - 1] || "",
         };
+
+        const buildingLabel = createBuildingLabelSprite({
+            fields,
+            fallbackName: name,
+            position,
+            halfHeight: height ? parseFloat(height) / 2 : halfHeight,
+            topY: labelBoxTmp.max.y,
+            instanceId,
+        });
+
+        if (buildingLabel) {
+            scene.add(buildingLabel);
+            sceneAssets[instanceId].buildingLabel = buildingLabel;
+        }
 
         index++;
     }
