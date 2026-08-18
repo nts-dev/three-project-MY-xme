@@ -676,6 +676,21 @@ const linkWithProtocol = (url) => {
     return /^https?:\/\//i.test(text) ? text : `https://${text}`;
 };
 
+const getEditFieldIcon = (name) => {
+    const text = String(name || "").trim().toLowerCase();
+    if (/street|address|building|unit|city|state|town/.test(text)) return FaMapMarkerAlt;
+    if (/opening|hours|schedule|check/.test(text)) return FaRegClock;
+    if (/website|url|web/.test(text)) return FaGlobe;
+    if (/telephone|phone|contact/.test(text)) return FaPhoneAlt;
+    if (/business type|company type|category|type/.test(text)) return FaBuilding;
+    return FaEdit;
+};
+
+const isLongEditField = (name, value) => {
+    const text = String(name || "").trim().toLowerCase();
+    return /description|comments|opening|hours|schedule/.test(text) || String(value || "").length > 70;
+};
+
 const buildMetaModel = (assetInfo, title) => {
     const groups = normalizeApiSpecGroups(assetInfo?.specGroups);
     const rows = groups.flatMap((group) => group.children || []).filter(shouldShowMetaRow);
@@ -917,7 +932,7 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
 
     return (
         <aside
-            className="play-asset-info play-asset-info--sidebar"
+            className={`play-asset-info play-asset-info--sidebar${isEditing ? " is-editing" : ""}`}
             style={{
                 "--play-asset-info-left-anchor-url": leftAnchorUrl,
                 "--play-asset-info-right-anchor-url": rightAnchorUrl,
@@ -932,21 +947,24 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                 ×
             </button>
 
+            <div className="play-asset-info__topbar">
+                <input
+                    aria-label="Search metadata"
+                    placeholder="Search metadata..."
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                />
+                <button type="button" aria-label="Search">
+                    <FaSearch aria-hidden="true" />
+                </button>
+                <button type="button" aria-label="Clear search" onClick={() => setSearchTerm("")}>
+                    <FaTimes aria-hidden="true" />
+                </button>
+            </div>
+
+            <div className="play-asset-info__panel-kicker">Meta Data</div>
             <div className="play-asset-info__hero">
                 <PlaySidebarGallery assetInfo={assetInfo} />
-                <div className="play-asset-info__topbar">
-                    <input
-                        aria-label="Search metadata"
-                        value={searchTerm}
-                        onChange={(event) => setSearchTerm(event.target.value)}
-                    />
-                    <button type="button" aria-label="Search">
-                        <FaSearch aria-hidden="true" />
-                    </button>
-                    <button type="button" aria-label="Clear search" onClick={() => setSearchTerm("")}>
-                        <FaTimes aria-hidden="true" />
-                    </button>
-                </div>
                 <button type="button" className="play-asset-info__sidebar-back" aria-label="Close asset info" onClick={onClose}>
                     <FaArrowLeft aria-hidden="true" />
                 </button>
@@ -982,16 +1000,32 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                     <h3>Meta</h3>
                     {isEditing ? (
                         <div className="play-asset-info__edit-form">
-                            {draftRows.map((row, index) => (
-                                <label key={`${row.fieldId || row.name}-${index}`}>
-                                    <span>{row.name}</span>
-                                    <textarea
-                                        rows={String(row.value || "").length > 80 ? 3 : 1}
-                                        value={row.value}
-                                        onChange={(event) => handleDraftChange(index, event.target.value)}
-                                    />
-                                </label>
-                            ))}
+                            {draftRows.map((row, index) => {
+                                const FieldIcon = getEditFieldIcon(row.name);
+                                const useTextarea = isLongEditField(row.name, row.value);
+
+                                return (
+                                    <label className="play-asset-info__edit-row" key={`${row.fieldId || row.name}-${index}`}>
+                                        <FieldIcon className="play-asset-info__edit-icon" aria-hidden="true" />
+                                        <span>{row.name}</span>
+                                        {useTextarea ? (
+                                            <textarea
+                                                rows={/opening|hours|schedule/i.test(row.name) ? 4 : 3}
+                                                placeholder={`${row.name}...`}
+                                                value={row.value}
+                                                onChange={(event) => handleDraftChange(index, event.target.value)}
+                                            />
+                                        ) : (
+                                            <input
+                                                type="text"
+                                                placeholder={`${row.name}...`}
+                                                value={row.value}
+                                                onChange={(event) => handleDraftChange(index, event.target.value)}
+                                            />
+                                        )}
+                                    </label>
+                                );
+                            })}
                             <div className="play-asset-info__edit-actions">
                                 <button type="button" onClick={handleSaveRequest}>Save</button>
                                 <button type="button" onClick={() => setIsEditing(false)}>Cancel</button>

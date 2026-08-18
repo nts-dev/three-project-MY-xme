@@ -20,13 +20,15 @@ const LABEL_FIELD_NAMES = [
 ];
 
 const CATEGORY_STYLES = {
-    food: { color: "#f59a3d", label: "FOOD" },
-    education: { color: "#5b86ff", label: "EDU" },
-    health: { color: "#38d487", label: "HEALTH" },
-    auto: { color: "#38bdf8", label: "AUTO" },
-    retail: { color: "#b56cff", label: "SHOP" },
-    service: { color: "#23f4f8", label: "SERVICE" },
+    food: { color: "#f5a33d", label: "Food" },
+    education: { color: "#6f9bff", label: "Education" },
+    health: { color: "#54e8a8", label: "Health" },
+    auto: { color: "#38bdf8", label: "Auto" },
+    retail: { color: "#c772ff", label: "Shop" },
+    service: { color: "#23f4f8", label: "Service" },
 };
+
+const LABEL_FONT = "\"Plus Jakarta Sans\", \"Inter\", \"Segoe UI\", Arial, sans-serif";
 
 const getFieldValue = (fields, names) => {
     if (!fields) {
@@ -133,6 +135,61 @@ const drawPin = (context, x, y, color) => {
     context.beginPath();
     context.arc(0, -12, 18, 0, Math.PI * 2);
     context.fill();
+    context.restore();
+};
+
+const drawMapChipPin = (context, x, y, color) => {
+    context.save();
+    context.translate(x, y);
+    context.shadowColor = color;
+    context.shadowBlur = 10;
+    context.strokeStyle = color;
+    context.lineWidth = 3;
+    context.beginPath();
+    context.moveTo(0, 14);
+    context.lineTo(0, 42);
+    context.stroke();
+
+    context.fillStyle = color;
+    context.beginPath();
+    context.arc(0, 46, 6, 0, Math.PI * 2);
+    context.fill();
+
+    context.shadowBlur = 0;
+    context.fillStyle = "rgba(5, 18, 17, 0.96)";
+    context.strokeStyle = color;
+    context.lineWidth = 2.5;
+    roundRect(context, -20, -20, 40, 40, 10);
+    context.fill();
+    context.stroke();
+    context.restore();
+};
+
+const drawLabelTileIcon = (context, x, y, color) => {
+    context.save();
+    context.translate(x, y);
+    context.strokeStyle = color;
+    context.fillStyle = color;
+    context.lineWidth = 2.4;
+    context.lineCap = "round";
+    context.lineJoin = "round";
+
+    roundRect(context, -7, -10, 14, 20, 2.5);
+    context.stroke();
+
+    for (const rowY of [-5, 0, 5]) {
+        context.beginPath();
+        context.moveTo(-3, rowY);
+        context.lineTo(3, rowY);
+        context.stroke();
+    }
+
+    context.beginPath();
+    context.moveTo(-2, 10);
+    context.lineTo(-2, 6);
+    context.lineTo(2, 6);
+    context.lineTo(2, 10);
+    context.stroke();
     context.restore();
 };
 
@@ -247,7 +304,7 @@ export const createBuildingLabelSprite = ({
     const style = CATEGORY_STYLES[kind] || CATEGORY_STYLES.service;
     const canvas = document.createElement("canvas");
     canvas.width = 512;
-    canvas.height = 128;
+    canvas.height = 188;
 
     const context = canvas.getContext("2d");
     if (!context) {
@@ -255,27 +312,58 @@ export const createBuildingLabelSprite = ({
     }
 
     context.clearRect(0, 0, canvas.width, canvas.height);
-    context.font = "700 28px Arial, sans-serif";
-    const labelText = truncateText(context, title, 330);
-
-    drawPin(context, 50, 70, style.color);
-    drawIcon(context, kind, 50, 58, "#f7fbfc");
+    context.font = `800 28px ${LABEL_FONT}`;
+    const labelText = truncateText(context, title, 250);
+    const building = getFieldValue(fields, ["Building Number", "Building No", "Unit"]);
+    const floor = getFieldValue(fields, ["Floor", "Level"]);
+    const subtitle = truncateText(context, [building, floor].filter(Boolean).join(" - ") || style.label, 250);
 
     context.save();
-    context.font = "700 16px Arial, sans-serif";
-    context.fillStyle = style.color;
-    context.strokeStyle = "rgba(0, 0, 0, 0.82)";
-    context.lineWidth = 5;
-    context.strokeText(style.label, 84, 52);
-    context.fillText(style.label, 84, 52);
+    context.shadowColor = "rgba(4, 87, 69, 0.58)";
+    context.shadowBlur = 18;
+    context.shadowOffsetY = 8;
+    context.fillStyle = "#253630";
+    context.strokeStyle = "rgba(75, 255, 226, 0.16)";
+    context.lineWidth = 1;
+    roundRect(context, 70, 20, 350, 96, 14);
+    context.fill();
+    context.stroke();
 
-    context.font = "700 28px Arial, sans-serif";
-    context.fillStyle = "#f7fbfc";
-    context.strokeStyle = "rgba(0, 0, 0, 0.88)";
-    context.lineWidth = 7;
-    context.lineJoin = "round";
-    context.strokeText(labelText, 84, 86);
-    context.fillText(labelText, 84, 86);
+    context.shadowBlur = 0;
+    context.shadowOffsetY = 0;
+    context.fillStyle = "rgba(16, 98, 91, 0.42)";
+    context.strokeStyle = "rgba(35, 244, 248, 0.34)";
+    context.lineWidth = 1.5;
+    roundRect(context, 96, 42, 46, 46, 10);
+    context.fill();
+    context.stroke();
+    drawLabelTileIcon(context, 119, 65, "#23f4f8");
+
+    context.shadowBlur = 0;
+    context.fillStyle = "#f8fbfc";
+    context.font = `800 28px ${LABEL_FONT}`;
+    context.fillText(labelText, 160, 60);
+
+    context.fillStyle = "rgba(203, 218, 214, 0.58)";
+    context.font = `500 17px ${LABEL_FONT}`;
+    context.fillText(subtitle, 160, 88);
+
+    context.strokeStyle = "rgba(35, 244, 248, 0.38)";
+    context.lineWidth = 3;
+    context.beginPath();
+    context.moveTo(245, 118);
+    context.lineTo(245, 150);
+    context.stroke();
+
+    context.shadowColor = "#23f4f8";
+    context.shadowBlur = 10;
+    context.fillStyle = "rgba(35, 244, 248, 0.54)";
+    context.strokeStyle = "rgba(35, 244, 248, 0.46)";
+    context.lineWidth = 2;
+    context.beginPath();
+    context.arc(245, 158, 9, 0, Math.PI * 2);
+    context.fill();
+    context.stroke();
     context.restore();
 
     const texture = new THREE.CanvasTexture(canvas);
@@ -291,10 +379,10 @@ export const createBuildingLabelSprite = ({
     });
 
     const sprite = new THREE.Sprite(material);
-    sprite.scale.set(9.5, 2.38, 1);
+    sprite.scale.set(6.2, 2.28, 1);
 
-    
-    sprite.position.set(position.x, (halfHeight/100) *2, position.z);
+    const heightTop = Number.isFinite(topY) ? topY : position.y + (Number(halfHeight) || 0);
+    sprite.position.set(position.x, (halfHeight/100)*2, position.z);
     sprite.renderOrder = 10000;
     sprite.name = `building-label:${instanceId || title}`;
     sprite.userData = {

@@ -1,151 +1,108 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
-import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
+import React from "react";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
+import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import useGame from "../hooks/useGame";
 import "./ProjectTileLanding.css";
+
+const API_BASE_URL = String(import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+const FILE_BASE_URL = String(import.meta.env.VITE_FILE_URL || "").replace(/\/$/, "");
 
 const PROJECTS = [
     {
         id: "33_L0",
+        number: "01",
         title: "MY Map",
-        subtitle: "NTS Computers SDN BHD / First Floor / Floors 0-1380",
-        user: "Admin User",
+        imageFile: "33.png",
+        type: "Floor Plan",
         date: "02/06/2026",
+        buildingCount: "2 buildings",
+        floorLabel: "First Floor / Floors 0-13",
     },
     {
         id: "153_L1",
+        number: "02",
         title: "New Office Extended",
-        subtitle: "NTS Computers SDN BHD / First Floor / Floors 0-1380",
-        user: "Admin User",
+        imageFile: "153.jpeg",
+        type: "Site Map",
         date: "04/16/2026",
+        buildingCount: "3 buildings",
+        floorLabel: "First Floor / Floors 0-13",
     },
 ];
 
-const API_BASE_URL = String(import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+function buildFileImageUrl(fileName) {
+    const encodedFileName = encodeURIComponent(fileName);
 
-function normalizeProjectTileImageUrl(image) {
-    const rawUrl = String(image?.url || "").trim();
-    const fileName = image?.fileName ? encodeURIComponent(image.fileName) : "";
-
-    if (!rawUrl && fileName) {
-        return `${API_BASE_URL}/project-tile-images/${fileName}`;
+    if (API_BASE_URL) {
+        return `${API_BASE_URL}/files/${encodedFileName}`;
     }
 
-    if (!rawUrl) {
-        return "";
+    if (FILE_BASE_URL) {
+        return `${FILE_BASE_URL}/${encodedFileName}`;
     }
 
-    try {
-        const apiUrl = new URL(API_BASE_URL, window.location.href);
-        const imageUrl = new URL(rawUrl, window.location.href);
-
-        if (
-            fileName &&
-            imageUrl.pathname.startsWith("/project-tile-images/") &&
-            apiUrl.pathname.replace(/\/$/, "").endsWith("/api")
-        ) {
-            return `${apiUrl.origin}${apiUrl.pathname.replace(/\/$/, "")}/project-tile-images/${fileName}`;
-        }
-    } catch {
-        return rawUrl;
-    }
-
-    return rawUrl;
+    return `/files/${encodedFileName}`;
 }
 
-function arrayBufferToBase64(buffer) {
-    const bytes = new Uint8Array(buffer);
-    const chunkSize = 0x8000;
-    let binary = "";
+function ProjectTile({ project, onOpen }) {
+    const openProject = () => onOpen(project.id);
 
-    for (let index = 0; index < bytes.length; index += chunkSize) {
-        const chunk = bytes.subarray(index, index + chunkSize);
-        binary += String.fromCharCode(...chunk);
-    }
-
-    return window.btoa(binary);
-}
-
-function ProjectTile({ project, thumbnail, uploadState, onOpen, onThumbnailChange }) {
-    const inputRef = useRef(null);
-    const [thumbnailFailed, setThumbnailFailed] = useState(false);
-
-    useEffect(() => {
-        setThumbnailFailed(false);
-    }, [thumbnail]);
-
-    const handleFileChange = (event) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = () => {
-            onThumbnailChange(project.id, file, arrayBufferToBase64(reader.result));
-        };
-        reader.readAsArrayBuffer(file);
-        event.target.value = "";
+    const handleKeyDown = (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        openProject();
     };
 
     return (
-        <article className="project-tile-card" onClick={() => onOpen(project.id)}>
-            <div className="project-tile-thumbnail">
-                {thumbnail && !thumbnailFailed ? (
-                    <img
-                        src={thumbnail}
-                        alt=""
-                        onError={() => setThumbnailFailed(true)}
-                    />
-                ) : (
-                    <div className="project-tile-placeholder" aria-hidden="true" />
-                )}
-            </div>
+        <article
+            className="project-tile-card"
+            tabIndex={0}
+            onClick={openProject}
+            onKeyDown={handleKeyDown}
+        >
+            <img
+                className="project-tile-image"
+                src={buildFileImageUrl(project.imageFile)}
+                alt={`${project.title} location preview`}
+            />
+            <span className="project-tile-number" aria-hidden="true">
+                {project.number}
+            </span>
+            <span className="project-tile-type">{project.type}</span>
 
-            <div className="project-tile-meta">
-                <span>
-                    <PersonOutlineOutlinedIcon fontSize="inherit" />
-                    {project.user}
-                </span>
-                <span>
-                    <CalendarTodayOutlinedIcon fontSize="inherit" />
-                    {project.date}
-                </span>
-            </div>
+            <div className="project-tile-content">
+                <p className="project-tile-org">NTS COMPUTERS SDN BHD</p>
+                <h2>{project.title}</h2>
 
-            <h2>{project.title}</h2>
-            <p>{project.subtitle}</p>
+                <div className="project-tile-location">
+                    <LocationOnOutlinedIcon fontSize="inherit" />
+                    <span>{project.floorLabel}</span>
+                </div>
 
-            <div className="project-tile-actions">
+                <div className="project-tile-meta">
+                    <span>
+                        <CalendarTodayOutlinedIcon fontSize="inherit" />
+                        {project.date}
+                    </span>
+                    <span>
+                        <BusinessOutlinedIcon fontSize="inherit" />
+                        {project.buildingCount}
+                    </span>
+                </div>
+
                 <button
                     type="button"
-                    className="project-tile-view-button"
+                    className="project-tile-open-button"
                     onClick={(event) => {
                         event.stopPropagation();
-                        onOpen(project.id);
+                        openProject();
                     }}
                 >
-                    <VisibilityIcon fontSize="inherit" />
-                    View
+                    Open Location
+                    <ArrowForwardIcon fontSize="inherit" />
                 </button>
-                <button
-                    type="button"
-                    className="project-tile-upload-button"
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        inputRef.current?.click();
-                    }}
-                >
-                    <CloudUploadOutlinedIcon fontSize="inherit" />
-                    {uploadState === "saving" ? "Saving" : "Image"}
-                </button>
-                <input
-                    ref={inputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    onClick={(event) => event.stopPropagation()}
-                />
             </div>
         </article>
     );
@@ -163,46 +120,6 @@ export default function ProjectTileLanding() {
     const setSelectedEditorInstance = useGame((state) => state.setSelectedEditorInstance);
     const setPackageControl = useGame((state) => state.setPackageControl);
     const setIsPackage = useGame((state) => state.setIsPackage);
-    const [thumbnails, setThumbnails] = useState(() => {
-        return PROJECTS.reduce((next, project) => {
-            next[project.id] = "";
-            return next;
-        }, {});
-    });
-    const [uploadStates, setUploadStates] = useState({});
-
-    const projects = useMemo(() => PROJECTS, []);
-
-    useEffect(() => {
-        if (!API_BASE_URL) return;
-
-        let isCancelled = false;
-
-        fetch(`${API_BASE_URL}/project-tile-image-list`)
-            .then((response) => {
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                return response.json();
-            })
-            .then((payload) => {
-                if (isCancelled) return;
-
-                const latestByProject = {};
-                for (const image of payload?.images || []) {
-                    const projectId = image?.projectId;
-                    if (!projectId || latestByProject[projectId]) continue;
-                    latestByProject[projectId] = normalizeProjectTileImageUrl(image);
-                }
-
-                setThumbnails((current) => ({ ...current, ...latestByProject }));
-            })
-            .catch((error) => {
-                console.warn("Failed to load project tile images:", error);
-            });
-
-        return () => {
-            isCancelled = true;
-        };
-    }, []);
 
     const openProject = (projectId) => {
         setPackageControl(false);
@@ -221,57 +138,36 @@ export default function ProjectTileLanding() {
         window.dispatchEvent(new Event("resize"));
     };
 
-    const updateThumbnail = async (projectId, file, contentBase64) => {
-        if (!API_BASE_URL) return;
-
-        setUploadStates((current) => ({ ...current, [projectId]: "saving" }));
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/project-tile-images`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    projectId,
-                    tileId: projectId,
-                    fileName: file.name,
-                    contentBase64,
-                }),
-            });
-
-            if (!response.ok) {
-                const errorPayload = await response.json().catch(() => ({}));
-                throw new Error(errorPayload.error || `HTTP ${response.status}`);
-            }
-
-            const payload = await response.json();
-            const nextThumbnail = normalizeProjectTileImageUrl(payload);
-            if (nextThumbnail) {
-                setThumbnails((current) => ({ ...current, [projectId]: nextThumbnail }));
-            }
-            setUploadStates((current) => ({ ...current, [projectId]: "saved" }));
-        } catch (error) {
-            console.error("Failed to upload project tile image:", error);
-            setUploadStates((current) => ({ ...current, [projectId]: "error" }));
-        }
-    };
-
     return (
         <section className="project-tile-landing">
-            <header className="project-tile-landing-header">
-                <h1>NTS Computers SDN BHD</h1>
+            <header className="project-tile-nav">
+                <div className="project-tile-brand">
+                    <strong>NTS Computers SDN BHD</strong>
+                    <span>Digital Twin Platform</span>
+                </div>
+                <div className="project-tile-status">
+                    <span aria-hidden="true" />
+                    2 locations online
+                </div>
             </header>
-            <div className="project-tile-grid">
-                {projects.map((project) => (
-                    <ProjectTile
-                        key={project.id}
-                        project={project}
-                        thumbnail={thumbnails[project.id]}
-                        uploadState={uploadStates[project.id]}
-                        onOpen={openProject}
-                        onThumbnailChange={updateThumbnail}
-                    />
-                ))}
-            </div>
+
+            <main className="project-tile-main">
+                <div className="project-tile-title">
+                    <p>SELECT A LOCATION</p>
+                    <h1>Property Locations</h1>
+                    <span>Choose a site to open its Digital Twin viewer</span>
+                </div>
+
+                <div className="project-tile-grid">
+                    {PROJECTS.map((project) => (
+                        <ProjectTile
+                            key={project.id}
+                            project={project}
+                            onOpen={openProject}
+                        />
+                    ))}
+                </div>
+            </main>
         </section>
     );
 }
