@@ -44,6 +44,9 @@ const DEATH_CAMERA_LERP = 1.8;
 const MAX_FRAME_DELTA = 0.05;
 const MOVE_ANIMATION_SPEED_THRESHOLD = 0.015;
 const MOVE_ANIMATION_GRACE_TIME = 0.12;
+const HORIZONTAL_ACCELERATION = 16;
+const HORIZONTAL_DECELERATION = 24;
+const BLOCKED_VELOCITY_DAMPING = 18;
 const DISTANCE_COUNT_STEP = 2;
 const MIN_SCENE_CAMERA_NEAR = 0.05;
 // const INITIAL_SPAWN = { x: 2.32, y: 0.3, z: 1.2 };
@@ -181,6 +184,7 @@ export default function KinematicPlayer({ orbitControlsRef, characterModel, clie
     dt: 0,
   });
   const desiredMoveRef = useRef({ x: 0, y: 0, z: 0 });
+  const horizontalVelocityRef = useRef(new THREE.Vector3());
   const kinematicTranslationRef = useRef({ x: 0, y: 0, z: 0 });
   const ladderMovementRef = useRef({ x: 0, y: 0, z: 0 });
   const previousDistancePositionRef = useRef(new THREE.Vector3());
@@ -434,7 +438,7 @@ export default function KinematicPlayer({ orbitControlsRef, characterModel, clie
     const screenFactor = screenFactorRef.current;
     const cameraDistance = character ? 0.1 : 0.4;
     const screenScale = 600 / screenFactor;
-    const cameraDistanceScaled = cameraDistance * screenScale;
+    const cameraDistanceScaled = (cameraDistance + Math.max(0, playerViewAngle) * 1.1) * screenScale;
 
     if (!startupGroundedRef.current) {
       const ray = startupGroundRayRef.current;
@@ -511,6 +515,10 @@ export default function KinematicPlayer({ orbitControlsRef, characterModel, clie
     if (keys.rightward && !pureKeyboardTurnRight) tmpMove.add(tmpRight);
     if (keys.forward) {
       zOffsetRef.current = -cameraDistanceScaled;
+    }
+
+    if (Math.abs(zOffsetRef.current) < cameraDistanceScaled) {
+      zOffsetRef.current = (zOffsetRef.current >= 0 ? 1 : -1) * cameraDistanceScaled;
     }
 
     if (joystickActive) {
@@ -623,6 +631,7 @@ export default function KinematicPlayer({ orbitControlsRef, characterModel, clie
     let nextY;
    
     if (climbingLadder) {
+      horizontalVelocityRef.current.set(0, 0, 0);
       verticalVelocityRef.current = 0;
       jumpForwardVelocityRef.current.set(0, 0, 0);
       ladderClimbSpeedRef.current = Math.min(
@@ -644,9 +653,18 @@ export default function KinematicPlayer({ orbitControlsRef, characterModel, clie
     } else {
       ladderClimbSpeedRef.current = 0;
       const desiredMove = desiredMoveRef.current;
-      desiredMove.x = ((hasMove ? tmpMove.x * baseSpeed : 0) + jumpForwardVelocityRef.current.x) * dt;
+      const horizontalVelocity = horizontalVelocityRef.current;
+      const targetVelocityX = hasMove ? tmpMove.x * baseSpeed : 0;
+      const targetVelocityZ = hasMove ? tmpMove.z * baseSpeed : 0;
+      const velocityAlpha = 1 - Math.exp(-(hasMove ? HORIZONTAL_ACCELERATION : HORIZONTAL_DECELERATION) * dt);
+
+      horizontalVelocity.x = THREE.MathUtils.lerp(horizontalVelocity.x, targetVelocityX, velocityAlpha);
+      horizontalVelocity.y = 0;
+      horizontalVelocity.z = THREE.MathUtils.lerp(horizontalVelocity.z, targetVelocityZ, velocityAlpha);
+
+      desiredMove.x = (horizontalVelocity.x + jumpForwardVelocityRef.current.x) * dt;
       desiredMove.y = verticalVelocityRef.current * dt;
-      desiredMove.z = ((hasMove ? tmpMove.z * baseSpeed : 0) + jumpForwardVelocityRef.current.z) * dt;
+      desiredMove.z = (horizontalVelocity.z + jumpForwardVelocityRef.current.z) * dt;
       if (debugFallTilePosition && !groundedBeforeMove && verticalVelocityRef.current <= 0) {
         desiredMove.x = (Number(debugFallTilePosition[0]) || tr.x) - tr.x;
         desiredMove.z = (Number(debugFallTilePosition[2]) || tr.z) - tr.z;
@@ -711,6 +729,11 @@ export default function KinematicPlayer({ orbitControlsRef, characterModel, clie
       }
       controller.computeColliderMovement(collider, desiredMove);
       movement = controller.computedMovement();
+      const desiredHorizontalSq = desiredMove.x * desiredMove.x + desiredMove.z * desiredMove.z;
+      const actualHorizontalSq = movement.x * movement.x + movement.z * movement.z;
+      if (desiredHorizontalSq > 1e-8 && actualHorizontalSq < desiredHorizontalSq * 0.25) {
+        horizontalVelocity.multiplyScalar(Math.max(0, 1 - BLOCKED_VELOCITY_DAMPING * dt));
+      }
       controllerGrounded = controller.computedGrounded?.() ?? groundedBeforeMove;
       const fallingIntoSurface = desiredMove.y < -0.0001 && Math.abs(movement.y) < Math.abs(desiredMove.y) * 0.35;
       physicsGrounded = controllerGrounded || fallingIntoSurface;

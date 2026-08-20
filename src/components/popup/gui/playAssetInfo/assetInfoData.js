@@ -1,6 +1,15 @@
 import { apiData } from "../../../../threejs/player/puzzle/character/Constants.jsx";
 
-const FALLBACK_IMAGE = `${import.meta.env.VITE_FILE_URL}/no_image.png`;
+const getImageHostUrl = (fileName) => {
+    const text = String(fileName || "").trim();
+    const cleanFileName = text.includes("/files/")
+        ? text.split("/files/").pop()
+        : text.replace(/^\.\.\/files\//i, "").replace(/^\/?files\//i, "");
+
+    return `${import.meta.env.VITE_IMAGE_URL}/${String(cleanFileName || "no_image.png").split("/").map(encodeURIComponent).join("/")}`;
+};
+
+const FALLBACK_IMAGE = getImageHostUrl("no_image.png");
 
 const isFaultyImageFileName = (fileName) => {
     const normalized = String(fileName || "").trim().toLowerCase();
@@ -8,12 +17,7 @@ const isFaultyImageFileName = (fileName) => {
 };
 
 const getAssetImageUrl = (fileName) => {
-    const cleanFileName = String(fileName || "").trim();
-    if (cleanFileName.startsWith("project33-")) {
-        return `${import.meta.env.VITE_IMAGE_URL}/${encodeURIComponent(cleanFileName)}`;
-    }
-
-    return `${import.meta.env.VITE_FILE_URL}/${cleanFileName.split("/").map(encodeURIComponent).join("/")}`;
+    return getImageHostUrl(fileName);
 };
 
 const formatText = (value, fallback = "Not available.") => {

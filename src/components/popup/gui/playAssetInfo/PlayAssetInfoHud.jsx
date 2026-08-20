@@ -250,13 +250,15 @@ function PlayMapDashboardChrome({ assetInfo }) {
 export default function PlayAssetInfoHud({ cameraRef, sceneRef }) {
     const buttonMode = useGame((state) => state.buttonMode);
     const isPuzzleGame = useGame((state) => state.isPuzzleGame);
+    const character = useGame((state) => state.character);
+    const firstPerson = useGame((state) => state.firstPerson);
     const [hiddenInstanceId, setHiddenInstanceId] = useState(null);
     const [hiddenRequestKey, setHiddenRequestKey] = useState(null);
     const [isSystemBuilderOpen, setIsSystemBuilderOpen] = useState(false);
     const [labelPopup, setLabelPopup] = useState(null);
     const labelPopupCloseTimerRef = useRef(null);
     const assetInfo = usePlayAssetInfo({
-        active: !isPuzzleGame ,
+        active: !isPuzzleGame && !character && !firstPerson,
         cameraRef,
         sceneRef,
     });

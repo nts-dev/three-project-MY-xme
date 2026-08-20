@@ -35,13 +35,17 @@ const isFaultyImageFileName = (fileName) => {
     return !normalized || normalized === "no_image.png" || normalized === "image1.jpeg" || normalized === "image1.jpg";
 };
 
-const getAssetImageUrl = (fileName) => {
-    const cleanFileName = String(fileName || "").trim();
-    if (cleanFileName.startsWith("project33-")) {
-        return `${import.meta.env.VITE_API_URL}/files/${encodeURIComponent(cleanFileName)}`;
-    }
+const getImageHostUrl = (fileName) => {
+    const text = String(fileName || "").trim();
+    const cleanFileName = text.includes("/files/")
+        ? text.split("/files/").pop()
+        : text.replace(/^\.\.\/files\//i, "").replace(/^\/?files\//i, "");
 
-    return `${import.meta.env.VITE_FILE_URL}/${cleanFileName.split("/").map(encodeURIComponent).join("/")}`;
+    return `${import.meta.env.VITE_IMAGE_URL}/${String(cleanFileName || "no_image.png").split("/").map(encodeURIComponent).join("/")}`;
+};
+
+const getAssetImageUrl = (fileName) => {
+    return getImageHostUrl(fileName);
 };
 
 const TAB_ITEMS = [
@@ -108,13 +112,13 @@ const shouldShowMetaRow = (field) => !HIDDEN_META_ROW_NAMES.has(String(field?.na
 
 const imageObject = (imageList) => {
     if (!imageList || imageList.length === 0) {
-        const url = `${import.meta.env.VITE_FILE_URL}/no_image.png`;
+        const url = getImageHostUrl("no_image.png");
         return [{ itemImageSrc: url, thumbnailImageSrc: url, alt: "No image available" }];
     }
 
     const validImages = imageList.filter((image) => !isFaultyImageFileName(image?.name));
     if (!validImages.length) {
-        const url = `${import.meta.env.VITE_FILE_URL}/no_image.png`;
+        const url = getImageHostUrl("no_image.png");
         return [{ itemImageSrc: url, thumbnailImageSrc: url, alt: "No image available" }];
     }
 

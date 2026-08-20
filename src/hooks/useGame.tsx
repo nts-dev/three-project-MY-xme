@@ -1041,15 +1041,21 @@ const useGame = create((set) => ({
                 : null
         })),
     setPlayAssetInfoRequest: (request: any) =>
-        set((state: any) => ({
-            ...state,
-            playAssetInfoRequest: request
-                ? {
-                    ...request,
-                    requestedAt: Date.now()
-                }
-                : null
-        })),
+        set((state: any) => {
+            if (request && (state.character || state.firstPerson)) {
+                return state;
+            }
+
+            return {
+                ...state,
+                playAssetInfoRequest: request
+                    ? {
+                        ...request,
+                        requestedAt: Date.now()
+                    }
+                    : null
+            };
+        }),
     setEditorGizmoMode: (editorGizmoMode: any) =>
         set((state: any) => ({
             ...state,

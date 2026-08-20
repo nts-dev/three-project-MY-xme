@@ -76,7 +76,7 @@ export default function PlayerLabel({
             angleValueRef.current.textContent = `${THREE.MathUtils.radToDeg(angle || 0).toFixed(1)}°`;
         }
         if (speedValueRef.current) {
-            speedValueRef.current.textContent = `${playerSpeed}%, Lives: ${noOfLivesRemaining}`;
+            speedValueRef.current.textContent = `${playerSpeed}%`;
         }
     });
 

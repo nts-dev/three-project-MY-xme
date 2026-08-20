@@ -592,6 +592,8 @@ export default function ThreeView() {
         () => "three"
     );
     const showGoogleThreeViewControls = isGoogleMapsWebGLProject(projectId) && googleMapsViewportMode === "three";
+    const hasActiveProject = String(projectId ?? "").trim() !== "" && String(projectId ?? "").trim() !== "0";
+    const showPlayerRuntimeControls = hasActiveProject && (character || firstPerson);
 
     // if(isLowGpu===null) return null
     const zoomSelectedAsset = useCallback(() => {
@@ -888,10 +890,11 @@ export default function ThreeView() {
                     onToggleHud={() => setIsHudMinimized((prev) => !prev)}
                 />
             )}
-            {((((character || firstPerson) && projectId > 0) && !isPuzzleGame)) &&
+            {showPlayerRuntimeControls &&
+                <PlayerViewAngleSlider />}
+            {(showPlayerRuntimeControls && !isPuzzleGame) &&
                 <>
                     <PlayerHeightSlider direction='vertical' classIndenfier='height-meter' height='10rem' />
-                    <PlayerViewAngleSlider />
                 </>}
             <Projects scene={sceneRef.current} camera={cameraRef.current} orbitControls={orbitControls} />
             {packageControl && <PackageControls />}

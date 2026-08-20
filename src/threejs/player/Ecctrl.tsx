@@ -17,6 +17,16 @@ import PlayerLabel from "./PlayerLabel";
 // import {useFollowCam} from "../../hooks/useFollowCam";
 
 const PROJECT_153_L1_RUN_SPEED_MULTIPLIER = 3;
+const HORIZONTAL_MOVE_ACCELERATION = 14;
+const HORIZONTAL_MOVE_DECELERATION = 20;
+const HORIZONTAL_MOVE_MAX_ACCEL = 24;
+const JOYSTICK_FORWARD_ANGLE = Math.PI / 2;
+const JOYSTICK_STRAIGHT_CONE = THREE.MathUtils.degToRad(18);
+const JOYSTICK_TURN_ONLY_SIDE_THRESHOLD = 0.68;
+const JOYSTICK_TURN_ONLY_FORWARD_LIMIT = 0.45;
+const TURN_RESPONSE_MULTIPLIER = 1.4;
+const TURN_GESTURE_YAW = THREE.MathUtils.degToRad(15);
+const TURN_GESTURE_SMOOTHING = 10;
 
 const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
                                                              children,
@@ -105,6 +115,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
                                                          }: EcctrlProps, ref) => {
     const characterRef = ref as RefObject<any> || useRef<RapierRigidBody>(null)
     const characterModelRef: any = useRef(null);
+    const characterVisualGestureRef: any = useRef(null);
     const isTurnInputActiveRef = useRef(false);
     const emitAccumulatorRef = useRef(0);
     const playerMovePayloadRef = useRef<any>({
@@ -476,12 +487,15 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     const smoothedMoveVelocity = useMemo(() => new THREE.Vector3(), []);
     const desiredMoveAccel = useMemo(() => new THREE.Vector3(), []);
     const finalMoveVelocity = useMemo(() => new THREE.Vector3(), []);
+    const horizontalMoveVelocity = useMemo(() => new THREE.Vector3(), []);
+    const idleMoveVelocity = useMemo(() => new THREE.Vector3(), []);
     const targetModelQuaternion = useMemo(() => new THREE.Quaternion(), []);
     const slopeForceVec = useMemo(() => new THREE.Vector3(), []);
     const followForwardVec = useMemo(() => new THREE.Vector3(), []);
     const followOffsetVec = useMemo(() => new THREE.Vector3(), []);
     const followCameraPosVec = useMemo(() => new THREE.Vector3(), []);
     const resetPositionVec = useMemo(() => new THREE.Vector3(), []);
+    const turnGestureYawRef = useRef(0);
 
 
     const getMoveToPoint = useGame1((state) => state.getMoveToPoint);
@@ -730,6 +744,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
         const characterBody = characterRef.current;
         if (!characterBody) return;
         if (forwardOnly && !forwardPressed) {
+            horizontalMoveVelocity.set(0, 0, 0);
             characterBody.setLinvel({ x: 0, y: currentVel.y, z: 0 }, true);
             return;
         }
@@ -737,11 +752,9 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
         const levelRunSpeedMultiplier = String(projectID) === "153_L1" || String(projectID) === "33_L0" ? PROJECT_153_L1_RUN_SPEED_MULTIPLIER : 1;
         const speedMult = run ? sprintMult * levelRunSpeedMultiplier : 1;
         const targetSpeed = maxVelLimit * speedMult;
-        const smoothingFactor = 5; // You can tweak this
-        const rotationSmoothing = 3.5 * speedRotMult;
-        const maxAccel = 30;
+        const rotationSmoothing = 3.5 * TURN_RESPONSE_MULTIPLIER * speedRotMult;
         const safeDelta = Math.max(delta, 1 / 240);
-        const velocityAlpha = 1 - Math.exp(-smoothingFactor * safeDelta);
+        const velocityAlpha = 1 - Math.exp(-HORIZONTAL_MOVE_ACCELERATION * safeDelta);
         const rotationAlpha = 1 - Math.exp(-rotationSmoothing * safeDelta);
 
         // --- Determine movement direction ---
@@ -773,26 +786,29 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
         // --- Calculate target velocity ---
         targetMoveVelocity.set(
             movingDirection.x * targetSpeed + movingObjectVelocity.x,
-            currentVel.y,
+            0,
             movingDirection.z * targetSpeed + movingObjectVelocity.z
         );
 
-        // --- Smooth velocity using LERP ---
+        // --- Smooth horizontal velocity using an internal value ---
+        // Live rigid-body velocity can fluctuate around contacts; feeding it directly
+        // back into the movement target causes visible forward stutter.
         smoothedMoveVelocity.set(
-            THREE.MathUtils.lerp(currentVel.x, targetMoveVelocity.x, velocityAlpha),
-            currentVel.y,
-            THREE.MathUtils.lerp(currentVel.z, targetMoveVelocity.z, velocityAlpha)
+            THREE.MathUtils.lerp(horizontalMoveVelocity.x, targetMoveVelocity.x, velocityAlpha),
+            0,
+            THREE.MathUtils.lerp(horizontalMoveVelocity.z, targetMoveVelocity.z, velocityAlpha)
         );
 
         // --- Clamp acceleration to avoid large jumps ---
-        desiredMoveAccel.subVectors(smoothedMoveVelocity, currentVel).divideScalar(safeDelta);
-        desiredMoveAccel.clampLength(0, maxAccel);
+        desiredMoveAccel.subVectors(smoothedMoveVelocity, horizontalMoveVelocity).divideScalar(safeDelta);
+        desiredMoveAccel.clampLength(0, HORIZONTAL_MOVE_MAX_ACCEL);
 
         // --- Final velocity after applying smoothed acceleration ---
         finalMoveVelocity.addVectors(
-            currentVel,
+            horizontalMoveVelocity,
             desiredMoveAccel.multiplyScalar(safeDelta)
         );
+        horizontalMoveVelocity.copy(finalMoveVelocity);
 
         // --- Apply the final velocity ---
         characterBody.setLinvel(
@@ -962,7 +978,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
             // Get character forward direction
             followForwardVec.set(0, 0, -1).applyQuaternion(characterModelRef.current.quaternion).normalize();
             // Offset the camera: behind and above
-            const distanceBehind = 2.25;
+            const distanceBehind = 2.25 + Math.max(0, playerViewAngle) * 2.2;
             const heightAbove = 1.2;
             followOffsetVec.copy(followForwardVec).multiplyScalar(distanceBehind);
             followOffsetVec.y = heightAbove;
@@ -1027,6 +1043,26 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
         play();
     };
 
+    const getSteeredJoystickAngle = (angle: number) => {
+        const offsetFromForward = Math.atan2(
+            Math.sin(angle - JOYSTICK_FORWARD_ANGLE),
+            Math.cos(angle - JOYSTICK_FORWARD_ANGLE)
+        );
+
+        if (Math.abs(offsetFromForward) <= JOYSTICK_STRAIGHT_CONE) {
+            return JOYSTICK_FORWARD_ANGLE;
+        }
+
+        const steeredOffset = Math.sign(offsetFromForward) * (Math.abs(offsetFromForward) - JOYSTICK_STRAIGHT_CONE);
+        return JOYSTICK_FORWARD_ANGLE + steeredOffset;
+    };
+
+    const isJoystickTurnOnly = (angle: number) => {
+        const sideAmount = Math.abs(Math.cos(angle));
+        const forwardAmount = Math.abs(Math.sin(angle));
+        return sideAmount >= JOYSTICK_TURN_ONLY_SIDE_THRESHOLD && forwardAmount <= JOYSTICK_TURN_ONLY_FORWARD_LIMIT;
+    };
+
     useFrame((state, delta) => {
 
         /**
@@ -1079,12 +1115,43 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
         const hasKeyboardTurnInput = leftward || rightward;
         const hasGamepadTurnInput = gamepadKeys.leftward || gamepadKeys.rightward;
         const hasJoystickTurnInput = joystickDis > 0.05;
+        const joystickTurnOnly = hasJoystickTurnInput && isJoystickTurnOnly(joystickAng);
         isTurnInputActiveRef.current = hasKeyboardTurnInput || hasGamepadTurnInput || hasJoystickTurnInput;
+        let turnGestureDirection = 0;
+        if ((leftward || gamepadKeys.leftward) && !(rightward || gamepadKeys.rightward)) {
+            turnGestureDirection = 1;
+        } else if ((rightward || gamepadKeys.rightward) && !(leftward || gamepadKeys.leftward)) {
+            turnGestureDirection = -1;
+        }
 
         // Move character to the moving direction (joystick controls)
         if (joystickDis > 0.05 && pivot.rotation && orbitControls.current?.getAzimuthalAngle) {
-            modelEuler.y = pivot.rotation.y + orbitControls.current.getAzimuthalAngle() + joystickAng - Math.PI / 2;
-            moveCharacter(delta, runState, slopeAngle, movingObjectVelocity, forward);
+            const steeredJoystickAng = getSteeredJoystickAngle(joystickAng);
+            const turnOnly = joystickTurnOnly;
+            modelEuler.y = pivot.rotation.y + orbitControls.current.getAzimuthalAngle() + (turnOnly ? joystickAng : steeredJoystickAng) - Math.PI / 2;
+            const joystickOffsetFromForward = Math.atan2(
+                Math.sin(joystickAng - JOYSTICK_FORWARD_ANGLE),
+                Math.cos(joystickAng - JOYSTICK_FORWARD_ANGLE)
+            );
+            if (Math.abs(joystickOffsetFromForward) > JOYSTICK_STRAIGHT_CONE) {
+                turnGestureDirection = Math.sign(joystickOffsetFromForward);
+            }
+
+            if (turnOnly) {
+                const idleAlpha = 1 - Math.exp(-HORIZONTAL_MOVE_DECELERATION * Math.max(delta, 1 / 240));
+                const idleTarget = isOnMovingObject
+                    ? idleMoveVelocity.set(movingObjectVelocity.x, 0, movingObjectVelocity.z)
+                    : idleMoveVelocity.set(0, 0, 0);
+
+                horizontalMoveVelocity.lerp(idleTarget, idleAlpha);
+                characterBody.setLinvel({
+                    x: THREE.MathUtils.lerp(currentVel.x, idleTarget.x, idleAlpha),
+                    y: currentVel.y,
+                    z: THREE.MathUtils.lerp(currentVel.z, idleTarget.z, idleAlpha),
+                }, true);
+            } else {
+                moveCharacter(delta, runState, slopeAngle, movingObjectVelocity, forward);
+            }
         }
 
         const nextKeyboardDirection = getMovingDirection(forward, backward, leftward, rightward, pivot, orbitControls.current,playerSpeed);
@@ -1146,7 +1213,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
             modelQuat.setFromEuler(modelEuler);
             characterModelIndicator.quaternion.rotateTowards(
                 modelQuat,
-                0.004 * speedRotMult
+                0.004 * TURN_RESPONSE_MULTIPLIER * speedRotMult
             );
         }
 
@@ -1156,6 +1223,12 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
                 characterModelRef.current.quaternion.copy(pivot.quaternion)
             } else {
                 characterModelRef.current.quaternion.copy(characterModelIndicator.quaternion)
+            }
+            const targetTurnGestureYaw = turnGestureDirection * TURN_GESTURE_YAW;
+            const turnGestureAlpha = 1 - Math.exp(-TURN_GESTURE_SMOOTHING * Math.max(delta, 1 / 240));
+            turnGestureYawRef.current = THREE.MathUtils.lerp(turnGestureYawRef.current, targetTurnGestureYaw, turnGestureAlpha);
+            if (characterVisualGestureRef.current) {
+                characterVisualGestureRef.current.rotation.y = turnGestureYawRef.current;
             }
         }
 
@@ -1371,8 +1444,10 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
             !gamepadKeys.forward && !gamepadKeys.backward && !gamepadKeys.leftward && !gamepadKeys.rightward &&
             characterBody
         ) {
+            const idleAlpha = 1 - Math.exp(-HORIZONTAL_MOVE_DECELERATION * Math.max(delta, 1 / 240));
             // not on a moving object
             if (!isOnMovingObject) {
+                horizontalMoveVelocity.lerp(idleMoveVelocity.set(0, 0, 0), idleAlpha);
 
                 dragForce.set(
                     -currentVel.x * dragDampingC,
@@ -1384,6 +1459,8 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
             }
             // on a moving object
             else {
+                horizontalMoveVelocity.lerp(idleMoveVelocity.set(movingObjectVelocity.x, 0, movingObjectVelocity.z), idleAlpha);
+
                 dragForce.set(
                     (movingObjectVelocity.x - currentVel.x) * dragDampingC,
                     0,
@@ -1463,7 +1540,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
             }
 
             if (!forward && !backward && !leftward && !rightward && !jump &&
-                !button1Pressed && joystickDis === 0 &&
+                !button1Pressed && (joystickDis === 0 || joystickTurnOnly) &&
                 !isPointMoving &&
                 !gamepadKeys.forward   &&
                 canJump &&
@@ -1482,7 +1559,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
                     // leftward||
                     // rightward||
 
-                    (joystickAng)  ||
+                    (joystickDis > 0.05 && !joystickTurnOnly)  ||
                      isPointMoving ||
 
                     gamepadKeys.forward
@@ -1603,7 +1680,9 @@ if(!firstPerson && !character) return null
                 >
                     <boxGeometry args={[0.15, 0.15, 0.15]}/>
                 </mesh>
-                {children}
+                <group ref={characterVisualGestureRef}>
+                    {children}
+                </group>
             </group>
             {/*</Trail>*/}
         </RigidBody>
