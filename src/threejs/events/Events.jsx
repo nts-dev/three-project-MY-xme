@@ -84,7 +84,7 @@ export default function Events() {
     const selectedObjects = useRef([]);
     const clickedObjects = useRef([]);
     const playDoubleClickIntersections = useRef([]);
-    const buildingLabelHoverInstanceId = useRef(null);
+    const buildingLabelClickInstanceId = useRef(null);
     const hover = useRef(false)
     // const [hover, setHover] = useState(false)
     const [isSearch, setIsSearch] = useState(false)
@@ -317,21 +317,17 @@ export default function Events() {
         return true;
     };
 
-    const dispatchBuildingLabelHover = (hit, event = null) => {
+    const dispatchBuildingLabelClick = (hit, event = null) => {
         const object = hit?.object;
         const instanceId = object?.userData?.isBuildingLabel ? object.userData.instanceId : null;
 
         if (!instanceId) {
-            if (buildingLabelHoverInstanceId.current !== null && typeof window !== "undefined") {
-                buildingLabelHoverInstanceId.current = null;
-                window.dispatchEvent(new CustomEvent("play-building-label-hover-end"));
-            }
             return false;
         }
 
-        buildingLabelHoverInstanceId.current = instanceId;
+        buildingLabelClickInstanceId.current = instanceId;
         if (typeof window !== "undefined") {
-            window.dispatchEvent(new CustomEvent("play-building-label-hover", {
+            window.dispatchEvent(new CustomEvent("play-building-label-click", {
                 detail: {
                     instanceId,
                     clientX: event?.clientX,
@@ -342,6 +338,8 @@ export default function Events() {
 
         return true;
     };
+
+    const isBuildingLabelHit = (hit) => Boolean(hit?.object?.userData?.isBuildingLabel);
 
     const createInstancedSelectionProxy = (mesh, instanceIndex, instanceInfo = {}) => {
         if (!mesh?.isInstancedMesh || instanceIndex === undefined || instanceIndex < 0) {
@@ -681,7 +679,7 @@ export default function Events() {
                     return;
                 }
 
-                if (dispatchBuildingLabelHover(ObjectStructure, event)) {
+                if (isBuildingLabelHit(ObjectStructure)) {
                     setCursor('pointer');
                     return;
                 }
@@ -855,7 +853,6 @@ export default function Events() {
                     // outlinePass.current.selectedObjects = selectedObjects.current;
                 }
             } else {
-                dispatchBuildingLabelHover(null, event);
                 // if (info) {
                 const assetDescription = document.getElementById('assetDescription');
                 if (assetDescription) {
@@ -890,6 +887,9 @@ export default function Events() {
           
          
             event.preventDefault();
+            const rect = gl.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
 
 
@@ -907,6 +907,10 @@ export default function Events() {
                 if (ObjectStructure.object.type === 'SkinnedMesh') {
                     ObjectStructure = intersectInstance[1];
                     if (!ObjectStructure) return;
+                }
+
+                if (dispatchBuildingLabelClick(ObjectStructure, event)) {
+                    return;
                 }
 
                 if (buttonMode === 'Play mode') {
@@ -1076,7 +1080,7 @@ export default function Events() {
 
         const docs = document.getElementsByClassName('canvas-element')
         const onMouseDoubleClick = (event) => onMouseClick(event, true);
-        const onMouseLeave = () => dispatchBuildingLabelHover(null);
+        const onMouseLeave = () => setCursor('default');
 
 
         if (docs[0]) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     FaArrowLeft,
     FaBell,
@@ -18,6 +18,24 @@ import SystemBuilderPopup from "../systemBuilder/SystemBuilderPopup";
 import { updateBuildingLabelSpriteLogo } from "../../../../threejs/label/BuildingLabelSprite";
 import { sceneAssets } from "../../../../threejs/player/puzzle/character/Constants.jsx";
 import "./PlayAssetInfoHud.css";
+
+const buildBackendLogoUrl = (logoNameOrUrl) => {
+    const value = String(logoNameOrUrl || "").trim();
+    if (!value) return "";
+    if (value.startsWith("data:") || value.startsWith("blob:")) {
+        return value;
+    }
+
+    const apiBase = String(import.meta.env.VITE_API_URL || "").trim().replace(/\/+$/, "");
+    const cleanName = value
+        .replace(/^https?:\/\/[^/]+\/.*?\/files\//i, "")
+        .replace(/^https?:\/\/[^/]+\/files\//i, "")
+        .replace(/^(\.\.\/)?files\//i, "")
+        .replace(/^\/?(api\/)?files\//i, "")
+        .replace(/^\/+/, "");
+    const encodedPath = cleanName.split("/").map(encodeURIComponent).join("/");
+    return apiBase ? `${apiBase}/files/${encodedPath}` : `/api/files/${encodedPath}`;
+};
 
 const normalizeSpriteFields = (fields) => {
     if (Array.isArray(fields)) return fields;
@@ -43,6 +61,7 @@ const getSpriteFieldValue = (fields, names, fallback = "") => {
 const getLogoAssetIds = (info) => {
     const ids = [
         info?.instanceId,
+        info?.assetID,
         info?.sceneAsset?.assetID,
         info?.sceneAsset?.instanceData?.assetObject?.assetID,
         info?.sceneAsset?.instanceData?.assetObject?.assetId,
@@ -81,7 +100,7 @@ const buildSpritePopupInfo = (instanceId) => {
     };
 };
 
-function BuildingLabelPopup({ popup, onClose, onMouseEnter, onMouseLeave }) {
+function BuildingLabelPopup({ popup, onClose }) {
     const [uploadStatus, setUploadStatus] = useState("");
     if (!popup?.info) return null;
 
@@ -118,7 +137,7 @@ function BuildingLabelPopup({ popup, onClose, onMouseEnter, onMouseLeave }) {
             });
             if (!response.ok) throw new Error(response.statusText || `HTTP ${response.status}`);
             const result = await response.json();
-            const savedLogoUrl = result?.file?.url;
+            const savedLogoUrl = buildBackendLogoUrl(result?.file?.name || result?.file?.url);
             if (savedLogoUrl) {
                 await updateBuildingLabelSpriteLogo({
                     sprite: info.sceneAsset?.buildingLabel,
@@ -142,8 +161,6 @@ function BuildingLabelPopup({ popup, onClose, onMouseEnter, onMouseLeave }) {
             style={{ left, top }}
             role="dialog"
             aria-label={`${info.title} marker details`}
-            onMouseEnter={onMouseEnter}
-            onMouseLeave={onMouseLeave}
         >
             <div className="play-building-label-popup__head">
                 <span className="play-building-label-popup__icon"><FaBuilding aria-hidden="true" /></span>
@@ -256,31 +273,14 @@ export default function PlayAssetInfoHud({ cameraRef, sceneRef }) {
     const [hiddenRequestKey, setHiddenRequestKey] = useState(null);
     const [isSystemBuilderOpen, setIsSystemBuilderOpen] = useState(false);
     const [labelPopup, setLabelPopup] = useState(null);
-    const labelPopupCloseTimerRef = useRef(null);
     const assetInfo = usePlayAssetInfo({
         active: !isPuzzleGame && !character && !firstPerson,
         cameraRef,
         sceneRef,
     });
 
-    const clearLabelPopupCloseTimer = () => {
-        if (labelPopupCloseTimerRef.current) {
-            window.clearTimeout(labelPopupCloseTimerRef.current);
-            labelPopupCloseTimerRef.current = null;
-        }
-    };
-
-    const scheduleLabelPopupClose = () => {
-        clearLabelPopupCloseTimer();
-        labelPopupCloseTimerRef.current = window.setTimeout(() => {
-            setLabelPopup(null);
-            labelPopupCloseTimerRef.current = null;
-        }, 260);
-    };
-
     useEffect(() => {
-        const handleLabelHover = (event) => {
-            clearLabelPopupCloseTimer();
+        const handleLabelClick = (event) => {
             const instanceId = event.detail?.instanceId;
             const info = buildSpritePopupInfo(instanceId);
             if (!info) {
@@ -303,12 +303,9 @@ export default function PlayAssetInfoHud({ cameraRef, sceneRef }) {
             });
         };
 
-        window.addEventListener("play-building-label-hover", handleLabelHover);
-        window.addEventListener("play-building-label-hover-end", scheduleLabelPopupClose);
+        window.addEventListener("play-building-label-click", handleLabelClick);
         return () => {
-            clearLabelPopupCloseTimer();
-            window.removeEventListener("play-building-label-hover", handleLabelHover);
-            window.removeEventListener("play-building-label-hover-end", scheduleLabelPopupClose);
+            window.removeEventListener("play-building-label-click", handleLabelClick);
         };
     }, []);
 
@@ -336,8 +333,6 @@ export default function PlayAssetInfoHud({ cameraRef, sceneRef }) {
                 <BuildingLabelPopup
                     popup={labelPopup}
                     onClose={() => setLabelPopup(null)}
-                    onMouseEnter={clearLabelPopupCloseTimer}
-                    onMouseLeave={scheduleLabelPopupClose}
                 />
             </>
         );
@@ -349,8 +344,6 @@ export default function PlayAssetInfoHud({ cameraRef, sceneRef }) {
             <BuildingLabelPopup
                 popup={labelPopup}
                 onClose={() => setLabelPopup(null)}
-                onMouseEnter={clearLabelPopupCloseTimer}
-                onMouseLeave={scheduleLabelPopupClose}
             />
             <PlayAssetInfoFrame
                 assetInfo={assetInfo}

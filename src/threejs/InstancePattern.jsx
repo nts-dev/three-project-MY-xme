@@ -18,6 +18,24 @@ import {
 
 const FONT_URL = `${import.meta.env.VITE_FILE_URL}/fonts/optimer_regular.typeface.json`; // reused
 
+const buildBackendLogoUrl = (logoNameOrUrl) => {
+    const value = String(logoNameOrUrl || "").trim();
+    if (!value) return "";
+    if (value.startsWith("data:") || value.startsWith("blob:")) {
+        return value;
+    }
+
+    const apiBase = String(import.meta.env.VITE_API_URL || "").trim().replace(/\/+$/, "");
+    const cleanName = value
+        .replace(/^https?:\/\/[^/]+\/.*?\/files\//i, "")
+        .replace(/^https?:\/\/[^/]+\/files\//i, "")
+        .replace(/^(\.\.\/)?files\//i, "")
+        .replace(/^\/?(api\/)?files\//i, "")
+        .replace(/^\/+/, "");
+    const encodedPath = cleanName.split("/").map(encodeURIComponent).join("/");
+    return apiBase ? `${apiBase}/files/${encodedPath}` : `/api/files/${encodedPath}`;
+};
+
 const applySavedBuildingLabelLogo = async ({ buildingLabel, fields, fallbackName, instanceId, assetId }) => {
     if (!buildingLabel || !instanceId || !import.meta.env.VITE_API_URL) {
         return;
@@ -38,11 +56,16 @@ const applySavedBuildingLabelLogo = async ({ buildingLabel, fields, fallbackName
             return;
         }
 
+        const logoUrl = buildBackendLogoUrl(result?.logo?.name || result?.url);
+        if (!logoUrl) {
+            return;
+        }
+
         await updateBuildingLabelSpriteLogo({
             sprite: buildingLabel,
             fields,
             fallbackName,
-            logoUrl: result.url,
+            logoUrl,
         });
     } catch (error) {
         console.warn("Failed to load saved building label logo:", error);
