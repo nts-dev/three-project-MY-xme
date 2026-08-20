@@ -492,6 +492,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     const {camera} = useThree()
     const setCharacterRef = useGame((state: any) => state.setCharacterRef)
     const floorHeight = useGame((state: any) => state.floorHeight)
+    const playerViewAngle = useGame((state: any) => state.playerViewAngle)
     const projectID = useGame((state: any) => state.projectID)
     const {clientId, dateTime} = client ? JSON.parse(client) : {clientId: "custom_person", dateTime: 'now'}
     const setCharacterIsInWater: any = useGame((state: any) => state.setCharacterIsInWater)
@@ -733,7 +734,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
             return;
         }
 
-        const levelRunSpeedMultiplier = String(projectID) === "153_L1" ? PROJECT_153_L1_RUN_SPEED_MULTIPLIER : 1;
+        const levelRunSpeedMultiplier = String(projectID) === "153_L1" || String(projectID) === "33_L0" ? PROJECT_153_L1_RUN_SPEED_MULTIPLIER : 1;
         const speedMult = run ? sprintMult * levelRunSpeedMultiplier : 1;
         const targetSpeed = maxVelLimit * speedMult;
         const smoothingFactor = 5; // You can tweak this
@@ -968,7 +969,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
             followCameraPosVec.copy(currentPos).add(followOffsetVec);
             state.camera.position.copy(followCameraPosVec);
             orbitControls.current.target.copy(currentPos);
-            orbitControls.current.target.y += String(projectID).includes('137') ? 0.65 : 0.55;
+            orbitControls.current.target.y += (String(projectID).includes('137') ? 0.65 : 0.55) + playerViewAngle;
             orbitControls.current.update();
         }
     };

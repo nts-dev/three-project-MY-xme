@@ -3375,6 +3375,33 @@ body.is-package-project-fullscreen .r3f-stats {
     top:14rem;
     height: 16rem;
 }
+
+.player-view-angle-meter {
+    position: absolute;
+    right: 1.15rem;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1005;
+    padding: 0.85rem 0.45rem;
+    border: 1px solid rgba(35, 244, 248, 0.35);
+    border-radius: 999px;
+    background: rgba(7, 20, 20, 0.72);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28), 0 0 18px rgba(35, 244, 248, 0.16);
+    backdrop-filter: blur(10px);
+}
+
+.player-view-angle-meter::before {
+    content: "Angle";
+    position: absolute;
+    right: 50%;
+    bottom: calc(100% + 0.35rem);
+    transform: translateX(50%);
+    color: #d8ffff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8);
+}
 .controls {
     position: absolute;
     right: calc(100% - 15.5rem);

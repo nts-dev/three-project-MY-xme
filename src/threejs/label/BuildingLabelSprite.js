@@ -29,6 +29,7 @@ const CATEGORY_STYLES = {
 };
 
 const LABEL_FONT = "\"Plus Jakarta Sans\", \"Inter\", \"Segoe UI\", Arial, sans-serif";
+const labelLogoCache = new Map();
 
 const getFieldValue = (fields, names) => {
     if (!fields) {
@@ -193,6 +194,40 @@ const drawLabelTileIcon = (context, x, y, color) => {
     context.restore();
 };
 
+const drawLogoImage = (context, image, x, y, size, color) => {
+    context.save();
+    context.translate(x, y);
+    context.shadowColor = color;
+    context.shadowBlur = 16;
+    context.fillStyle = "rgba(255, 255, 255, 0.96)";
+    context.strokeStyle = "rgba(35, 244, 248, 0.68)";
+    context.lineWidth = 2;
+    roundRect(context, -size / 2, -size / 2, size, size, 13);
+    context.fill();
+    context.stroke();
+
+    context.shadowBlur = 0;
+    context.clip();
+
+    const padding = Math.max(5, size * 0.12);
+    const drawSize = size - padding * 2;
+    const imageRatio = image.naturalWidth && image.naturalHeight
+        ? image.naturalWidth / image.naturalHeight
+        : 1;
+    const targetRatio = 1;
+    let drawWidth = drawSize;
+    let drawHeight = drawSize;
+
+    if (imageRatio > targetRatio) {
+        drawHeight = drawSize / imageRatio;
+    } else {
+        drawWidth = drawSize * imageRatio;
+    }
+
+    context.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+    context.restore();
+};
+
 const drawIcon = (context, kind, x, y, color) => {
     context.save();
     context.strokeStyle = color;
@@ -283,40 +318,51 @@ const drawIcon = (context, kind, x, y, color) => {
     context.restore();
 };
 
-export const createBuildingLabelSprite = ({
+const loadLogoImage = (logoUrl) => new Promise((resolve) => {
+    if (!logoUrl) {
+        resolve(null);
+        return;
+    }
+
+    const cachedLogo = labelLogoCache.get(logoUrl);
+    if (cachedLogo) {
+        resolve(cachedLogo);
+        return;
+    }
+
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => {
+        labelLogoCache.set(logoUrl, image);
+        resolve(image);
+    };
+    image.onerror = () => resolve(null);
+    image.src = logoUrl;
+});
+
+const drawBuildingLabelCanvas = (canvas, {
     fields,
     fallbackName,
-    position,
-    halfHeight = 0,
-    topY,
-    instanceId,
+    logoImage = null,
 }) => {
-    if (typeof document === "undefined" || !position || !hasBusinessMetadata(fields)) {
-        return null;
+    const context = canvas.getContext("2d");
+    if (!context) {
+        return false;
     }
 
     const title = getFieldValue(fields, LABEL_FIELD_NAMES) || fallbackName;
-    if (!title) {
-        return null;
-    }
-
     const kind = detectCategory(fields, title);
     const style = CATEGORY_STYLES[kind] || CATEGORY_STYLES.service;
-    const canvas = document.createElement("canvas");
-    canvas.width = 512;
-    canvas.height = 188;
-
-    const context = canvas.getContext("2d");
-    if (!context) {
-        return null;
-    }
 
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.font = `800 28px ${LABEL_FONT}`;
-    const labelText = truncateText(context, title, 250);
+    const hasLogo = Boolean(logoImage);
+    const textX = hasLogo ? 178 : 160;
+    const textMaxWidth = hasLogo ? 224 : 250;
+    const labelText = truncateText(context, title, textMaxWidth);
     const building = getFieldValue(fields, ["Building Number", "Building No", "Unit"]);
     const floor = getFieldValue(fields, ["Floor", "Level"]);
-    const subtitle = truncateText(context, [building, floor].filter(Boolean).join(" - ") || style.label, 250);
+    const subtitle = truncateText(context, [building, floor].filter(Boolean).join(" - ") || style.label, textMaxWidth);
 
     context.save();
     context.shadowColor = "rgba(4, 87, 69, 0.58)";
@@ -331,22 +377,26 @@ export const createBuildingLabelSprite = ({
 
     context.shadowBlur = 0;
     context.shadowOffsetY = 0;
-    context.fillStyle = "rgba(16, 98, 91, 0.42)";
-    context.strokeStyle = "rgba(35, 244, 248, 0.34)";
-    context.lineWidth = 1.5;
-    roundRect(context, 96, 42, 46, 46, 10);
-    context.fill();
-    context.stroke();
-    drawLabelTileIcon(context, 119, 65, "#23f4f8");
+    if (logoImage) {
+        drawLogoImage(context, logoImage, 120, 65, 58, style.color);
+    } else {
+        context.fillStyle = "rgba(16, 98, 91, 0.42)";
+        context.strokeStyle = "rgba(35, 244, 248, 0.34)";
+        context.lineWidth = 1.5;
+        roundRect(context, 96, 42, 46, 46, 10);
+        context.fill();
+        context.stroke();
+        drawLabelTileIcon(context, 119, 65, "#23f4f8");
+    }
 
     context.shadowBlur = 0;
     context.fillStyle = "#f8fbfc";
     context.font = `800 28px ${LABEL_FONT}`;
-    context.fillText(labelText, 160, 60);
+    context.fillText(labelText, textX, 60);
 
     context.fillStyle = "rgba(203, 218, 214, 0.58)";
     context.font = `500 17px ${LABEL_FONT}`;
-    context.fillText(subtitle, 160, 88);
+    context.fillText(subtitle, textX, 88);
 
     context.strokeStyle = "rgba(35, 244, 248, 0.38)";
     context.lineWidth = 3;
@@ -366,6 +416,54 @@ export const createBuildingLabelSprite = ({
     context.stroke();
     context.restore();
 
+    return true;
+};
+
+export const updateBuildingLabelSpriteLogo = async ({
+    sprite,
+    fields,
+    fallbackName,
+    logoUrl,
+}) => {
+    if (!sprite?.material?.map?.image || !fields || !logoUrl) {
+        return;
+    }
+
+    const logoImage = await loadLogoImage(logoUrl);
+    if (!logoImage) {
+        return;
+    }
+
+    drawBuildingLabelCanvas(sprite.material.map.image, { fields, fallbackName, logoImage });
+    sprite.material.map.needsUpdate = true;
+};
+
+export const createBuildingLabelSprite = ({
+    fields,
+    fallbackName,
+    position,
+    halfHeight = 0,
+    topY,
+    instanceId,
+}) => {
+    if (typeof document === "undefined" || !position || !hasBusinessMetadata(fields)) {
+        return null;
+    }
+
+    const title = getFieldValue(fields, LABEL_FIELD_NAMES) || fallbackName;
+    if (!title) {
+        return null;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 188;
+    const kind = detectCategory(fields, title);
+
+    if (!drawBuildingLabelCanvas(canvas, { fields, fallbackName })) {
+        return null;
+    }
+
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.needsUpdate = true;
@@ -379,7 +477,7 @@ export const createBuildingLabelSprite = ({
     });
 
     const sprite = new THREE.Sprite(material);
-    sprite.scale.set(6.2, 2.28, 1);
+    sprite.scale.set(9.3, 3.42, 1);
 
     const heightTop = Number.isFinite(topY) ? topY : position.y + (Number(halfHeight) || 0);
     sprite.position.set(position.x, (halfHeight/100)*2, position.z);
@@ -389,6 +487,7 @@ export const createBuildingLabelSprite = ({
         ...(sprite.userData || {}),
         instanceId,
         isBuildingLabel: true,
+        labelFallbackName: fallbackName,
         labelKind: kind,
     };
 

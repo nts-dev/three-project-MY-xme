@@ -189,6 +189,7 @@ export default function KinematicPlayer({ orbitControlsRef, characterModel, clie
   const [debugLandingTile, setDebugLandingTile] = useState(null);
 
   const cameraRef = useGame((state) => state.cameraRef);
+  const playerViewAngle = useGame((state) => state.playerViewAngle);
   const buttonMode = useGame((state) => state.buttonMode);
   const pauseGame = useGame((state) => state.pauseGame);
   const restart = useGame((state) => state.restart);
@@ -1014,7 +1015,7 @@ export default function KinematicPlayer({ orbitControlsRef, characterModel, clie
 
       cameraTargetRef.current.set(
         nextX + tmpLookForward.x * 0.05,
-        nextY + 0.07,
+        nextY + 0.07 + playerViewAngle,
         nextZ + tmpLookForward.z * 0.05
       );
       orbitControls.target.lerp(cameraTargetRef.current, 10 * dt);

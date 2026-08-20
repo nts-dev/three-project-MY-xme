@@ -2,12 +2,18 @@ import { apiData } from "../../../../threejs/player/puzzle/character/Constants.j
 
 const FALLBACK_IMAGE = `${import.meta.env.VITE_FILE_URL}/no_image.png`;
 
+const isFaultyImageFileName = (fileName) => {
+    const normalized = String(fileName || "").trim().toLowerCase();
+    return !normalized || normalized === "no_image.png" || normalized === "image1.jpeg" || normalized === "image1.jpg";
+};
+
 const getAssetImageUrl = (fileName) => {
-    if (String(fileName || "").startsWith("project33-")) {
-        return `${import.meta.env.VITE_API_URL}/files/${encodeURIComponent(fileName)}`;
+    const cleanFileName = String(fileName || "").trim();
+    if (cleanFileName.startsWith("project33-")) {
+        return `${import.meta.env.VITE_IMAGE_URL}/${encodeURIComponent(cleanFileName)}`;
     }
 
-    return `${import.meta.env.VITE_FILE_URL}/${fileName}`;
+    return `${import.meta.env.VITE_FILE_URL}/${cleanFileName.split("/").map(encodeURIComponent).join("/")}`;
 };
 
 const formatText = (value, fallback = "Not available.") => {
@@ -257,7 +263,7 @@ const buildSpecGroups = ({ instanceId, assetName, rawFields, apiFields, sceneFie
 };
 
 const getImageUrl = (image) => {
-    if (!image?.name || image.name === "no_image.png") {
+    if (isFaultyImageFileName(image?.name)) {
         return "";
     }
 

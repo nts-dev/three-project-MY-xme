@@ -3,7 +3,7 @@ import { Box3, Vector3 } from 'three';
 import { PointText3D } from "./scene/3DText";
 import AnimationComponent from "./animations/AnimationComponent";
 import AttachLabel from "./label/AttachLabel";
-import { createBuildingLabelSprite } from "./label/BuildingLabelSprite";
+import { createBuildingLabelSprite, updateBuildingLabelSpriteLogo } from "./label/BuildingLabelSprite";
 import Composite from './Composite';
 import { applyDslAnimations, clearDslAnimations, readDslAnimations } from './dslAnimationRuntime';
 import { isGeneratedAssetReference, normalizeSceneAssetName } from './generatedAssetPaths';
@@ -17,6 +17,37 @@ import {
 } from "./player/puzzle/character/Constants.jsx";
 
 const FONT_URL = `${import.meta.env.VITE_FILE_URL}/fonts/optimer_regular.typeface.json`; // reused
+
+const applySavedBuildingLabelLogo = async ({ buildingLabel, fields, fallbackName, instanceId, assetId }) => {
+    if (!buildingLabel || !instanceId || !import.meta.env.VITE_API_URL) {
+        return;
+    }
+
+    try {
+        const ids = [instanceId, assetId].filter((id) => id !== undefined && id !== null && String(id).trim());
+        const aliases = [...new Set(ids.map((id) => String(id).trim()))];
+        const aliasQuery = aliases.slice(1).map((id) => `assetIds=${encodeURIComponent(id)}`).join("&");
+        const url = `${import.meta.env.VITE_API_URL}/getLogo/${encodeURIComponent(aliases[0])}${aliasQuery ? `?${aliasQuery}` : ""}`;
+        const response = await fetch(url);
+        if (!response.ok) {
+            return;
+        }
+
+        const result = await response.json();
+        if (!result?.url) {
+            return;
+        }
+
+        await updateBuildingLabelSpriteLogo({
+            sprite: buildingLabel,
+            fields,
+            fallbackName,
+            logoUrl: result.url,
+        });
+    } catch (error) {
+        console.warn("Failed to load saved building label logo:", error);
+    }
+};
 
 const parseFloorCode = (value, fallback = 0) => {
     if (value === undefined || value === null || value === "") {
@@ -531,6 +562,13 @@ export default async function InstancedPattern(
         if (buildingLabel) {
             scene.add(buildingLabel);
             sceneAssets[instanceId].buildingLabel = buildingLabel;
+            applySavedBuildingLabelLogo({
+                buildingLabel,
+                fields,
+                fallbackName: name,
+                instanceId,
+                assetId: raw.asset_id || raw.assetId,
+            });
         }
 
         index++;

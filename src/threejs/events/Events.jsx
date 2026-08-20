@@ -84,6 +84,7 @@ export default function Events() {
     const selectedObjects = useRef([]);
     const clickedObjects = useRef([]);
     const playDoubleClickIntersections = useRef([]);
+    const buildingLabelHoverInstanceId = useRef(null);
     const hover = useRef(false)
     // const [hover, setHover] = useState(false)
     const [isSearch, setIsSearch] = useState(false)
@@ -258,16 +259,21 @@ export default function Events() {
         return false;
     };
 
-    const getFirstSceneHit = (intersections = []) => (
-        intersections.find((intersection) => !isEditorControlObject(intersection.object))
-    );
+    const getFirstSceneHit = (intersections = []) => {
+        const sceneHits = intersections.filter((intersection) => !isEditorControlObject(intersection.object));
+        return sceneHits.find((intersection) => intersection.object?.userData?.isBuildingLabel) || sceneHits[0];
+    };
 
-    const openPlayAssetInfoFromHit = (hit) => {
+    const openPlayAssetInfoFromHit = (hit, event = null) => {
         if (!hit) {
             return false;
         }
 
         let object = hit.object;
+        if (object?.userData?.isBuildingLabel) {
+            return true;
+        }
+
         let parentObject = object;
         while (parentObject && !(
             parentObject?.userData?.instanceId ||
@@ -308,6 +314,32 @@ export default function Events() {
             assetID: instanceInfo?.assetID || instanceInfo?.assetId,
             requestKey: `${instanceId}-${Date.now()}`,
         });
+        return true;
+    };
+
+    const dispatchBuildingLabelHover = (hit, event = null) => {
+        const object = hit?.object;
+        const instanceId = object?.userData?.isBuildingLabel ? object.userData.instanceId : null;
+
+        if (!instanceId) {
+            if (buildingLabelHoverInstanceId.current !== null && typeof window !== "undefined") {
+                buildingLabelHoverInstanceId.current = null;
+                window.dispatchEvent(new CustomEvent("play-building-label-hover-end"));
+            }
+            return false;
+        }
+
+        buildingLabelHoverInstanceId.current = instanceId;
+        if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("play-building-label-hover", {
+                detail: {
+                    instanceId,
+                    clientX: event?.clientX,
+                    clientY: event?.clientY,
+                },
+            }));
+        }
+
         return true;
     };
 
@@ -557,7 +589,7 @@ export default function Events() {
                 intersectInstance.length = 0;
                 raycaster.intersectObjects(scene.children, true, intersectInstance);
                 const hit = getFirstSceneHit(intersectInstance);
-                openPlayAssetInfoFromHit(hit);
+                openPlayAssetInfoFromHit(hit, event);
             };
 
             const docs1 = document.getElementsByClassName('canvas-element');
@@ -633,6 +665,9 @@ export default function Events() {
             }
 
             event.preventDefault();
+            const rect = gl.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
             // orbitControls.current?.addEventListener('change', regress)
             raycaster?.setFromCamera(mouse, camera);
 
@@ -646,6 +681,10 @@ export default function Events() {
                     return;
                 }
 
+                if (dispatchBuildingLabelHover(ObjectStructure, event)) {
+                    setCursor('pointer');
+                    return;
+                }
 
                 if (ObjectStructure.object.type === 'SkinnedMesh') {
                     ObjectStructure = intersectInstance[1];
@@ -816,6 +855,7 @@ export default function Events() {
                     // outlinePass.current.selectedObjects = selectedObjects.current;
                 }
             } else {
+                dispatchBuildingLabelHover(null, event);
                 // if (info) {
                 const assetDescription = document.getElementById('assetDescription');
                 if (assetDescription) {
@@ -870,7 +910,7 @@ export default function Events() {
                 }
 
                 if (buttonMode === 'Play mode') {
-                    openPlayAssetInfoFromHit(ObjectStructure);
+                    openPlayAssetInfoFromHit(ObjectStructure, event);
                     return;
                 }
 
@@ -1036,11 +1076,14 @@ export default function Events() {
 
         const docs = document.getElementsByClassName('canvas-element')
         const onMouseDoubleClick = (event) => onMouseClick(event, true);
+        const onMouseLeave = () => dispatchBuildingLabelHover(null);
 
 
         if (docs[0]) {
             docs[0].addEventListener("click", onMouseClick);
             docs[0].addEventListener("dblclick", onMouseDoubleClick);
+            docs[0].addEventListener("mousemove", onMouseHover);
+            docs[0].addEventListener("mouseleave", onMouseLeave);
         }
         // gl.domElement.addEventListener('mousemove', onMouseHover);
         // gl.domElement.addEventListener('dblclick', onMouseClick);
@@ -1049,6 +1092,8 @@ export default function Events() {
             if (docs[0]) {
                 docs[0].removeEventListener('click', onMouseClick);
                 docs[0].removeEventListener('dblclick', onMouseDoubleClick);
+                docs[0].removeEventListener('mousemove', onMouseHover);
+                docs[0].removeEventListener('mouseleave', onMouseLeave);
             }
             // gl.domElement.removeEventListener('mousemove', onMouseHover);
             // gl.domElement.removeEventListener('dblclick', onMouseClick);

@@ -19,7 +19,6 @@ import {
     FaShareAlt,
     FaStore,
     FaTimes,
-    FaUpload,
     FaUtensils,
 } from "react-icons/fa";
 import { Q } from "@nozbe/watermelondb";
@@ -31,12 +30,18 @@ import { publicAssetCssUrl } from "../../../../puzzleUi/publicAssetUrl";
 const leftAnchorUrl = publicAssetCssUrl("left.svg");
 const rightAnchorUrl = publicAssetCssUrl("right.svg");
 
+const isFaultyImageFileName = (fileName) => {
+    const normalized = String(fileName || "").trim().toLowerCase();
+    return !normalized || normalized === "no_image.png" || normalized === "image1.jpeg" || normalized === "image1.jpg";
+};
+
 const getAssetImageUrl = (fileName) => {
-    if (String(fileName || "").startsWith("project33-")) {
-        return `${import.meta.env.VITE_API_URL}/files/${encodeURIComponent(fileName)}`;
+    const cleanFileName = String(fileName || "").trim();
+    if (cleanFileName.startsWith("project33-")) {
+        return `${import.meta.env.VITE_API_URL}/files/${encodeURIComponent(cleanFileName)}`;
     }
 
-    return `${import.meta.env.VITE_FILE_URL}/${fileName}`;
+    return `${import.meta.env.VITE_FILE_URL}/${cleanFileName.split("/").map(encodeURIComponent).join("/")}`;
 };
 
 const TAB_ITEMS = [
@@ -107,7 +112,13 @@ const imageObject = (imageList) => {
         return [{ itemImageSrc: url, thumbnailImageSrc: url, alt: "No image available" }];
     }
 
-    return imageList.map((image, index) => {
+    const validImages = imageList.filter((image) => !isFaultyImageFileName(image?.name));
+    if (!validImages.length) {
+        const url = `${import.meta.env.VITE_FILE_URL}/no_image.png`;
+        return [{ itemImageSrc: url, thumbnailImageSrc: url, alt: "No image available" }];
+    }
+
+    return validImages.map((image, index) => {
         const url = getAssetImageUrl(image.name);
         return {
             id: image.id,
@@ -698,8 +709,15 @@ const buildMetaModel = (assetInfo, title) => {
     const description = findMetaValue(rows, ["Business Description", "Description", "Comments"]);
     const businessType = findMetaValue(rows, ["Business Type", "Company Type", "Category", "Type"]);
     const streetName = findMetaValue(rows, ["Street Name", "Street", "Address"]);
+    const streetNumber = findMetaValue(rows, ["Street Number", "Street No.", "Street No", "No.", "No"]);
     const buildingNumber = findMetaValue(rows, ["Building Number", "Building No", "Unit"]);
-    const address = [streetName, buildingNumber].filter(Boolean).join(", ") || streetName || buildingNumber;
+    const formattedStreetNumber = streetNumber
+        ? `No. ${String(streetNumber).replace(/^no\.?\s*/i, "").trim()}`
+        : "";
+    const address = [formattedStreetNumber, streetName].filter(Boolean).join(", ") ||
+        [streetName, buildingNumber].filter(Boolean).join(", ") ||
+        streetName ||
+        buildingNumber;
     const city = findMetaValue(rows, ["City", "Town", "State"]) || "Seri Kembangan, Selangor, Malaysia";
     const openingHours = findMetaValue(rows, ["Opening Hours", "Hours"]);
     const website = findMetaValue(rows, ["Website Url", "Website URL", "Website"]);
@@ -718,6 +736,11 @@ const buildMetaModel = (assetInfo, title) => {
         "street name",
         "street",
         "address",
+        "street number",
+        "street no.",
+        "street no",
+        "no.",
+        "no",
         "building number",
         "building no",
         "unit",
@@ -756,15 +779,30 @@ const PlaySidebarGallery = ({ assetInfo }) => {
     const [images, setImages] = useState([]);
     const [activeIndex, setActiveIndex] = useState(0);
     const [loading, setLoading] = useState(true);
-    const [uploadStatus, setUploadStatus] = useState("");
     const selectedAssetId = assetInfo?.instanceId;
     const sceneAsset = sceneAssets?.[selectedAssetId];
     const assetID = assetInfo?.assetID || sceneAsset?.assetID || sceneAsset?.assetId || selectedAssetId;
     const cacheKey = `${selectedAssetId}:${assetID}`;
+    const apiImages = useMemo(() => (
+        Array.isArray(assetInfo?.images)
+            ? assetInfo.images.filter((image) => {
+                const url = String(image?.itemImageSrc || image?.thumbnailImageSrc || "");
+                return url && !/\/no_image\.png(?:$|\?)/i.test(url);
+            })
+            : []
+    ), [assetInfo?.images]);
 
     const fetchImages = useCallback(async ({ force = false } = {}) => {
         try {
             setLoading(true);
+            if (!force && apiImages.length) {
+                mediaCache.set(cacheKey, apiImages);
+                setImages(apiImages);
+                setActiveIndex(0);
+                setLoading(false);
+                return;
+            }
+
             if (!force) {
                 const cached = mediaCache.get(cacheKey);
                 if (cached) {
@@ -793,37 +831,11 @@ const PlaySidebarGallery = ({ assetInfo }) => {
         } finally {
             setLoading(false);
         }
-    }, [assetID, cacheKey, selectedAssetId]);
+    }, [apiImages, assetID, cacheKey, selectedAssetId]);
 
     useEffect(() => {
         fetchImages();
     }, [fetchImages]);
-
-    const uploadImages = async (event) => {
-        const files = Array.from(event.target.files || []);
-        event.target.value = "";
-        if (!files.length || !selectedAssetId) return;
-
-        try {
-            setUploadStatus("Uploading...");
-            const formData = new FormData();
-            formData.append("asset_id", selectedAssetId);
-            files.forEach((file) => formData.append("files", file, file.name));
-
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
-                method: "POST",
-                body: formData,
-            });
-            if (!response.ok) throw new Error(response.statusText || `HTTP ${response.status}`);
-
-            mediaCache.delete(cacheKey);
-            await fetchImages({ force: true });
-            setUploadStatus(files.length > 1 ? "Images uploaded" : "Image uploaded");
-        } catch (error) {
-            console.error("Failed to upload play asset images:", error);
-            setUploadStatus("Upload failed");
-        }
-    };
 
     const activeImage = images[activeIndex] || images[0];
     const hasMultipleImages = images.length > 1;
@@ -864,13 +876,7 @@ const PlaySidebarGallery = ({ assetInfo }) => {
                         </button>
                     ))}
                 </div>
-                <label className="play-asset-info__upload-button">
-                    <FaUpload aria-hidden="true" />
-                    <span>Upload</span>
-                    <input type="file" accept="image/*" multiple onChange={uploadImages} />
-                </label>
             </div>
-            {uploadStatus && <div className="play-asset-info__upload-status">{uploadStatus}</div>}
         </div>
     );
 };

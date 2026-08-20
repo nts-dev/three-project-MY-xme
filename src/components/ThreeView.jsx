@@ -36,6 +36,7 @@ import ProductsTreeGrid from "./popup/sideBar/ProductsTreeGrid";
 import ZoomSlider from "../threejs/hud/camera/ZoomSlider";
 import ViewportMouseCoordinates from "./ViewportMouseCoordinates.jsx";
 import PlayerHeightSlider from "../threejs/hud/playerControls/PlayerHeightSlider";
+import PlayerViewAngleSlider from "../threejs/hud/playerControls/PlayerViewAngleSlider";
 import DetailPopup from "./popup/miscellaneous/DetailPopup";
 import Ground from "../threejs/environment/Ground";
 import ProjectSkyClouds from "../threejs/environment/ProjectSkyClouds.jsx";
@@ -888,7 +889,10 @@ export default function ThreeView() {
                 />
             )}
             {((((character || firstPerson) && projectId > 0) && !isPuzzleGame)) &&
-                <PlayerHeightSlider direction='vertical' classIndenfier='height-meter' height='10rem' />}
+                <>
+                    <PlayerHeightSlider direction='vertical' classIndenfier='height-meter' height='10rem' />
+                    <PlayerViewAngleSlider />
+                </>}
             <Projects scene={sceneRef.current} camera={cameraRef.current} orbitControls={orbitControls} />
             {packageControl && <PackageControls />}
         </>

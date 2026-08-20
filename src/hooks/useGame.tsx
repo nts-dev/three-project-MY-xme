@@ -53,6 +53,7 @@ const useGame = create((set) => ({
     playerMap: {},
     playerSpeed: 10,
     playerRotationSpeed: 30,
+    playerViewAngle: 0,
     firstPerson: false,
     devicePath: [],
     newDevicePath: [],
@@ -1312,6 +1313,12 @@ const useGame = create((set) => ({
         set((state: any) => ({
             ...state,
             floorHeight: floorHeight
+        }))
+    },
+    setPlayerViewAngle: (playerViewAngle: number): any => {
+        set((state: any) => ({
+            ...state,
+            playerViewAngle: playerViewAngle
         }))
     },
     setisProductsOpen: (isProductsOpen: boolean): any => {
