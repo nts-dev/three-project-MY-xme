@@ -25,7 +25,10 @@ const buildBackendLogoUrl = (logoNameOrUrl) => {
         return value;
     }
 
-    const apiBase = String(import.meta.env.VITE_API_URL || "").trim().replace(/\/+$/, "");
+    const apiBase = String(import.meta.env.VITE_API_URL || "")
+        .trim()
+        .replace(/\/+$/, "")
+        .replace(/\/api$/i, "");
     const cleanName = value
         .replace(/^https?:\/\/[^/]+\/.*?\/files\//i, "")
         .replace(/^https?:\/\/[^/]+\/files\//i, "")
@@ -33,30 +36,16 @@ const buildBackendLogoUrl = (logoNameOrUrl) => {
         .replace(/^\/?(api\/)?files\//i, "")
         .replace(/^\/+/, "");
     const encodedPath = cleanName.split("/").map(encodeURIComponent).join("/");
-    return apiBase ? `${apiBase}/files/${encodedPath}` : `/api/files/${encodedPath}`;
+    return apiBase ? `${apiBase}/files/${encodedPath}` : `/files/${encodedPath}`;
 };
 
-const applySavedBuildingLabelLogo = async ({ buildingLabel, fields, fallbackName, instanceId, assetId }) => {
-    if (!buildingLabel || !instanceId || !import.meta.env.VITE_API_URL) {
+const applySavedBuildingLabelLogo = async ({ buildingLabel, fields, fallbackName, instanceId }) => {
+    if (!buildingLabel || !instanceId) {
         return;
     }
 
     try {
-        const ids = [instanceId, assetId].filter((id) => id !== undefined && id !== null && String(id).trim());
-        const aliases = [...new Set(ids.map((id) => String(id).trim()))];
-        const aliasQuery = aliases.slice(1).map((id) => `assetIds=${encodeURIComponent(id)}`).join("&");
-        const url = `${import.meta.env.VITE_API_URL}/getLogo/${encodeURIComponent(aliases[0])}${aliasQuery ? `?${aliasQuery}` : ""}`;
-        const response = await fetch(url);
-        if (!response.ok) {
-            return;
-        }
-
-        const result = await response.json();
-        if (!result?.url) {
-            return;
-        }
-
-        const logoUrl = buildBackendLogoUrl(result?.logo?.name || result?.url);
+        const logoUrl = buildBackendLogoUrl(`logo/${String(instanceId).trim()}.jpeg`);
         if (!logoUrl) {
             return;
         }
@@ -590,7 +579,6 @@ export default async function InstancedPattern(
                 fields,
                 fallbackName: name,
                 instanceId,
-                assetId: raw.asset_id || raw.assetId,
             });
         }
 

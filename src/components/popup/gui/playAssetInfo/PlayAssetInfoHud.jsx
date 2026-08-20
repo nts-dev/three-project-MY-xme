@@ -26,7 +26,10 @@ const buildBackendLogoUrl = (logoNameOrUrl) => {
         return value;
     }
 
-    const apiBase = String(import.meta.env.VITE_API_URL || "").trim().replace(/\/+$/, "");
+    const apiBase = String(import.meta.env.VITE_API_URL || "")
+        .trim()
+        .replace(/\/+$/, "")
+        .replace(/\/api$/i, "");
     const cleanName = value
         .replace(/^https?:\/\/[^/]+\/.*?\/files\//i, "")
         .replace(/^https?:\/\/[^/]+\/files\//i, "")
@@ -34,7 +37,7 @@ const buildBackendLogoUrl = (logoNameOrUrl) => {
         .replace(/^\/?(api\/)?files\//i, "")
         .replace(/^\/+/, "");
     const encodedPath = cleanName.split("/").map(encodeURIComponent).join("/");
-    return apiBase ? `${apiBase}/files/${encodedPath}` : `/api/files/${encodedPath}`;
+    return apiBase ? `${apiBase}/files/${encodedPath}` : `/files/${encodedPath}`;
 };
 
 const normalizeSpriteFields = (fields) => {
@@ -56,20 +59,6 @@ const getSpriteFieldValue = (fields, names, fallback = "") => {
     ));
     const value = field?.value;
     return value === undefined || value === null || String(value).trim() === "" ? fallback : String(value);
-};
-
-const getLogoAssetIds = (info) => {
-    const ids = [
-        info?.instanceId,
-        info?.assetID,
-        info?.sceneAsset?.assetID,
-        info?.sceneAsset?.instanceData?.assetObject?.assetID,
-        info?.sceneAsset?.instanceData?.assetObject?.assetId,
-    ];
-
-    return [...new Set(ids
-        .filter((id) => id !== undefined && id !== null && String(id).trim())
-        .map((id) => String(id).trim()))];
 };
 
 const buildSpritePopupInfo = (instanceId) => {
@@ -126,9 +115,8 @@ function BuildingLabelPopup({ popup, onClose }) {
         try {
             const formData = new FormData();
             const safeName = file.name.replace(/[^A-Za-z0-9._-]/g, "_");
-            const logoAssetIds = getLogoAssetIds(info);
-            formData.append("asset_id", logoAssetIds[0] || info.instanceId);
-            formData.append("asset_ids", JSON.stringify(logoAssetIds));
+            formData.append("instance_id", info.instanceId);
+            formData.append("asset_id", info.instanceId);
             formData.append("logo", file, `logo-${info.instanceId}-${Date.now()}-${safeName}`);
 
             const response = await fetch(`${import.meta.env.VITE_API_URL}/upload-logo`, {
