@@ -2557,10 +2557,6 @@
     box-shadow: none;
 }
 
-.project-viewer-back-button {
-    display: none !important;
-}
-
 .play-map-dashboard__topbar {
     z-index: 1000006;
 }
@@ -2950,6 +2946,7 @@
     top: 0 !important;
     left: 0 !important;
     bottom: 0 !important;
+    z-index: 1000010 !important;
     height: 100vh !important;
     width: 386px;
     padding: 0 0 18px !important;

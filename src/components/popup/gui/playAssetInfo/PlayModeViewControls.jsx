@@ -52,7 +52,7 @@ export default function PlayModeViewControls() {
                 return;
             }
 
-            setButtonMode("Edit Mode");
+            setButtonMode("Play mode");
             setFirstPerson(false);
             setCharacter(false);
         },
