@@ -21,17 +21,10 @@ const SCREEN_MATERIAL_NAMES = new Set([
     "Screen_14",
 ]);
 
-type AnyMat = THREE.Material & {
-    map?: THREE.Texture | null;
-    color?: THREE.Color;
-    forceSinglePass?: boolean;
-};
-
 type ManagedMesh = {
     mesh: THREE.Mesh;
     orig: THREE.Material | THREE.Material[];
     originalRenderOrder: number;
-    translucentRenderOrder: number;
 };
 
 export default function Building({ bProjectId }: { bProjectId: number }) {
@@ -66,9 +59,6 @@ export default function Building({ bProjectId }: { bProjectId: number }) {
     const framedCameraKeyRef = useRef<string | null>(null);
     const originalSortObjectsRef = useRef<boolean | null>(null);
 
-    // Cache: original material -> translucent clone (created once)
-    const translucentCache = useRef(new WeakMap<THREE.Material, THREE.Material>());
-
     const [loaded, setLoaded] = useState(false);
 
     const getFloorCodeFromName = useCallback((name?: string) => {
@@ -87,42 +77,6 @@ export default function Building({ bProjectId }: { bProjectId: number }) {
         if (Array.isArray(mat)) return mat.some((m: any) => SCREEN_MATERIAL_NAMES.has(m?.name));
         return SCREEN_MATERIAL_NAMES.has((mat as any)?.name);
     };
-
-    const normalizeTexture = (tex?: THREE.Texture | null) => {
-        if (!tex) return;
-        tex.colorSpace = THREE.SRGBColorSpace;
-        tex.needsUpdate = true;
-        tex.wrapS = THREE.RepeatWrapping;
-        tex.wrapT = THREE.RepeatWrapping;
-    };
-
-    const configureTranslucentMaterial = useCallback((material: THREE.Material) => {
-        const t = material as AnyMat;
-        t.transparent = true;
-        t.opacity = 0.3;
-        t.depthTest = true;
-        t.depthWrite = false;
-        t.forceSinglePass = true;
-        t.side = THREE.FrontSide;
-        t.polygonOffset = true;
-        t.polygonOffsetFactor = -2;
-        t.polygonOffsetUnits = -2;
-        normalizeTexture(t.map);
-        return t;
-    }, []);
-
-    const toTranslucent = useCallback((orig: THREE.Material) => {
-        const cache = translucentCache.current;
-        const cached = cache.get(orig);
-        if (cached) return configureTranslucentMaterial(cached);
-
-        // clone keeps original map/color/etc.
-        const t = orig.clone() as AnyMat;
-
-        configureTranslucentMaterial(t);
-        cache.set(orig, t);
-        return t;
-    }, [configureTranslucentMaterial]);
 
     const getWallsChildIndex = useCallback(() => {
         if (bProjectId === 48) return 6;
@@ -181,44 +135,21 @@ export default function Building({ bProjectId }: { bProjectId: number }) {
     );
 
     const applyWallState = useCallback(
-        (showWalls: boolean, opacityPercent: number) => {
-            const opacity = opacityPercent / 100;
-            const shouldRestore = showWalls && opacity >= 0.9;
-
+        (_showWalls: boolean, _opacityPercent: number) => {
             if (gl) {
                 if (originalSortObjectsRef.current == null) {
                     originalSortObjectsRef.current = gl.sortObjects;
                 }
-                gl.sortObjects = shouldRestore ? originalSortObjectsRef.current : false;
+                gl.sortObjects = originalSortObjectsRef.current;
             }
 
-            for (const { mesh, orig, originalRenderOrder, translucentRenderOrder } of managedMeshesRef.current) {
-                if (shouldRestore) {
-                    mesh.material = orig;
-                    mesh.renderOrder = originalRenderOrder;
-                    mesh.frustumCulled = false;
-                    continue;
-                }
-
-                mesh.renderOrder = translucentRenderOrder;
+            for (const { mesh, orig, originalRenderOrder } of managedMeshesRef.current) {
                 mesh.frustumCulled = false;
-
-                if (Array.isArray(orig)) {
-                    const mats = orig.map((m) => toTranslucent(m)) as AnyMat[];
-                    for (const m of mats) {
-                        m.opacity = opacity;
-                        m.needsUpdate = true;
-                    }
-                    mesh.material = mats as any;
-                } else {
-                    const mat = toTranslucent(orig) as AnyMat;
-                    mat.opacity = opacity;
-                    mat.needsUpdate = true;
-                    mesh.material = mat as any;
-                }
+                mesh.material = orig;
+                mesh.renderOrder = originalRenderOrder;
             }
         },
-        [gl, toTranslucent]
+        [gl]
     );
 
     const restoreRendererSorting = useCallback(() => {
@@ -294,8 +225,6 @@ export default function Building({ bProjectId }: { bProjectId: number }) {
 
             // Build colliders without duplicates
             // const colliderSet = new Set<THREE.Object3D>(colliders);
-            let translucentRenderOrder = 10;
-
             model.traverse((child: any) => {
                 if (!child?.isMesh) return;
                 child.frustumCulled = false;
@@ -320,11 +249,6 @@ export default function Building({ bProjectId }: { bProjectId: number }) {
                 if (child.userData.__origFrustumCulled == null) {
                     child.userData.__origFrustumCulled = child.frustumCulled;
                 }
-                if (child.userData.__translucentRenderOrder == null) {
-                    child.userData.__translucentRenderOrder = translucentRenderOrder;
-                    translucentRenderOrder += 1;
-                }
-
                 const orig: THREE.Material | THREE.Material[] = child.userData.__origMat;
 
                 // Never touch screen materials
@@ -333,7 +257,6 @@ export default function Building({ bProjectId }: { bProjectId: number }) {
                     mesh: child as THREE.Mesh,
                     orig,
                     originalRenderOrder: child.userData.__origRenderOrder,
-                    translucentRenderOrder: child.userData.__translucentRenderOrder,
                 });
             });
 
@@ -346,7 +269,7 @@ export default function Building({ bProjectId }: { bProjectId: number }) {
     );
 
     // -----------------------------------
-    // Opacity change handler: update cached translucent mats only
+    // Opacity change handler: keep building walls opaque.
     // -----------------------------------
     useEffect(() => {
         if (!wallObjRef.current) return;
@@ -358,9 +281,8 @@ export default function Building({ bProjectId }: { bProjectId: number }) {
     // Walls toggle handler
     // -----------------------------------
     useEffect(() => {
-        const showWalls = !!walls;
-        setWallsOpacity(showWalls ? 100 : 30);
-    }, [walls, setWallsOpacity, toTranslucent]);
+        setWallsOpacity(100);
+    }, [walls, setWallsOpacity]);
 
     // -----------------------------------
     // Initial model load

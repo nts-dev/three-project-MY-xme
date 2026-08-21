@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback } from "react";
 import useGame from "../../hooks/useGame";
 import { useThree } from "@react-three/fiber";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
@@ -23,9 +23,6 @@ export default function Building({ directionLight }: any) {
 
     const projectID: number = 125; // useGame((state: any) => state.projectID)
 
-    // Cache: original material -> translucent clone
-    const translucentCacheRef = useRef(new WeakMap<THREE.Material, THREE.Material>());
-
     const normalizeTexture = (tex?: THREE.Texture | null) => {
         if (!tex) return;
         tex.colorSpace = THREE.SRGBColorSpace;
@@ -33,26 +30,6 @@ export default function Building({ directionLight }: any) {
         tex.wrapS = THREE.RepeatWrapping;
         tex.wrapT = THREE.RepeatWrapping;
     };
-
-    const toTranslucent = useCallback((orig: THREE.Material, opacity = 0.35) => {
-        const cache = translucentCacheRef.current;
-        const cached = cache.get(orig);
-        if (cached) return cached;
-
-        // clone preserves original color + map + many other props
-        const t = orig.clone() as AnyMaterial;
-        t.transparent = true;
-        t.opacity = opacity;
-
-        // Helps with translucent sorting artifacts and can improve look/perf
-        t.depthWrite = false;
-
-        // Keep original appearance: do NOT override t.color
-        normalizeTexture(t.map);
-
-        cache.set(orig, t);
-        return t;
-    }, []);
 
     const getWallsIndex = useCallback(() => {
         if (projectID === 48) return 6;
@@ -68,7 +45,7 @@ export default function Building({ directionLight }: any) {
     };
 
     const swapObjectMaterials = useCallback(
-        (root: THREE.Object3D, showOpaque: boolean) => {
+        (root: THREE.Object3D, _showOpaque: boolean) => {
             root.traverse((obj: any) => {
                 if (!obj?.isMesh) return;
 
@@ -76,20 +53,10 @@ export default function Building({ directionLight }: any) {
                 storeOriginalOnce(mesh);
 
                 const orig = mesh.userData.__origMat as THREE.Material | THREE.Material[];
-
-                if (showOpaque) {
-                    mesh.material = orig as any;
-                    return;
-                }
-
-                if (Array.isArray(orig)) {
-                    mesh.material = orig.map((m) => toTranslucent(m)) as any;
-                } else {
-                    mesh.material = toTranslucent(orig) as any;
-                }
+                mesh.material = orig as any;
             });
         },
-        [toTranslucent]
+        []
     );
 
     const updateWalls = useCallback(
@@ -97,8 +64,7 @@ export default function Building({ directionLight }: any) {
             const wallObj = scene.getObjectByName("walls");
             if (!wallObj) return;
 
-            // show=true => restore originals
-            // show=false => translucent derived from originals
+            // Always restore original opaque wall materials.
             swapObjectMaterials(wallObj, show);
         },
         [scene, swapObjectMaterials]
@@ -106,7 +72,7 @@ export default function Building({ directionLight }: any) {
 
     const updateNonWalls = useCallback(
         (root: THREE.Object3D) => {
-            // Force translucent (derived from original)
+            // Keep non-wall building parts on their original materials.
             swapObjectMaterials(root, false);
         },
         [swapObjectMaterials]
@@ -118,7 +84,7 @@ export default function Building({ directionLight }: any) {
 
             const wallsIndex = getWallsIndex();
 
-            // Make everything except walls translucent (for project IDs you were doing this)
+            // Preserve original materials for non-wall building parts.
             if (projectID === 32 || projectID === 125) {
                 for (let i = 0; i < fbxFile.children.length; i++) {
                     if (i !== wallsIndex) updateNonWalls(fbxFile.children[i]);
@@ -152,9 +118,9 @@ export default function Building({ directionLight }: any) {
                 }
             });
 
-            // Initial: make walls translucent for the same set you had
+            // Keep walls opaque. Transparent building walls are expensive in VR.
             if ([125, 48, 70, 132, 135, 137, 139, 32].includes(projectID)) {
-                updateWalls(false);
+                updateWalls(true);
             }
 
             setMatList(oMatList);
@@ -196,8 +162,8 @@ export default function Building({ directionLight }: any) {
     }, [projectID, checkReload, scene, setColliders, setUpMaterials]);
 
     useEffect(() => {
-        // Toggle: show walls or make them translucent derived from original
-        updateWalls(!!walls);
+        // Keep building walls opaque even when the wall toggle changes.
+        updateWalls(true);
     }, [shadow, walls, projectID, checkReload, updateWalls]);
 
     return null;
