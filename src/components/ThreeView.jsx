@@ -78,7 +78,7 @@ import PauseMenu from "./popup/gui/PauseMenu.jsx";
 import ShowController from "./popup/miscellaneous/ShowController.jsx";
 import StatsPopup from "./popup/gui/stats/StatsPopup.jsx";
 import SoundTrack from "../threejs/player/puzzle/character/SoundTrack";
-import * as THREE from 'three/webgpu'
+import * as THREE from 'three'
 import SingleEdgesDrawing from "../threejs/autoCad/SingleEdgesDrawing.jsx";
 import SingleEdgesOverlay from "../threejs/autoCad/SingleEdgesOverlay.jsx";
 import WebGLStudioGrid from "../threejs/scene/WebGLStudioGrid.jsx";
@@ -97,6 +97,7 @@ import {
     getAvatarLoadingHudSnapshot,
     subscribeAvatarLoadingHud,
 } from "../threejs/player/puzzle/character/avatarLoadingHudStore.js";
+import XrSceneRoot from "../threejs/xr/XrSceneRoot.jsx";
 
 const EDIT_MODE_EXIT_CAMERA_POSITION = new THREE.Vector3(2.35, 1.75, 2.35);
 const EDIT_MODE_EXIT_CAMERA_TARGET = new THREE.Vector3(0, 0, 0);
@@ -690,9 +691,6 @@ export default function ThreeView() {
         <>
             {((character || firstPerson) && isTouchScreen) && <EcctrlJoystick buttonNumber={2} />}
             <Toast ref={toast} />
-            {/*<button onClick={enterVR} style={{ position: 'fixed', top: 10, right: 10, zIndex: 1000 }}>*/}
-            {/*    Enter VR*/}
-            {/*</button>*/}
             <div
                 ref={setCanvasHostNode}
                 className={`canvas-element${isAssetOver ? ' is-asset-drop-target' : ''}`}
@@ -720,11 +718,7 @@ export default function ThreeView() {
 
                     }}
                 >
-                    {/*<XR store={store}>*/}
-                    {/*<DefaultXRControllers />*/}
-                    {/*<Teleport enabled={character || firstPerson} />*/}
-
-                    <>
+                    <XrSceneRoot>
 
                         {
                             projectId === 145 ? (
@@ -795,8 +789,6 @@ export default function ThreeView() {
                                     {!isPuzzleGame && <Events orbitControls={orbitControls} />}
                                 </>
                             )}
-                    </>
-
                     {!character && !firstPerson  && <ZoomAsset orbitControls={orbitControls} toast={toast} gl={glRef} />}
                     <CheckLabel />
                     <PlayerHudCleanUp client={client} />
@@ -815,7 +807,7 @@ export default function ThreeView() {
                     <AdaptiveDpr pixelated />
                     {!packageControl && !isPackage && <Stats className="r3f-stats" showPanel={0} />}
                    
-                    {/*</XR>*/}
+                    </XrSceneRoot>
                 </Canvas>
                 {isCadProject && <SingleEdgesOverlay cameraRef={cameraRef} />}
             </div>

@@ -2,6 +2,7 @@ import React, { useCallback } from "react";
 import { FaVideo } from "react-icons/fa";
 import useGame from "../../../../hooks/useGame";
 import { publicAssetUrl } from "../../../../puzzleUi/publicAssetUrl";
+import VrViewButton from "./VrViewButton";
 
 const characterIconUrl = publicAssetUrl("character.svg");
 const freeCameraIconUrl = publicAssetUrl("freecamera.svg");
@@ -82,6 +83,7 @@ export default function PlayModeViewControls() {
                         </button>
                     );
                 })}
+                <VrViewButton />
             </div>
 
             <button

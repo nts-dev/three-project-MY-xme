@@ -1,6 +1,6 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import * as THREE from "three/webgpu";
-import { Box3, Vector3 } from "three/webgpu";
+import * as THREE from "three";
+import { Box3, Vector3 } from "three";
 import useGame from "../hooks/useGame";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
