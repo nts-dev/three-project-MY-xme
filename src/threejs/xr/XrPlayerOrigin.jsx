@@ -7,7 +7,7 @@ import { getXrStickIntent } from "./xrControllerInput";
 import { xrStore } from "./xrStore";
 
 const DEFAULT_HEAD_HEIGHT = 0.08;
-const XR_MOVE_SPEED = 1.25;
+const XR_MOVE_SPEED = 2.5;
 const XR_RUN_MULTIPLIER = 1.8;
 const XR_TURN_SPEED = 2.8;
 const XR_TURN_ONLY_RATIO = 1.35;

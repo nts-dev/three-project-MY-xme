@@ -529,6 +529,7 @@ export default function ThreeView() {
         sceneRef.current = scene;
         // gl.lighting = lighting
         glRef.current = gl;
+        gl.xr?.setFramebufferScaleFactor?.(0.75);
         // Heuristic: if no GPU string, decide from caps (tune thresholds)
         const lowByCaps =
             (perf.maxTextureSize != null && perf.maxTextureSize <= 4096) ||

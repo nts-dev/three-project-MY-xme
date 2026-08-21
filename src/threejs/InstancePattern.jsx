@@ -234,6 +234,7 @@ export default async function InstancedPattern(
 
     const instancedMesh = new THREE.InstancedMesh(object.geometry, material, assets.length);
     instancedMesh.frustumCulled = false;
+    instancedMesh.matrixAutoUpdate = false;
     instancedMesh.userData.instances = [];
     const rotationQuaternionTmp = new THREE.Quaternion();
     const finalQuaternionTmp = new THREE.Quaternion();
@@ -597,6 +598,7 @@ export default async function InstancedPattern(
 
     if (scene !== undefined && !lowerName.includes('location')) {
         instancedMesh.instanceMatrix.needsUpdate = true;
+        instancedMesh.updateMatrix();
         scene.add(instancedMesh);
     }
 

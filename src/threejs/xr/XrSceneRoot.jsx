@@ -1,6 +1,7 @@
 import React from "react";
 import { XR } from "@react-three/xr";
 import XrPlayerOrigin from "./XrPlayerOrigin";
+import XrPerformanceOptimizer from "./XrPerformanceOptimizer";
 import { xrStore } from "./xrStore";
 
 export default function XrSceneRoot({ children }) {
@@ -8,6 +9,7 @@ export default function XrSceneRoot({ children }) {
         <XR store={xrStore}>
             {children}
             <XrPlayerOrigin />
+            <XrPerformanceOptimizer />
         </XR>
     );
 }
