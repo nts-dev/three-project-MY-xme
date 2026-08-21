@@ -3,11 +3,12 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { xrStore } from "./xrStore";
 
-const XR_PIXEL_RATIO = 0.75;
-const LABEL_CULL_DISTANCE = 70;
+const XR_PIXEL_RATIO = 0.55;
+const LABEL_CULL_DISTANCE = 24;
 const LABEL_CULL_DISTANCE_SQ = LABEL_CULL_DISTANCE * LABEL_CULL_DISTANCE;
 const LABEL_CULL_INTERVAL = 10;
 const LABEL_CACHE_REFRESH_INTERVAL = 90;
+const MAX_VISIBLE_LABELS = 6;
 
 function getXrSession() {
     return xrStore.getState?.().session || null;
@@ -40,9 +41,23 @@ function setBuildingLabelsVisible(scene, camera, frameCountRef, cacheFrameRef, c
         return;
     }
 
+    const visibleCandidates = [];
     cacheRef.current.forEach((object) => {
-        object.visible = cameraPosition.distanceToSquared(object.getWorldPosition(setBuildingLabelsVisible.labelPosition)) <= LABEL_CULL_DISTANCE_SQ;
+        const distanceSq = cameraPosition.distanceToSquared(object.getWorldPosition(setBuildingLabelsVisible.labelPosition));
+        const isCandidate = distanceSq <= LABEL_CULL_DISTANCE_SQ;
+        object.visible = false;
+
+        if (isCandidate) {
+            visibleCandidates.push({ object, distanceSq });
+        }
     });
+
+    visibleCandidates
+        .sort((a, b) => a.distanceSq - b.distanceSq)
+        .slice(0, MAX_VISIBLE_LABELS)
+        .forEach(({ object }) => {
+            object.visible = true;
+        });
 }
 
 setBuildingLabelsVisible.cameraPosition = new THREE.Vector3();
@@ -53,6 +68,7 @@ export default function XrPerformanceOptimizer() {
     const [isPresenting, setIsPresenting] = useState(Boolean(getXrSession()));
     const previousPixelRatioRef = useRef(null);
     const previousShadowStateRef = useRef(null);
+    const textureStateRef = useRef([]);
     const labelFrameRef = useRef(0);
     const labelCacheFrameRef = useRef(0);
     const labelCacheRef = useRef([]);
@@ -90,6 +106,28 @@ export default function XrPerformanceOptimizer() {
             gl.shadowMap.needsUpdate = false;
         }
 
+        const textureState = [];
+        scene?.traverse((object) => {
+            const materials = Array.isArray(object?.material)
+                ? object.material
+                : object?.material
+                    ? [object.material]
+                    : [];
+
+            materials.forEach((material) => {
+                ["map", "normalMap", "roughnessMap", "metalnessMap", "alphaMap", "aoMap", "emissiveMap"].forEach((key) => {
+                    const texture = material?.[key];
+                    if (!texture || textureState.some((entry) => entry.texture === texture)) {
+                        return;
+                    }
+
+                    textureState.push({ texture, anisotropy: texture.anisotropy });
+                    texture.anisotropy = 1;
+                });
+            });
+        });
+        textureStateRef.current = textureState;
+
         return () => {
             if (previousPixelRatioRef.current) {
                 gl.setPixelRatio?.(previousPixelRatioRef.current);
@@ -100,6 +138,11 @@ export default function XrPerformanceOptimizer() {
                 gl.shadowMap.autoUpdate = previousShadowStateRef.current.autoUpdate;
                 gl.shadowMap.needsUpdate = previousShadowStateRef.current.needsUpdate;
             }
+
+            textureStateRef.current.forEach(({ texture, anisotropy }) => {
+                texture.anisotropy = anisotropy;
+            });
+            textureStateRef.current = [];
 
             scene?.traverse((object) => {
                 if (object?.userData?.isBuildingLabel) {

@@ -98,11 +98,16 @@ import {
     subscribeAvatarLoadingHud,
 } from "../threejs/player/puzzle/character/avatarLoadingHudStore.js";
 import XrSceneRoot from "../threejs/xr/XrSceneRoot.jsx";
+import { xrStore } from "../threejs/xr/xrStore.js";
 
 const EDIT_MODE_EXIT_CAMERA_POSITION = new THREE.Vector3(2.35, 1.75, 2.35);
 const EDIT_MODE_EXIT_CAMERA_TARGET = new THREE.Vector3(0, 0, 0);
 const MIN_SCENE_CAMERA_NEAR = 0.05;
 const DEFAULT_SCENE_CAMERA_FAR = 100000000;
+
+const subscribeXrSession = (callback) => xrStore.subscribe(callback);
+const getXrSessionSnapshot = () => Boolean(xrStore.getState?.().session);
+const getServerXrSessionSnapshot = () => false;
 
 function applyFixedEditModeCamera(camera, controls) {
     if (!camera || !controls) return;
@@ -232,6 +237,11 @@ export default function ThreeView() {
         subscribeAvatarLoadingHud,
         getAvatarLoadingHudSnapshot,
         getAvatarLoadingHudSnapshot
+    );
+    const isXrPresenting = useSyncExternalStore(
+        subscribeXrSession,
+        getXrSessionSnapshot,
+        getServerXrSessionSnapshot
     );
     const gridDefaultKeyRef = useRef(null);
 
@@ -529,7 +539,7 @@ export default function ThreeView() {
         sceneRef.current = scene;
         // gl.lighting = lighting
         glRef.current = gl;
-        gl.xr?.setFramebufferScaleFactor?.(0.75);
+        gl.xr?.setFramebufferScaleFactor?.(0.55);
         // Heuristic: if no GPU string, decide from caps (tune thresholds)
         const lowByCaps =
             (perf.maxTextureSize != null && perf.maxTextureSize <= 4096) ||
@@ -690,7 +700,7 @@ export default function ThreeView() {
     return (
 
         <>
-            {((character || firstPerson) && isTouchScreen) && <EcctrlJoystick buttonNumber={2} />}
+            {!isXrPresenting && ((character || firstPerson) && isTouchScreen) && <EcctrlJoystick buttonNumber={2} />}
             <Toast ref={toast} />
             <div
                 ref={setCanvasHostNode}
@@ -740,11 +750,11 @@ export default function ThreeView() {
                                             {(isPuzzleGame!==null && isPuzzleGame===false)  && projectId!==0 && (
                                               
                                                 <>
-                                                <Player
+                                                {!isXrPresenting && <Player
                                                     key='person'
                                                     client={client}
                                                     orbitControls={orbitControls}
-                                                />
+                                                />}
                                                 {/* <AIChaserDebug enabled={character || firstPerson} /> */}
                                                 <Floor />
 
@@ -790,7 +800,7 @@ export default function ThreeView() {
                                     {!isPuzzleGame && <Events orbitControls={orbitControls} />}
                                 </>
                             )}
-                    {!character && !firstPerson  && <ZoomAsset orbitControls={orbitControls} toast={toast} gl={glRef} />}
+                    {!isXrPresenting && !character && !firstPerson  && <ZoomAsset orbitControls={orbitControls} toast={toast} gl={glRef} />}
                     <CheckLabel />
                     <PlayerHudCleanUp client={client} />
 
@@ -801,38 +811,38 @@ export default function ThreeView() {
                         
                         }
                     {/* <directionalLight position={[5, 10, 10]} intensity={0.7} /> */}
-                    <ProjectSkyClouds projectBaseId={projectBaseId} />
+                    {!isXrPresenting && <ProjectSkyClouds projectBaseId={projectBaseId} />}
 
 
-                    <MapControls ref={orbitControls} />
+                    <MapControls ref={orbitControls} enabled={!isXrPresenting} />
                     <AdaptiveDpr pixelated />
-                    {!packageControl && !isPackage && <Stats className="r3f-stats" showPanel={0} />}
+                    {!isXrPresenting && !packageControl && !isPackage && <Stats className="r3f-stats" showPanel={0} />}
                    
                     </XrSceneRoot>
                 </Canvas>
                 {isCadProject && <SingleEdgesOverlay cameraRef={cameraRef} />}
             </div>
 
-            {editorShellNode ? createPortal(zoomOverlay, editorShellNode) : zoomOverlay}
-            {editorShellNode ? createPortal(layerOverlay, editorShellNode) : layerOverlay}
-            {editorShellNode ? createPortal(coordinateOverlay, editorShellNode) : coordinateOverlay}
-            {isGameRuntime && <GameRuntimeChrome cameraRef={cameraRef} />}
-            {!isPuzzleGame && !isCadProject && (buttonMode === 'Play mode' || showUrlViewControls || showGoogleThreeViewControls) && <PlayModeViewControls />}
+            {!isXrPresenting && (editorShellNode ? createPortal(zoomOverlay, editorShellNode) : zoomOverlay)}
+            {!isXrPresenting && (editorShellNode ? createPortal(layerOverlay, editorShellNode) : layerOverlay)}
+            {!isXrPresenting && (editorShellNode ? createPortal(coordinateOverlay, editorShellNode) : coordinateOverlay)}
+            {!isXrPresenting && isGameRuntime && <GameRuntimeChrome cameraRef={cameraRef} />}
+            {!isXrPresenting && !isPuzzleGame && !isCadProject && (buttonMode === 'Play mode' || showUrlViewControls || showGoogleThreeViewControls) && <PlayModeViewControls />}
             {/* {!isPuzzleGame && buttonMode === 'Play mode' && <PlayCategoryPopup />} */}
-            {!isPuzzleGame && <PlayAssetInfoHud cameraRef={cameraRef} sceneRef={sceneRef} />}
+            {!isXrPresenting && !isPuzzleGame && <PlayAssetInfoHud cameraRef={cameraRef} sceneRef={sceneRef} />}
             {isGameRuntime && <AvatarSetupConfirm />}
             {showAvatarLoadingOverlay && <AvatarLoadingOverlay />}
 
 
             {isPuzzleGame && <PuzzleAssetPlacementController scene={sceneRef.current} />}
-            {(character || firstPerson) && isPuzzleGame && <StatsPopup />}
+            {!isXrPresenting && (character || firstPerson) && isPuzzleGame && <StatsPopup />}
             {buttonMode !== 'Play mode' && <AssetDragDrop cameraRef={cameraRef} sceneRef={sceneRef} orbitControls={orbitControls} />}
-            <Roof scene={sceneRef.current} />
+            {!isXrPresenting && <Roof scene={sceneRef.current} />}
             {/* <Hud camera={cameraRef} /> */}
-            {!selectedAssetName && <DarkForm scene={sceneRef.current} />}
-            <PopupInfo />
+            {!isXrPresenting && !selectedAssetName && <DarkForm scene={sceneRef.current} />}
+            {!isXrPresenting && <PopupInfo />}
             {/* <SceneGrid scene={sceneRef.current} /> */}
-            <MiniMap scene={sceneRef.current} />
+            {!isXrPresenting && <MiniMap scene={sceneRef.current} />}
 
             {/* {(((character || firstPerson) && !isPuzzleGame)) &&
                 <>
@@ -846,27 +856,27 @@ export default function ThreeView() {
             {/*{(character || firstPerson) && < Controls/>}*/}
 
             {/* <Camera /> */}
-            <PlayersGridView />
-            <AssetsGrid />
-            <Cordinates />
-            {(isPuzzleGame || (!isPuzzleGame && buttonMode === 'Play mode')) && <ShowController />}
-            <Channels2 />
-            <Jumpoints />
-            <VideoPopup />
-            <Documents />
-            <Category currentMenu={currentMenu} />
-            <QrPopup />
-            <CameraPopup />
-            <DetailPopup />
-            <Notification />
+            {!isXrPresenting && <PlayersGridView />}
+            {!isXrPresenting && <AssetsGrid />}
+            {!isXrPresenting && <Cordinates />}
+            {!isXrPresenting && (isPuzzleGame || (!isPuzzleGame && buttonMode === 'Play mode')) && <ShowController />}
+            {!isXrPresenting && <Channels2 />}
+            {!isXrPresenting && <Jumpoints />}
+            {!isXrPresenting && <VideoPopup />}
+            {!isXrPresenting && <Documents />}
+            {!isXrPresenting && <Category currentMenu={currentMenu} />}
+            {!isXrPresenting && <QrPopup />}
+            {!isXrPresenting && <CameraPopup />}
+            {!isXrPresenting && <DetailPopup />}
+            {!isXrPresenting && <Notification />}
             {isPuzzleGame && <GameMenu />}
             {pauseGame && <PauseMenu />}
             {/*<WaitingScreen/>*/}
-            <DeleteAsset />
-            <UnsavedAssetConfirmDialog />
-            <CategorySelectionDialog />
-            <ProductsTreeGrid />
-            {packageControl && <ComponentSideBar />}
+            {!isXrPresenting && <DeleteAsset />}
+            {!isXrPresenting && <UnsavedAssetConfirmDialog />}
+            {!isXrPresenting && <CategorySelectionDialog />}
+            {!isXrPresenting && <ProductsTreeGrid />}
+            {!isXrPresenting && packageControl && <ComponentSideBar />}
             {/*{(isPuzzleGame && !isMobile) && <AudioSpectrum/>}*/}
             {(isPuzzleGame) && <SoundTrack />}
             {/*<CategoryButton/>*/}
@@ -883,14 +893,14 @@ export default function ThreeView() {
                     onToggleHud={() => setIsHudMinimized((prev) => !prev)}
                 />
             )}
-            {showPlayerRuntimeControls &&
+            {!isXrPresenting && showPlayerRuntimeControls &&
                 <PlayerViewAngleSlider />}
-            {(showPlayerRuntimeControls && !isPuzzleGame) &&
+            {(!isXrPresenting && showPlayerRuntimeControls && !isPuzzleGame) &&
                 <>
                     <PlayerHeightSlider direction='vertical' classIndenfier='height-meter' height='10rem' />
                 </>}
-            <Projects scene={sceneRef.current} camera={cameraRef.current} orbitControls={orbitControls} />
-            {packageControl && <PackageControls />}
+            {!isXrPresenting && <Projects scene={sceneRef.current} camera={cameraRef.current} orbitControls={orbitControls} />}
+            {!isXrPresenting && packageControl && <PackageControls />}
         </>
 
     )

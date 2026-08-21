@@ -47,6 +47,16 @@ function readViewerPoseQuaternion(frame, renderer, target) {
     return true;
 }
 
+function readCameraPosition(renderer, baseCamera, target) {
+    const headCamera = getHeadCamera(renderer, baseCamera);
+    if (!headCamera) return false;
+
+    headCamera.updateWorldMatrix?.(true, false);
+    headCamera.getWorldPosition(target);
+    target.y = Math.max(target.y, DEFAULT_HEAD_HEIGHT);
+    return true;
+}
+
 export default function XrPlayerOrigin() {
     const originRef = useRef(null);
     const syncedToPlayerRef = useRef(false);
@@ -70,11 +80,14 @@ export default function XrPlayerOrigin() {
             return;
         }
 
-        const hasPlayerPosition = readPlayerPosition(gameCharacterRef, playerPosition)
-            || readPlayerPosition(characterRef, playerPosition);
-        if (!syncedToPlayerRef.current && hasPlayerPosition) {
-            origin.position.copy(playerPosition);
-            syncedToPlayerRef.current = true;
+        if (!syncedToPlayerRef.current) {
+            const hasStartPosition = readPlayerPosition(gameCharacterRef, playerPosition)
+                || readPlayerPosition(characterRef, playerPosition)
+                || readCameraPosition(gl, camera, playerPosition);
+            if (hasStartPosition) {
+                origin.position.copy(playerPosition);
+                syncedToPlayerRef.current = true;
+            }
         }
 
         const safeDelta = Math.min(delta, 0.05);

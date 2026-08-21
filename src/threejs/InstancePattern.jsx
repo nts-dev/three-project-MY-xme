@@ -233,7 +233,7 @@ export default async function InstancedPattern(
     }
 
     const instancedMesh = new THREE.InstancedMesh(object.geometry, material, assets.length);
-    instancedMesh.frustumCulled = false;
+    instancedMesh.frustumCulled = true;
     instancedMesh.matrixAutoUpdate = false;
     instancedMesh.userData.instances = [];
     const rotationQuaternionTmp = new THREE.Quaternion();
@@ -588,6 +588,8 @@ export default async function InstancedPattern(
 
     instancedMesh.name = name;
     instancedMesh.count = index;
+    instancedMesh.computeBoundingBox?.();
+    instancedMesh.computeBoundingSphere?.();
     instancedMesh.castShadow = true;
     instancedMesh.receiveShadow = true;
     instanceMesh[name] = instancedMesh;
