@@ -30,6 +30,17 @@ const PROJECTS = [
         buildingCount: "3 buildings",
         floorLabel: "First Floor / Floors 0-13",
     },
+    {
+        id: "126",
+        number: "03",
+        title: "Tradestar Kenya LDT Street View",
+        org: "NTS COMPUTERS KENYA",
+        imageFile: "126.png",
+        type: "Office",
+        date: "08/22/2026",
+        buildingCount: "1 buildings",
+        floorLabel: "Economic Building, 1st Floor, Rm 25",
+    },
 ];
 
 function buildFileImageUrl(fileName) {
@@ -73,7 +84,9 @@ function ProjectTile({ project, onOpen }) {
             <span className="project-tile-type">{project.type}</span>
 
             <div className="project-tile-content">
-                <p className="project-tile-org">NTS COMPUTERS SDN BHD</p>
+                <p className="project-tile-org">
+                    {project.org || "NTS COMPUTERS SDN BHD"}
+                </p>
                 <h2>{project.title}</h2>
 
                 <div className="project-tile-location">
@@ -147,7 +160,7 @@ export default function ProjectTileLanding() {
                 </div>
                 <div className="project-tile-status">
                     <span aria-hidden="true" />
-                    2 locations online
+                    3 locations online
                 </div>
             </header>
 

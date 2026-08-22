@@ -79,11 +79,22 @@
           "y": 64,
           "z": 538
         },
-        "branch_name": "TradeStar Kenya Ltd",
+        "branch_name": "TradeStar Kenya Street View",
         "branch_id": "6"
       },
-
-
+     "126": {
+        "children": [],
+        "id": "126",
+        "name": "Street View",
+        "floors": [-460,0,460,920],
+        "landing_point": {
+          "x": 766,
+          "y": 64,
+          "z": 538
+        },
+        "branch_name": "TradeStar Kenya Street View",
+        "branch_id": "6"
+      },
       "135": {
         "children": [],
         "id": "135",

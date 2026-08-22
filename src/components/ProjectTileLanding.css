@@ -135,7 +135,7 @@
 
 .project-tile-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 18px;
     flex: 1 1 auto;
     min-height: 0;
@@ -338,6 +338,12 @@
 .project-viewer-back-button:focus-visible {
     background: #ffffff;
     color: #0391ae;
+}
+
+@media (max-width: 1180px) {
+    .project-tile-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 900px) {
