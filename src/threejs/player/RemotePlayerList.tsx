@@ -61,6 +61,7 @@ export default function RemotePlayerList({playerObject}: any) {
         <>
             {players.map((player: any) => {
                
+                       console.log(player)
                     if (localClientId === undefined || localClientId === null || localClientId.trim().length==0 || localClientId == player.clientId || !String(projectID).includes(String(player.projectID))) {
                         return null
                     }
