@@ -196,6 +196,47 @@ export default async function InstancedPattern(
         return { x: 0, y: angle || 0, z: 0 };
     };
 
+    const parseScaleAxis = (value, fallback, divisor = 1) => {
+        const parsed = Number.parseFloat(value);
+        return Number.isFinite(parsed) ? parsed / divisor : fallback;
+    };
+
+    const extractVectorScale = (scaleValue, fallbackScale, divisor = 1) => {
+        if (!scaleValue) {
+            return null;
+        }
+
+        if (typeof scaleValue === 'object') {
+            return new Vector3(
+                parseScaleAxis(scaleValue.x, fallbackScale.x, divisor),
+                parseScaleAxis(scaleValue.y, fallbackScale.y, divisor),
+                parseScaleAxis(scaleValue.z, fallbackScale.z, divisor)
+            );
+        }
+
+        try {
+            const obj = JSON.parse(scaleValue);
+            if (typeof obj === 'object' && obj !== null) {
+                return new Vector3(
+                    parseScaleAxis(obj.x, fallbackScale.x, divisor),
+                    parseScaleAxis(obj.y, fallbackScale.y, divisor),
+                    parseScaleAxis(obj.z, fallbackScale.z, divisor)
+                );
+            }
+        } catch (e) {
+            console.log(e);
+        }
+
+        return null;
+    };
+
+    const isUnitFallbackScale = (scale) => (
+        scale
+        && Math.abs(scale.x - 1) < 0.000001
+        && Math.abs(scale.y - 1) < 0.000001
+        && Math.abs(scale.z - 1) < 0.000001
+    );
+
     const rootChild = fbx.children[0] || fbx;
     const object = rootChild.children[0] ? rootChild.children[0] : rootChild;
 
@@ -233,8 +274,7 @@ export default async function InstancedPattern(
     }
 
     const instancedMesh = new THREE.InstancedMesh(object.geometry, material, assets.length);
-    instancedMesh.frustumCulled = true;
-    instancedMesh.matrixAutoUpdate = false;
+    instancedMesh.frustumCulled = false;
     instancedMesh.userData.instances = [];
     const rotationQuaternionTmp = new THREE.Quaternion();
     const finalQuaternionTmp = new THREE.Quaternion();
@@ -274,6 +314,9 @@ export default async function InstancedPattern(
         const finalQuaternion = finalQuaternionTmp.clone();
 
         const absScale = object.scale.clone();
+        const savedProjectScaleValue = asset.transform?.scale || raw.transform?.scale;
+        const savedProjectScale = extractVectorScale(savedProjectScaleValue, absScale);
+        const useSavedProjectScale = savedProjectScale && !isUnitFallbackScale(savedProjectScale);
        
 
         const widthRaw = fields['Width']?.value;
@@ -284,11 +327,11 @@ export default async function InstancedPattern(
         const length = Number(lengthRaw) ? lengthRaw : 0;
         const height = Number(heightRaw) ? heightRaw : 0;
 
-       
+
          if (fields['Status']?.value === "Not in Use" && !String(projectID).includes("153_L1")) {
         //    console.log(projectID)
             continue;
-       
+
         }
         const floorField = fields['Floor']?.value;
         const floor = parseFloorCode(
@@ -298,8 +341,10 @@ export default async function InstancedPattern(
 
         const floorValue = floor || 0;
         floors[floorValue] = { name: `Floor ${floorValue}`, code: floorValue };
- 
-        if (generatedAsset) {
+
+        if (useSavedProjectScale) {
+            absScale.copy(savedProjectScale);
+        } else if (generatedAsset) {
             if (width > 0) {
                 const wFloat = parseFloat(width);
                 if (wFloat > 0 && pivotSize.x > 0) {
@@ -338,7 +383,14 @@ export default async function InstancedPattern(
             }
         }
 
-        absScale.multiplyScalar(0.01);
+
+        if (!useSavedProjectScale) {
+            absScale.multiplyScalar(0.01);
+            const savedFieldScale = extractVectorScale(fields['Scale']?.value, absScale, 100);
+            if (savedFieldScale && !isUnitFallbackScale(savedFieldScale)) {
+                absScale.copy(savedFieldScale);
+            }
+        }
 
        
 
@@ -588,8 +640,6 @@ export default async function InstancedPattern(
 
     instancedMesh.name = name;
     instancedMesh.count = index;
-    instancedMesh.computeBoundingBox?.();
-    instancedMesh.computeBoundingSphere?.();
     instancedMesh.castShadow = true;
     instancedMesh.receiveShadow = true;
     instanceMesh[name] = instancedMesh;
@@ -600,7 +650,6 @@ export default async function InstancedPattern(
 
     if (scene !== undefined && !lowerName.includes('location')) {
         instancedMesh.instanceMatrix.needsUpdate = true;
-        instancedMesh.updateMatrix();
         scene.add(instancedMesh);
     }
 
