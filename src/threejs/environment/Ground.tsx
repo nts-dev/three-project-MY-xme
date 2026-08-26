@@ -33,7 +33,7 @@ const Ground: any = () => {
         );
 
         // Load the specific project texture if applicable
-        if (projectBaseId === '125' || projectBaseId === '126' || projectBaseId === '48' || projectBaseId === '33') {
+        if ( projectBaseId === '126') {
             const sTexLoader = new TextureLoader();
             sTexLoader.load(
                 `${import.meta.env.VITE_FILE_URL}/${projectBaseId}.JPG`,
@@ -49,36 +49,36 @@ const Ground: any = () => {
 
     useEffect(() => {
         if (!scene || !dfTexture || !floorMap) return; // Make sure the scene and textures are loaded
-
-        let material: MeshStandardMaterial;
-        if ((projectBaseId === '125' || projectBaseId === '126' || projectBaseId === '48' || projectBaseId === '33') && sTexture) {
-            material = new MeshStandardMaterial({map: sTexture});
-        } else {
-            material = new MeshStandardMaterial({map: dfTexture});
-        }
-
-        // Create the mesh (either for project 125 or other projects)
         let mesh: Mesh;
-        if (projectBaseId === '126'|| projectBaseId === '125') {
-            mesh = new Mesh(new BoxGeometry(280, 0.5, 230), material);
+        let material: MeshStandardMaterial;
+        if (( projectBaseId === '126') && sTexture) {
+            material = new MeshStandardMaterial({map: sTexture});
+             mesh = new Mesh(new BoxGeometry(280, 0.5, 230), material);
             mesh.position.set(-23, -4.8, -1);
             mesh.rotation.set(0, 57.2958 * 159.0119, 0);
-        } else if (projectBaseId === '33') {
-            mesh = new Mesh(new BoxGeometry(300, 0.5, 120), material);
-            mesh.position.set(-20, -0, 18);
-            mesh.rotation.set(0, 57.2958 * -159.014, 0);
-        }else {
-            const position = projectBaseId === '120' ? new Vector3(0, 0.05, 0) : new Vector3(18, -0.35, -35);
-            const size = projectBaseId === '120' ? new Vector3(3850, 0.5, 2400) : new Vector3(385, 0.5, 240);
-            const rotationVal =  projectBaseId === '33' ? 0 : 270.0108; 
+            scene.add(mesh);
+        } 
 
-            mesh = new Mesh(new BoxGeometry(size.x, size.y, size.z), material);
-            mesh.position.copy(position);
-            mesh.rotation.set(0, 57.2958 * rotationVal, 0);
-        }
+        // Create the mesh (either for project 125 or other projects)
+       
+    
+        
+        // else if (projectBaseId === '33') {
+        //     mesh = new Mesh(new BoxGeometry(300, 0.5, 120), material);
+        //     mesh.position.set(-20, -0, 18);
+        //     mesh.rotation.set(0, 57.2958 * -159.014, 0);
+        // }else {
+        //     const position = projectBaseId === '120' ? new Vector3(0, 0.05, 0) : new Vector3(18, -0.35, -35);
+        //     const size = projectBaseId === '120' ? new Vector3(3850, 0.5, 2400) : new Vector3(385, 0.5, 240);
+        //     const rotationVal =  projectBaseId === '33' ? 0 : 270.0108; 
+
+        //     mesh = new Mesh(new BoxGeometry(size.x, size.y, size.z), material);
+        //     mesh.position.copy(position);
+        //     mesh.rotation.set(0, 57.2958 * rotationVal, 0);
+        // }
 
         // Add the mesh to the scene
-        scene.add(mesh);
+        
 
         // Cleanup on unmount
         return () => {
