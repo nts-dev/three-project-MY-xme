@@ -60,9 +60,9 @@ const Ground: any = () => {
         // Create the mesh (either for project 125 or other projects)
         let mesh: Mesh;
         if (projectBaseId === '126'|| projectBaseId === '125') {
-            mesh = new Mesh(new BoxGeometry(333, 0.5, 160), material);
-            mesh.position.set(-35, -4.8, 12);
-            mesh.rotation.set(0, 57.2958 * 159.0129, 0);
+            mesh = new Mesh(new BoxGeometry(280, 0.5, 230), material);
+            mesh.position.set(-23, -4.8, -1);
+            mesh.rotation.set(0, 57.2958 * 159.0119, 0);
         } else if (projectBaseId === '33') {
             mesh = new Mesh(new BoxGeometry(300, 0.5, 120), material);
             mesh.position.set(-20, -0, 18);
