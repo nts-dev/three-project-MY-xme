@@ -79,7 +79,7 @@ const useGame = create((set) => ({
     catId: 0,
     gridAssets: [],
     expandedKeys: {},
-    floorMap: false,
+    floorMap: true,
     iframeLazy: true,
     annotations: false,
     scanner: false,

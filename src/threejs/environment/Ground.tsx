@@ -33,7 +33,7 @@ const Ground: any = () => {
         );
 
         // Load the specific project texture if applicable
-        if (projectBaseId === '125' || projectBaseId === '48' || projectBaseId === '33') {
+        if (projectBaseId === '125' || projectBaseId === '126' || projectBaseId === '48' || projectBaseId === '33') {
             const sTexLoader = new TextureLoader();
             sTexLoader.load(
                 `${import.meta.env.VITE_FILE_URL}/${projectBaseId}.JPG`,
@@ -51,7 +51,7 @@ const Ground: any = () => {
         if (!scene || !dfTexture || !floorMap) return; // Make sure the scene and textures are loaded
 
         let material: MeshStandardMaterial;
-        if ((projectBaseId === '125' || projectBaseId === '48' || projectBaseId === '33') && sTexture) {
+        if ((projectBaseId === '125' || projectBaseId === '126' || projectBaseId === '48' || projectBaseId === '33') && sTexture) {
             material = new MeshStandardMaterial({map: sTexture});
         } else {
             material = new MeshStandardMaterial({map: dfTexture});
@@ -59,7 +59,7 @@ const Ground: any = () => {
 
         // Create the mesh (either for project 125 or other projects)
         let mesh: Mesh;
-        if (projectBaseId === '125') {
+        if (projectBaseId === '126'|| projectBaseId === '125') {
             mesh = new Mesh(new BoxGeometry(333, 0.5, 160), material);
             mesh.position.set(-35, -4.8, 12);
             mesh.rotation.set(0, 57.2958 * 159.0129, 0);
