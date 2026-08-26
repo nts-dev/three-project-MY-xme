@@ -3,12 +3,15 @@ import {socket} from "../../socket";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils";
 import RemotePlayer from "./RemotePlayer";
 import useGame from "../../hooks/useGame";
+import usePlayerTrackReplay from "./usePlayerTrackReplay";
 
 export default function RemotePlayerList({playerObject}: any) {
     const {scene, animations} = playerObject;
     const [players, setPlayers] = useState<any[]>([]);
     const localClientId = useGame((state: any) => state.clientId);
     const projectID = useGame((state: any) => state.projectID);
+    const playerTrackReplay = useGame((state: any) => state.playerTrackReplay);
+    const trackPlayers = usePlayerTrackReplay(projectID, playerTrackReplay);
     const setPlayerActionList = useGame((state: any) => state.setPlayerActions);
     const disconnect = (clientID: string) => {
         const labelDiv = document.getElementById(clientID);
@@ -57,15 +60,23 @@ export default function RemotePlayerList({playerObject}: any) {
         }
     }, [projectID,playerObject]);
 
+    const visiblePlayers = useMemo(() => {
+        const localClientIdValue = String(localClientId || "").trim();
+        const socketClientIds = new Set(players.map((player: any) => player?.clientId).filter(Boolean));
+        const mergedPlayers = [
+            ...players,
+            ...trackPlayers.filter((player: any) => !socketClientIds.has(player?.clientId)),
+        ];
+
+        return mergedPlayers.filter((player: any) => {
+            if (!player?.clientId) return false;
+            return !localClientIdValue || localClientIdValue !== player.clientId;
+        });
+    }, [players, trackPlayers, localClientId]);
+
     return (
         <>
-            {players.map((player: any) => {
-               
-             
-                    if (!player?.clientId || localClientId === undefined || localClientId === null || localClientId.trim().length==0 || localClientId == player.clientId ) {
-                        return 
-                    }
-
+            {visiblePlayers.map((player: any) => {
                     return (
                         <RemotePlayer
                             key={player.clientId}

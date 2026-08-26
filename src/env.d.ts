@@ -10,6 +10,7 @@ interface ImportMetaEnv {
   readonly VITE_DATA_URL: string;
   readonly VITE_VIDEO_URL: string;
   readonly VITE_ASSET_URL: string;
+  readonly VITE_PLAYER_TRACK_IDS?: string;
 }
 
 interface ImportMeta {

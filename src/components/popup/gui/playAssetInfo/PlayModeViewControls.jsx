@@ -32,8 +32,8 @@ export default function PlayModeViewControls() {
     const setFirstPerson = useGame((state) => state.setFirstPerson);
     const setCharacter = useGame((state) => state.setCharacter);
     const setButtonMode = useGame((state) => state.setButtonMode);
-    const controlClose = useGame((state) => state.controlClose);
-    const setControlClose = useGame((state) => state.setControlClose);
+    const playerTrackReplay = useGame((state) => state.playerTrackReplay);
+    const setPlayerTrackReplay = useGame((state) => state.setPlayerTrackReplay);
 
     const activeView = firstPerson ? "firstPerson" : character ? "character" : "orbit";
 
@@ -88,11 +88,11 @@ export default function PlayModeViewControls() {
 
             <button
                 type="button"
-                className={`play-view-controls__button play-view-controls__button--navigation${controlClose ? " is-active" : ""}`}
-                aria-label="Navigation controls"
-                aria-pressed={controlClose}
-                data-tooltip="Navigation controls"
-                onClick={() => setControlClose(!controlClose)}
+                className={`play-view-controls__button play-view-controls__button--navigation${playerTrackReplay ? " is-active" : ""}`}
+                aria-label={playerTrackReplay ? "Stop player track" : "Play player track"}
+                aria-pressed={playerTrackReplay}
+                data-tooltip={playerTrackReplay ? "Stop player track" : "Play player track"}
+                onClick={() => setPlayerTrackReplay(!playerTrackReplay)}
             >
                 <img className="play-view-controls__asset-icon play-view-controls__asset-icon--navigation" src={navigationIconUrl} alt="" aria-hidden="true" />
             </button>

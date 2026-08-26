@@ -250,6 +250,7 @@ const useGame = create((set) => ({
     distanceCount: 0,
     activatedTile: null,
     controlClose: false,
+    playerTrackReplay: false,
     confirmationObj: {},
     uName: '',
     gameStartTick: 0,
@@ -523,6 +524,11 @@ const useGame = create((set) => ({
         set((state: any) => ({
             ...state,
             controlClose: controlClose
+        })),
+    setPlayerTrackReplay: (playerTrackReplay: boolean) =>
+        set((state: any) => ({
+            ...state,
+            playerTrackReplay
         })),
     setActivatedTile: (activatedTile: number) =>
         set((state: any) => ({
