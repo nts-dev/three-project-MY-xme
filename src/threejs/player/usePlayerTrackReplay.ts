@@ -1,6 +1,9 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 
 const DEFAULT_TRACK_PLAYER_IDS = ["47116a0906b3acc8"];
+const PROJECT_TRACK_SOURCES: Record<string, { id: string; url: string }[]> = {
+    "33": [{ id: "74867395b0df4a08", url: `${getApiBaseUrl()}/player/74867395b0df4a08.json` }],
+};
 const TRACK_STEP_MS = 650;
 const TRACK_START_FRAME = 10;
 
@@ -11,6 +14,16 @@ function getTrackPlayerIds() {
         .filter(Boolean);
 
     return configuredIds.length > 0 ? configuredIds : DEFAULT_TRACK_PLAYER_IDS;
+}
+
+function getTrackSources(projectID: any) {
+    const projectSources = PROJECT_TRACK_SOURCES[getProjectBaseId(projectID)];
+    if (projectSources) return projectSources;
+
+    return getTrackPlayerIds().map((id) => ({
+        id,
+        url: `${getApiBaseUrl()}/player/${encodeURIComponent(id)}.json`,
+    }));
 }
 
 function getApiBaseUrl() {
@@ -81,9 +94,9 @@ function byDateTime(firstRecord: any, secondRecord: any) {
     return firstDate - secondDate;
 }
 
-async function fetchTrack(clientId: string, projectID: any) {
-    const response = await fetch(`${getApiBaseUrl()}/player/${encodeURIComponent(clientId)}.json`);
-    if (!response.ok) throw new Error(`Unable to load player track ${clientId}`);
+async function fetchTrack(source: { id: string; url: string }, projectID: any) {
+    const response = await fetch(source.url);
+    if (!response.ok) throw new Error(`Unable to load player track ${source.id}`);
 
     const payload = await response.json();
     const records = Array.isArray(payload) ? payload : payload?.data;
@@ -93,14 +106,14 @@ async function fetchTrack(clientId: string, projectID: any) {
         .filter((record) => isSameProject(record, projectID))
         .sort(byDateTime)
         .slice(TRACK_START_FRAME)
-        .map((record) => normalizeTrackRecord(record, clientId));
+        .map((record) => normalizeTrackRecord(record, source.id));
 }
 
 export default function usePlayerTrackReplay(projectID: any, enabled: boolean) {
     const [tracks, setTracks] = useState<Record<string, any[]>>({});
     const [players, setPlayers] = useState<any[]>([]);
     const indexesRef = useRef<Record<string, number>>({});
-    const trackPlayerIds = useMemo(getTrackPlayerIds, []);
+    const trackSources = useMemo(() => getTrackSources(projectID), [projectID]);
 
     useEffect(() => {
         let cancelled = false;
@@ -115,7 +128,7 @@ export default function usePlayerTrackReplay(projectID: any, enabled: boolean) {
         }
 
         Promise.all(
-            trackPlayerIds.map(async (clientId) => [clientId, await fetchTrack(clientId, projectID)] as const)
+            trackSources.map(async (source) => [source.id, await fetchTrack(source, projectID)] as const)
         )
             .then((entries) => {
                 if (cancelled) return;
@@ -130,7 +143,7 @@ export default function usePlayerTrackReplay(projectID: any, enabled: boolean) {
         return () => {
             cancelled = true;
         };
-    }, [projectID, trackPlayerIds, enabled]);
+    }, [projectID, trackSources, enabled]);
 
     useEffect(() => {
         const trackEntries = Object.entries(tracks);
