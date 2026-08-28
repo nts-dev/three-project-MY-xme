@@ -2564,11 +2564,41 @@
     top: 10px;
     right: 12px;
     z-index: 1000004;
-    height: 30px;
-    padding: 0 76px 0 8px;
-    background: transparent;
-    border: 0;
-    box-shadow: none;
+    width: auto;
+    height: 34px;
+    padding: 3px 8px;
+    border: 1px solid rgba(35, 244, 248, 0.26);
+    border-radius: 8px;
+    background: rgba(5, 15, 18, 0.78);
+    box-shadow:
+        0 10px 24px rgba(0, 0, 0, 0.22),
+        0 0 18px rgba(35, 244, 248, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.09);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.play-view-controls__button {
+    background: rgba(12, 31, 34, 0.82);
+    color: rgba(226, 249, 250, 0.88);
+    box-shadow:
+        inset 0 0 0 1px rgba(226, 249, 250, 0.08),
+        0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.play-view-controls__button svg,
+.play-view-controls__button .play-view-controls__asset-icon {
+    filter:
+        drop-shadow(0 1px 1px rgba(0, 0, 0, 0.65))
+        drop-shadow(0 0 3px rgba(35, 244, 248, 0.26));
+}
+
+.play-view-controls__button:hover {
+    background: rgba(21, 58, 61, 0.92);
+}
+
+.play-view-controls__button.is-active {
+    background: rgba(35, 244, 248, 0.22);
 }
 
 .play-map-dashboard__topbar {
@@ -2625,7 +2655,7 @@
         height: 28px;
         border: 0;
         border-radius: 50%;
-        background: transparent;
+        background: rgba(12, 31, 34, 0.82);
         color: rgba(223, 255, 255, 0.84);
     }
 
