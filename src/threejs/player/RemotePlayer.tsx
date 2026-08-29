@@ -54,7 +54,13 @@ export default function RemotePlayer({ player, rPlayer, animations }: any) {
     const projectID = useGame((state: any) => state.projectID);
     const [yOffset, setYOffset] = useState(-0.64)
     // Clone the model for independent animation control
-    const clonedModel = React.useMemo(() => SkeletonUtils.clone(rPlayer), [rPlayer]);
+    const clonedModel = React.useMemo(() => {
+        const model = SkeletonUtils.clone(rPlayer);
+        if (player?.isTrackReplay) {
+            model.scale.multiplyScalar(3);
+        }
+        return model;
+    }, [rPlayer, player?.isTrackReplay]);
     const { actions } = useAnimations(animations, playerRef);
     const shouldUseGpsWalk = !currentAnimation || IDLE_ANIMATIONS.has(currentAnimation);
     const desiredAnimation = shouldUseGpsWalk && autoWalking
