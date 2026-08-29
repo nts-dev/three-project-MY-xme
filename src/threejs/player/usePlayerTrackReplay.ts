@@ -3,9 +3,11 @@ import {useEffect, useMemo, useRef, useState} from "react";
 const DEFAULT_TRACK_PLAYER_IDS = ["47116a0906b3acc8"];
 const PROJECT_TRACK_SOURCES: Record<string, { id: string; url: string }[]> = {
     "33": [{ id: "74867395b0df4a08", url: `${getApiBaseUrl()}/player/74867395b0df4a08.json` }],
+    "126": [{ id: "47116a0906b3acc8_path1", url: `${getApiBaseUrl()}/player/47116a0906b3acc8_path1.json` }],
 };
 const TRACK_STEP_MS = 650;
 const TRACK_START_FRAME = 10;
+const TRACK_DOT_SPACING = 0.35;
 
 function getTrackPlayerIds() {
     const configuredIds = String(import.meta.env.VITE_PLAYER_TRACK_IDS || "")
@@ -84,6 +86,51 @@ function normalizeTrackRecord(record: any, fallbackClientId: string) {
             : record?.device_name || clientId,
         isTrackReplay: true,
     };
+}
+
+function getScenePosition(record: any) {
+    return {
+        x: toNumber(record?.position?.x, toNumber(record?.posX) / 100),
+        y: toNumber(record?.position?.y, toNumber(record?.posY) / 100),
+        z: toNumber(record?.position?.z, toNumber(record?.posZ) / 100),
+    };
+}
+
+function getDistance(start: any, end: any) {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const dz = end.z - start.z;
+    return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+function interpolateTrackPath(records: any[]) {
+    if (records.length < 2) return records;
+
+    const points: any[] = [];
+
+    for (let index = 0; index < records.length - 1; index += 1) {
+        const current = records[index];
+        const next = records[index + 1];
+        const start = getScenePosition(current);
+        const end = getScenePosition(next);
+        const distance = getDistance(start, end);
+        const steps = Math.max(1, Math.ceil(distance / TRACK_DOT_SPACING));
+
+        for (let step = 0; step < steps; step += 1) {
+            const t = step / steps;
+            points.push({
+                ...current,
+                position: {
+                    x: start.x + (end.x - start.x) * t,
+                    y: start.y + (end.y - start.y) * t,
+                    z: start.z + (end.z - start.z) * t,
+                },
+            });
+        }
+    }
+
+    points.push(records[records.length - 1]);
+    return points;
 }
 
 function byDateTime(firstRecord: any, secondRecord: any) {
@@ -181,5 +228,15 @@ export default function usePlayerTrackReplay(projectID: any, enabled: boolean) {
         };
     }, [tracks]);
 
-    return players;
+    const pathPoints = useMemo(() => {
+        return Object.values(tracks).flatMap((records) => (
+            interpolateTrackPath(records)
+        ));
+    }, [tracks]);
+
+    const pathGroups = useMemo(() => {
+        return Object.values(tracks).map((records) => interpolateTrackPath(records));
+    }, [tracks]);
+
+    return { players, pathPoints, pathGroups };
 }

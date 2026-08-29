@@ -1,9 +1,58 @@
 import {useEffect, useState, useMemo} from "react";
 import {socket} from "../../socket";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils";
+import * as THREE from "three";
 import RemotePlayer from "./RemotePlayer";
 import useGame from "../../hooks/useGame";
 import usePlayerTrackReplay from "./usePlayerTrackReplay";
+
+function TrackPathDotGroup({ points }: { points: any[] }) {
+    const geometry = useMemo(() => new THREE.SphereGeometry(0.11, 10, 8), []);
+    const material = useMemo(() => new THREE.MeshBasicMaterial({
+        color: "#ff1f2f",
+        depthTest: false,
+        depthWrite: false,
+        transparent: true,
+        opacity: 0.9,
+    }), []);
+    const matrices = useMemo(() => {
+        const matrix = new THREE.Matrix4();
+        const position = new THREE.Vector3();
+
+        return points.map((point: any) => {
+            position.set(
+                Number(point?.position?.x ?? point?.posX / 100 ?? 0),
+                Number(point?.position?.y ?? point?.posY / 100 ?? 0) + 0.08,
+                Number(point?.position?.z ?? point?.posZ / 100 ?? 0)
+            );
+            return matrix.clone().setPosition(position);
+        });
+    }, [points]);
+
+    if (matrices.length === 0) return null;
+
+    return (
+        <instancedMesh
+            args={[geometry, material, matrices.length]}
+            frustumCulled={false}
+            renderOrder={20}
+            onUpdate={(mesh) => {
+                matrices.forEach((matrix, index) => mesh.setMatrixAt(index, matrix));
+                mesh.instanceMatrix.needsUpdate = true;
+            }}
+        />
+    );
+}
+
+function TrackPathDots({ groups }: { groups: any[][] }) {
+    return (
+        <>
+            {groups.map((points, index) => (
+                <TrackPathDotGroup key={`track-path-${index}`} points={points} />
+            ))}
+        </>
+    );
+}
 
 export default function RemotePlayerList({playerObject}: any) {
     const {scene, animations} = playerObject;
@@ -11,7 +60,7 @@ export default function RemotePlayerList({playerObject}: any) {
     const localClientId = useGame((state: any) => state.clientId);
     const projectID = useGame((state: any) => state.projectID);
     const playerTrackReplay = useGame((state: any) => state.playerTrackReplay);
-    const trackPlayers = usePlayerTrackReplay(projectID, playerTrackReplay);
+    const { players: trackPlayers, pathGroups: trackPathGroups } = usePlayerTrackReplay(projectID, playerTrackReplay);
     const setPlayerActionList = useGame((state: any) => state.setPlayerActions);
     const disconnect = (clientID: string) => {
         const labelDiv = document.getElementById(clientID);
@@ -76,6 +125,7 @@ export default function RemotePlayerList({playerObject}: any) {
 
     return (
         <>
+            {playerTrackReplay && <TrackPathDots groups={trackPathGroups} />}
             {visiblePlayers.map((player: any) => {
                     return (
                         <RemotePlayer
