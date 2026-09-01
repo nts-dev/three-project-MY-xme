@@ -15,8 +15,8 @@ import {
     FaPhoneAlt,
     FaRegClock,
     FaSchool,
-    FaSearch,
     FaShareAlt,
+    FaStar,
     FaStore,
     FaTimes,
     FaUtensils,
@@ -710,7 +710,9 @@ const buildMetaModel = (assetInfo, title) => {
     const groups = normalizeApiSpecGroups(assetInfo?.specGroups);
     const rows = groups.flatMap((group) => group.children || []).filter(shouldShowMetaRow);
     const companyName = findMetaValue(rows, ["Company Name", "AssetName"]) || title;
-    const description = findMetaValue(rows, ["Business Description", "Description", "Comments"]);
+    const businessDescription = findMetaValue(rows, ["Business Description", "Description"]);
+    const comments = findMetaValue(rows, ["Comments"]);
+    const description = businessDescription || comments;
     const businessType = findMetaValue(rows, ["Business Type", "Company Type", "Category", "Type"]);
     const streetName = findMetaValue(rows, ["Street Name", "Street", "Address"]);
     const streetNumber = findMetaValue(rows, ["Street Number", "Street No.", "Street No", "No.", "No"]);
@@ -768,7 +770,9 @@ const buildMetaModel = (assetInfo, title) => {
         address,
         businessKind,
         businessType,
+        businessDescription,
         city,
+        comments,
         companyName,
         description,
         extraRows,
@@ -841,6 +845,16 @@ const PlaySidebarGallery = ({ assetInfo }) => {
         fetchImages();
     }, [fetchImages]);
 
+    useEffect(() => {
+        const handleAddPhotosRequest = (event) => {
+            if (event?.detail?.selectedAssetId && event.detail.selectedAssetId !== selectedAssetId) return;
+            fetchImages({ force: true });
+        };
+
+        window.addEventListener("play-asset-info-add-photos", handleAddPhotosRequest);
+        return () => window.removeEventListener("play-asset-info-add-photos", handleAddPhotosRequest);
+    }, [fetchImages, selectedAssetId]);
+
     const activeImage = images[activeIndex] || images[0];
     const hasMultipleImages = images.length > 1;
     const goToPrevious = () => setActiveIndex((index) => (index <= 0 ? images.length - 1 : index - 1));
@@ -880,6 +894,9 @@ const PlaySidebarGallery = ({ assetInfo }) => {
                         </button>
                     ))}
                 </div>
+                <span className="play-asset-info__gallery-count">
+                    {Math.min(activeIndex + 1, Math.max(images.length, 1))} / {Math.max(images.length, 1)}
+                </span>
             </div>
         </div>
     );
@@ -893,7 +910,6 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
     const meta = useMemo(() => buildMetaModel(assetInfo, title), [assetInfo, title]);
     const [isEditing, setIsEditing] = useState(false);
     const [draftRows, setDraftRows] = useState([]);
-    const [searchTerm, setSearchTerm] = useState("");
     const BusinessIcon = meta.businessKind.Icon;
 
     useEffect(() => {
@@ -903,7 +919,6 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
             value: valueText(row.value),
         })));
         setIsEditing(false);
-        setSearchTerm("");
     }, [meta.rows, selectedAssetId]);
 
     const handleEditRequest = () => {
@@ -937,6 +952,13 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
         setIsEditing(false);
     };
 
+    const handleAddPhotosRequest = () => {
+        if (typeof window === "undefined") return;
+        window.dispatchEvent(new CustomEvent("play-asset-info-add-photos", {
+            detail: { selectedAssetId },
+        }));
+    };
+
     
     if (!assetInfo) return null;
 
@@ -957,22 +979,6 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                 ×
             </button>
 
-            <div className="play-asset-info__topbar">
-                <input
-                    aria-label="Search metadata"
-                    placeholder="Search metadata..."
-                    value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
-                />
-                <button type="button" aria-label="Search">
-                    <FaSearch aria-hidden="true" />
-                </button>
-                <button type="button" aria-label="Clear search" onClick={() => setSearchTerm("")}>
-                    <FaTimes aria-hidden="true" />
-                </button>
-            </div>
-
-            <div className="play-asset-info__panel-kicker">Meta Data</div>
             <div className="play-asset-info__hero">
                 <PlaySidebarGallery assetInfo={assetInfo} />
                 <button type="button" className="play-asset-info__sidebar-back" aria-label="Close asset info" onClick={onClose}>
@@ -982,18 +988,34 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
 
             <div className="play-asset-info__body">
                 <div className="play-asset-info__title-block">
+                    <h2>{meta.companyName || title}</h2>
+                    {meta.city && <span className="play-asset-info__subtitle">{meta.city.split(",")[0]}</span>}
+                    <div className="play-asset-info__rating-line">
+                        <span className="play-asset-info__google-mark">G</span>
+                        <strong>4.5</strong>
+                        <span className="play-asset-info__rating-stars" aria-label="4.5 out of 5 stars">
+                            <FaStar aria-hidden="true" />
+                            <FaStar aria-hidden="true" />
+                            <FaStar aria-hidden="true" />
+                            <FaStar aria-hidden="true" />
+                            <FaStar aria-hidden="true" />
+                        </span>
+                        <span>(127 reviews)</span>
+                    </div>
                     <div className={`play-asset-info__business-badge play-asset-info__business-badge--${meta.businessKind.className}`}>
                         <BusinessIcon aria-hidden="true" />
                         <span>{meta.businessKind.label}</span>
                     </div>
-                    <h2>{meta.companyName || title}</h2>
-                    {meta.description && <p>{meta.description}</p>}
                 </div>
 
                 <div className="play-asset-info__body-actions">
                     <button type="button" className="play-asset-info__edit-button" onClick={handleEditRequest}>
                         <FaEdit aria-hidden="true" />
                         <span>{isEditing ? "Editing" : "Edit info"}</span>
+                    </button>
+                    <button type="button" className="play-asset-info__add-photos" onClick={handleAddPhotosRequest}>
+                        <FaCamera aria-hidden="true" />
+                        <span>Add Photos</span>
                     </button>
                     {showSystemBuilder && (
                         <button
@@ -1097,6 +1119,18 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                         </div>
                     )}
                 </section>
+                {meta.businessDescription && (
+                    <section className="play-asset-info__text-section" aria-label="About">
+                        <h3>About</h3>
+                        <p>{meta.businessDescription}</p>
+                    </section>
+                )}
+                {meta.comments && (
+                    <section className="play-asset-info__text-section play-asset-info__text-section--notes" aria-label="Notes">
+                        <h3>Notes</h3>
+                        <p>{meta.comments}</p>
+                    </section>
+                )}
             </div>
         </aside>
     );
