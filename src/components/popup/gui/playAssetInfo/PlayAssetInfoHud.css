@@ -3064,10 +3064,16 @@
     font-weight: 500;
 }
 
-.play-building-label-popup__rating svg {
+.play-building-label-popup__stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    color: #ff5b2f;
+}
+
+.play-building-label-popup__stars svg {
     width: 10px;
     height: 10px;
-    color: #ff5b2f;
 }
 
 .play-building-label-popup__rating strong {
@@ -3171,7 +3177,7 @@
 
 .play-building-label-popup__photo {
     position: relative;
-    height: 82px;
+    height: 164px;
     margin: 0 8px 8px;
     overflow: hidden;
     border-radius: 4px;

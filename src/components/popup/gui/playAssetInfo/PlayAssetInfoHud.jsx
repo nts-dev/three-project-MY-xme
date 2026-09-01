@@ -11,8 +11,10 @@ import {
     FaLock,
     FaMapMarkerAlt,
     FaPhoneAlt,
+    FaRegStar,
     FaShareAlt,
     FaStar,
+    FaStarHalfAlt,
     FaTimes,
     FaUpload,
     FaUser,
@@ -71,6 +73,20 @@ const getSpriteFieldValue = (fields, names, fallback = "") => {
     ));
     const value = field?.value;
     return value === undefined || value === null || String(value).trim() === "" ? fallback : String(value);
+};
+
+const getRatingStars = (rating) => {
+    const numericRating = Math.max(0, Math.min(5, Number.parseFloat(rating) || 0));
+    const fullStars = Math.floor(numericRating);
+    const hasHalfStar = numericRating % 1 >= 0.25 && numericRating % 1 < 0.75;
+    const roundedFullStars = numericRating % 1 >= 0.75 ? Math.min(fullStars + 1, 5) : fullStars;
+    const emptyStars = Math.max(0, 5 - roundedFullStars - (hasHalfStar ? 1 : 0));
+
+    return [
+        ...Array.from({ length: roundedFullStars }, (_, index) => ({ type: "full", key: `full-${index}` })),
+        ...(hasHalfStar ? [{ type: "half", key: "half" }] : []),
+        ...Array.from({ length: emptyStars }, (_, index) => ({ type: "empty", key: `empty-${index}` })),
+    ];
 };
 
 const buildSpritePopupInfo = (instanceId) => {
@@ -233,7 +249,15 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
                 <div className="play-building-label-popup__title-block">
                     <h2>{info.title}</h2>
                     <div className="play-building-label-popup__rating">
-                        <FaStar aria-hidden="true" />
+                        <span className="play-building-label-popup__stars" aria-label={`${info.rating} out of 5 stars`}>
+                            {getRatingStars(info.rating).map((star) => (
+                                star.type === "half"
+                                    ? <FaStarHalfAlt key={star.key} aria-hidden="true" />
+                                    : star.type === "empty"
+                                        ? <FaRegStar key={star.key} aria-hidden="true" />
+                                        : <FaStar key={star.key} aria-hidden="true" />
+                            ))}
+                        </span>
                         <strong>{info.rating}</strong>
                         <span>{info.reviews} reviews</span>
                     </div>
