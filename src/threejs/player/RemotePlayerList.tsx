@@ -5,16 +5,17 @@ import * as THREE from "three";
 import RemotePlayer from "./RemotePlayer";
 import useGame from "../../hooks/useGame";
 import usePlayerTrackReplay from "./usePlayerTrackReplay";
+import type { PlayerTrackPathGroup } from "./usePlayerTrackReplay";
 
-function TrackPathDotGroup({ points }: { points: any[] }) {
+function TrackPathDotGroup({ points, color = "#ff1f2f" }: { points: any[]; color?: string }) {
     const geometry = useMemo(() => new THREE.SphereGeometry(0.11, 10, 8), []);
     const material = useMemo(() => new THREE.MeshBasicMaterial({
-        color: "#ff1f2f",
+        color,
         depthTest: false,
         depthWrite: false,
         transparent: true,
         opacity: 0.9,
-    }), []);
+    }), [color]);
     const matrices = useMemo(() => {
         const matrix = new THREE.Matrix4();
         const position = new THREE.Vector3();
@@ -44,11 +45,11 @@ function TrackPathDotGroup({ points }: { points: any[] }) {
     );
 }
 
-function TrackPathDots({ groups }: { groups: any[][] }) {
+function TrackPathDots({ groups }: { groups: PlayerTrackPathGroup[] }) {
     return (
         <>
-            {groups.map((points, index) => (
-                <TrackPathDotGroup key={`track-path-${index}`} points={points} />
+            {groups.map((group) => (
+                <TrackPathDotGroup key={`track-path-${group.id}`} points={group.points} color={group.color} />
             ))}
         </>
     );

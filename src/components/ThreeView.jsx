@@ -102,6 +102,7 @@ import { xrStore } from "../threejs/xr/xrStore.js";
 
 const EDIT_MODE_EXIT_CAMERA_POSITION = new THREE.Vector3(2.35, 1.75, 2.35);
 const EDIT_MODE_EXIT_CAMERA_TARGET = new THREE.Vector3(0, 0, 0);
+const INITIAL_SCENE_CAMERA_POSITION = [5, 25, 50];
 const MIN_SCENE_CAMERA_NEAR = 0.05;
 const DEFAULT_SCENE_CAMERA_FAR = 100000000;
 
@@ -725,7 +726,7 @@ export default function ThreeView() {
                         fov: 45,
                         near: MIN_SCENE_CAMERA_NEAR,
                         far: DEFAULT_SCENE_CAMERA_FAR,
-                        position: [1, 5, 10]
+                        position: INITIAL_SCENE_CAMERA_POSITION
 
                     }}
                 >

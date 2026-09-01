@@ -3,16 +3,24 @@ import {
     FaArrowLeft,
     FaBell,
     FaBuilding,
+    FaClock,
     FaDownload,
+    FaEnvelope,
+    FaGlobe,
+    FaHotel,
     FaLock,
     FaMapMarkerAlt,
+    FaPhoneAlt,
     FaShareAlt,
+    FaStar,
     FaTimes,
     FaUpload,
     FaUser,
+    FaWhatsapp,
 } from "react-icons/fa";
 import useGame from "../../../../hooks/useGame";
 import PlayAssetInfoFrame from "./PlayAssetInfoFrame";
+import { loadPlayAssetInfo } from "./assetInfoData";
 import { usePlayAssetInfo } from "./usePlayAssetInfo";
 import SystemBuilderPopup from "../systemBuilder/SystemBuilderPopup";
 import { updateBuildingLabelSpriteLogo } from "../../../../threejs/label/BuildingLabelSprite";
@@ -39,6 +47,10 @@ const buildBackendLogoUrl = (logoNameOrUrl) => {
     const encodedPath = cleanName.split("/").map(encodeURIComponent).join("/");
     return apiBase ? `${apiBase}/files/${encodedPath}` : `/files/${encodedPath}`;
 };
+
+const buildImageHostUrl = (fileName = "no_image.png") => (
+    `${import.meta.env.VITE_IMAGE_URL}/${String(fileName || "no_image.png").split("/").map(encodeURIComponent).join("/")}`
+);
 
 const normalizeSpriteFields = (fields) => {
     if (Array.isArray(fields)) return fields;
@@ -74,6 +86,18 @@ const buildSpritePopupInfo = (instanceId) => {
     const status = getSpriteFieldValue(fields, ["Status"], sceneAsset?.inUse ? "Active" : "Active");
     const area = getSpriteFieldValue(fields, ["City", "Area", "Location"], "Seri Kembangan, Selangor, Malaysia");
     const assetID = sceneAsset?.assetID || getSpriteFieldValue(fields, ["AssetID", "Asset Id"], instanceId);
+    const address = getSpriteFieldValue(fields, ["Address", "Street Address"], area);
+    const phone = getSpriteFieldValue(fields, ["Phone Number", "Phone", "Telephone", "Contact Number"], "+60 11-1073 6259");
+    const whatsapp = getSpriteFieldValue(fields, ["WhatsApp", "Whatsapp", "WhatsApp Number"], phone);
+    const website = getSpriteFieldValue(fields, ["Website", "Web", "URL"], "smilehotel.com.my");
+    const email = getSpriteFieldValue(fields, ["Email", "Email Address"], "info@smilehotel.com.my");
+    const openingHours = getSpriteFieldValue(fields, ["Opening Hours", "Opening Hour", "Hours"], "Mon-Fri: 9:00 AM-5:30");
+    const saturdayHours = getSpriteFieldValue(fields, ["Saturday Hours", "Sat Hours"], "PM Sat: 9:00AM-1:30");
+    const sundayHours = getSpriteFieldValue(fields, ["Sunday Hours", "Sun Hours"], "PM Sun: Closed");
+    const rating = getSpriteFieldValue(fields, ["Rating", "Google Rating"], "4.5");
+    const reviews = getSpriteFieldValue(fields, ["Reviews", "Review Count"], "127");
+    const logoUrl = buildBackendLogoUrl(getSpriteFieldValue(fields, ["Logo", "Logo Url", "Logo URL", "Picture", "Image"], ""));
+    const photoUrl = buildBackendLogoUrl(getSpriteFieldValue(fields, ["Photo", "Photo Url", "Photo URL", "Cover", "Cover Image", "Storefront"], ""));
 
     return {
         instanceId,
@@ -86,16 +110,60 @@ const buildSpritePopupInfo = (instanceId) => {
         floors,
         status,
         area,
+        address,
+        phone,
+        whatsapp,
+        website,
+        email,
+        openingHours,
+        saturdayHours,
+        sundayHours,
+        rating,
+        reviews,
+        logoUrl,
+        photoUrl,
     };
 };
 
-function BuildingLabelPopup({ popup, onClose }) {
+function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
     const [uploadStatus, setUploadStatus] = useState("");
+    const [popupAssetInfo, setPopupAssetInfo] = useState(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        const instanceId = popup?.info?.instanceId;
+
+        setPopupAssetInfo(null);
+        if (!instanceId) return undefined;
+
+        loadPlayAssetInfo({
+            instanceId,
+            fallbackName: popup?.info?.title || "",
+        }).then((nextInfo) => {
+            if (!cancelled) {
+                setPopupAssetInfo(nextInfo);
+            }
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [popup?.info?.instanceId, popup?.info?.title]);
+
     if (!popup?.info) return null;
 
     const { info } = popup;
-    const left = Math.min(Math.max((popup.clientX || window.innerWidth / 2) + 18, 280), window.innerWidth - 270);
-    const top = Math.min(Math.max((popup.clientY || window.innerHeight / 2) - 30, 56), window.innerHeight - 300);
+    const left = Math.min(Math.max((popup.clientX || window.innerWidth / 2) + 16, 26), window.innerWidth - 314);
+    const top = Math.min(Math.max((popup.clientY || window.innerHeight / 2) - 34, 42), window.innerHeight - 396);
+    const isSidebarMatch = activeAssetInfo && (
+        String(activeAssetInfo.instanceId || "") === String(info.instanceId || "") ||
+        String(activeAssetInfo.title || "").trim().toLowerCase() === String(info.title || "").trim().toLowerCase()
+    );
+    const sidebarPhotoUrl = isSidebarMatch
+        ? activeAssetInfo?.images?.[0]?.itemImageSrc || activeAssetInfo?.imageUrl
+        : "";
+    const resolvedPopupPhotoUrl = popupAssetInfo?.images?.[0]?.itemImageSrc || popupAssetInfo?.imageUrl;
+    const popupPhotoUrl = sidebarPhotoUrl || resolvedPopupPhotoUrl || info.photoUrl || buildImageHostUrl("no_image.png");
 
     const uploadLogo = async (event) => {
         const file = event.target.files?.[0];
@@ -151,14 +219,69 @@ function BuildingLabelPopup({ popup, onClose }) {
             aria-label={`${info.title} marker details`}
         >
             <div className="play-building-label-popup__head">
-                <span className="play-building-label-popup__icon"><FaBuilding aria-hidden="true" /></span>
-                <div>
-                    <strong>{info.title}</strong>
-                    <span>AssetID - {info.assetID}</span>
-                </div>
+                <span className="play-building-label-popup__icon"><FaHotel aria-hidden="true" /></span>
+                <strong>{info.businessType}</strong>
                 <button type="button" aria-label="Close marker details" onClick={onClose}>
                     <FaTimes aria-hidden="true" />
                 </button>
+            </div>
+            <div className="play-building-label-popup__summary">
+                <label className="play-building-label-popup__logo" aria-label="Upload logo">
+                    {info.logoUrl ? <img src={info.logoUrl} alt="" /> : <FaBuilding aria-hidden="true" />}
+                    <input type="file" accept="image/*" onChange={uploadLogo} />
+                </label>
+                <div className="play-building-label-popup__title-block">
+                    <h2>{info.title}</h2>
+                    <div className="play-building-label-popup__rating">
+                        <FaStar aria-hidden="true" />
+                        <strong>{info.rating}</strong>
+                        <span>{info.reviews} reviews</span>
+                    </div>
+                    <p>{info.address}</p>
+                </div>
+            </div>
+            <div className="play-building-label-popup__cards">
+                <div className="play-building-label-popup__card play-building-label-popup__card--hours">
+                    <FaClock aria-hidden="true" />
+                    <div>
+                        <span>Opening Hours</span>
+                        <strong><i aria-hidden="true" />Open</strong>
+                        <p>{info.openingHours}</p>
+                        <p>{info.saturdayHours}</p>
+                        <p>{info.sundayHours}</p>
+                    </div>
+                </div>
+                <div className="play-building-label-popup__card">
+                    <FaPhoneAlt aria-hidden="true" />
+                    <div>
+                        <span>Phone Number</span>
+                        <strong>{info.phone}</strong>
+                    </div>
+                </div>
+                <div className="play-building-label-popup__card">
+                    <FaWhatsapp aria-hidden="true" />
+                    <div>
+                        <span>Whatsapp</span>
+                        <strong>{info.whatsapp}</strong>
+                    </div>
+                </div>
+                <div className="play-building-label-popup__card">
+                    <FaGlobe aria-hidden="true" />
+                    <div>
+                        <span>Website</span>
+                        <strong>{info.website}</strong>
+                    </div>
+                </div>
+                <div className="play-building-label-popup__card">
+                    <FaEnvelope aria-hidden="true" />
+                    <div>
+                        <span>Email</span>
+                        <strong>{info.email}</strong>
+                    </div>
+                </div>
+            </div>
+            <div className="play-building-label-popup__photo">
+                {popupPhotoUrl ? <img src={popupPhotoUrl} alt="" /> : null}
             </div>
             <dl className="play-building-label-popup__rows">
                 <div><dt>Business Type</dt><dd>{info.businessType}</dd></div>
@@ -320,6 +443,7 @@ export default function PlayAssetInfoHud({ cameraRef, sceneRef }) {
                 {showMapDashboard ? <PlayMapDashboardChrome assetInfo={assetInfo} /> : null}
                 <BuildingLabelPopup
                     popup={labelPopup}
+                    activeAssetInfo={assetInfo}
                     onClose={() => setLabelPopup(null)}
                 />
             </>
@@ -331,6 +455,7 @@ export default function PlayAssetInfoHud({ cameraRef, sceneRef }) {
             {showMapDashboard ? <PlayMapDashboardChrome assetInfo={assetInfo} /> : null}
             <BuildingLabelPopup
                 popup={labelPopup}
+                activeAssetInfo={assetInfo}
                 onClose={() => setLabelPopup(null)}
             />
             <PlayAssetInfoFrame

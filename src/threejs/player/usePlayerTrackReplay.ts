@@ -1,9 +1,25 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 
 const DEFAULT_TRACK_PLAYER_IDS = ["47116a0906b3acc8"];
-const PROJECT_TRACK_SOURCES: Record<string, { id: string; url: string }[]> = {
+export type PlayerTrackPathGroup = {
+    id: string;
+    color: string;
+    points: any[];
+};
+
+type PlayerTrackSource = {
+    id: string;
+    url: string;
+    color?: string;
+};
+
+const PROJECT_TRACK_SOURCES: Record<string, PlayerTrackSource[]> = {
     "33": [{ id: "74867395b0df4a08", url: `${getApiBaseUrl()}/player/74867395b0df4a08.json` }],
-    "126": [{ id: "47116a0906b3acc8_path1", url: `${getApiBaseUrl()}/player/47116a0906b3acc8_path1.json` }],
+    "126": [
+        { id: "47116a0906b3acc8_path1", url: `${getApiBaseUrl()}/player/47116a0906b3acc8_path1.json`, color: "#ff1f2f" },
+        { id: "47116a0906b3acc8_path2", url: `${getApiBaseUrl()}/player/47116a0906b3acc8_path2.json`, color: "#1e7bff" },
+        { id: "47116a0906b3acc8_path3", url: `${getApiBaseUrl()}/player/47116a0906b3acc8_path3.json`, color: "#21d86f" },
+    ],
 };
 const TRACK_STEP_MS = 650;
 const TRACK_START_FRAME = 10;
@@ -25,6 +41,7 @@ function getTrackSources(projectID: any) {
     return getTrackPlayerIds().map((id) => ({
         id,
         url: `${getApiBaseUrl()}/player/${encodeURIComponent(id)}.json`,
+        color: "#ff1f2f",
     }));
 }
 
@@ -157,7 +174,7 @@ async function fetchTrack(source: { id: string; url: string }, projectID: any) {
 }
 
 export default function usePlayerTrackReplay(projectID: any, enabled: boolean) {
-    const [tracks, setTracks] = useState<Record<string, any[]>>({});
+    const [tracks, setTracks] = useState<Record<string, { color: string; records: any[] }>>({});
     const [players, setPlayers] = useState<any[]>([]);
     const indexesRef = useRef<Record<string, number>>({});
     const trackSources = useMemo(() => getTrackSources(projectID), [projectID]);
@@ -175,12 +192,18 @@ export default function usePlayerTrackReplay(projectID: any, enabled: boolean) {
         }
 
         Promise.all(
-            trackSources.map(async (source) => [source.id, await fetchTrack(source, projectID)] as const)
+            trackSources.map(async (source) => [
+                source.id,
+                {
+                    color: source.color || "#ff1f2f",
+                    records: await fetchTrack(source, projectID),
+                },
+            ] as const)
         )
             .then((entries) => {
                 if (cancelled) return;
                 indexesRef.current = {};
-                setTracks(Object.fromEntries(entries.filter(([, records]) => records.length > 0)));
+                setTracks(Object.fromEntries(entries.filter(([, track]) => track.records.length > 0)));
             })
             .catch((error) => {
                 console.warn("Failed to load player track replay", error);
@@ -206,7 +229,8 @@ export default function usePlayerTrackReplay(projectID: any, enabled: boolean) {
             let allTracksFinished = true;
 
             setPlayers(
-                trackEntries.map(([clientId, records]) => {
+                trackEntries.map(([clientId, track]) => {
+                    const { records } = track;
                     const currentIndex = indexesRef.current[clientId] || 0;
                     const nextIndex = Math.min(currentIndex + 1, records.length - 1);
                     indexesRef.current[clientId] = nextIndex;
@@ -229,13 +253,17 @@ export default function usePlayerTrackReplay(projectID: any, enabled: boolean) {
     }, [tracks]);
 
     const pathPoints = useMemo(() => {
-        return Object.values(tracks).flatMap((records) => (
-            interpolateTrackPath(records)
+        return Object.values(tracks).flatMap((track) => (
+            interpolateTrackPath(track.records)
         ));
     }, [tracks]);
 
-    const pathGroups = useMemo(() => {
-        return Object.values(tracks).map((records) => interpolateTrackPath(records));
+    const pathGroups: PlayerTrackPathGroup[] = useMemo(() => {
+        return Object.entries(tracks).map(([id, track]) => ({
+            id,
+            color: track.color,
+            points: interpolateTrackPath(track.records),
+        }));
     }, [tracks]);
 
     return { players, pathPoints, pathGroups };

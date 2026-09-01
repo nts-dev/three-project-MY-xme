@@ -191,7 +191,7 @@ export default function Building({ bProjectId }: { bProjectId: number }) {
                 center.z
             );
 
-            camera.position.set(center.x, center.y + height * 0.75, center.z + zOffset * 0.75);
+            camera.position.set(center.x, center.y + height * 3.5, center.z + zOffset * 4);
             // camera.near = MIN_SCENE_CAMERA_NEAR;
             // camera.far = THREE.MathUtils.clamp(
             //     Math.max(MIN_SCENE_CAMERA_FAR, height * 4, maxSize * 5),
