@@ -8,7 +8,10 @@ import usePlayerTrackReplay from "./usePlayerTrackReplay";
 import type { PlayerTrackPathGroup } from "./usePlayerTrackReplay";
 
 function TrackPathDotGroup({ points, color = "#ff1f2f" }: { points: any[]; color?: string }) {
-    const geometry = useMemo(() => new THREE.SphereGeometry(0.11, 10, 8), []);
+    const geometry = useMemo(
+  () => new THREE.SphereGeometry(0.44, 10, 8),
+  []
+);
     const material = useMemo(() => new THREE.MeshBasicMaterial({
         color,
         depthTest: false,

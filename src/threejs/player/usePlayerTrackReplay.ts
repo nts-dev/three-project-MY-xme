@@ -23,7 +23,7 @@ const PROJECT_TRACK_SOURCES: Record<string, PlayerTrackSource[]> = {
 };
 const TRACK_STEP_MS = 650;
 const TRACK_START_FRAME = 10;
-const TRACK_DOT_SPACING = 0.35;
+const TRACK_DOT_SPACING = 0.35*5;
 
 function getTrackPlayerIds() {
     const configuredIds = String(import.meta.env.VITE_PLAYER_TRACK_IDS || "")
