@@ -369,31 +369,59 @@ export default function InstanceExperience() {
         texture.needsUpdate = true;
     };
 
-    const configureOriginalMeshMaterial = (material, mesh) => {
-        if (!material) {
-            return material;
-        }
-
-        const forceCutout = isFoliageMaterial(material, mesh);
-        const hasCutoutAlpha = forceCutout || Boolean(material.alphaMap) || material.alphaTest > 0;
-
-        prepareMaterialTexture(material.map);
-        prepareMaterialTexture(material.alphaMap);
-
-        material.side = THREE.DoubleSide;
-        if (hasCutoutAlpha) {
-            material.transparent = false;
-            material.alphaTest = Math.max(material.alphaTest , forceCutout ? 0.02 : 0.25);
-          
-            if (material.specular?.set) {
-                material.specular.set(0x000000);
-            }
-         
-        }
-
-        material.needsUpdate = true;
+const configureOriginalMeshMaterial = (material, mesh) => {
+    if (!material) {
         return material;
-    };
+    }
+
+    const forceCutout = isFoliageMaterial(material, mesh);
+
+    const hasCutoutAlpha =
+        forceCutout ||
+        Boolean(material.alphaMap) ||
+        material.alphaTest > 0;
+
+    prepareMaterialTexture(material.map);
+    prepareMaterialTexture(material.alphaMap);
+
+    material.side = THREE.DoubleSide;
+
+    // Reduce reflections
+    if ("roughness" in material) {
+        material.roughness = 0.85;
+    }
+
+    if ("metalness" in material) {
+        material.metalness = 0;
+    }
+
+    // Make facade texture more visible
+    if (material.emissive) {
+        material.emissive.set(0xffffff);
+        material.emissiveIntensity = 0.4;
+
+        if (material.map) {
+            material.emissiveMap = material.map;
+        }
+    }
+
+    if (hasCutoutAlpha) {
+        material.transparent = false;
+
+        material.alphaTest = Math.max(
+            material.alphaTest,
+            forceCutout ? 0.02 : 0.25
+        );
+
+        if (material.specular?.set) {
+            material.specular.set(0x000000);
+        }
+    }
+
+    material.needsUpdate = true;
+
+    return material;
+};
 
     const normalizeMaterialDepthState = (material, mesh) => {
         if (!material) {
@@ -445,6 +473,7 @@ export default function InstanceExperience() {
             }
 
             const nextMaterial = mat.clone ? mat.clone() : mat;
+
             return configureOriginalMeshMaterial(nextMaterial, mesh);
         };
 

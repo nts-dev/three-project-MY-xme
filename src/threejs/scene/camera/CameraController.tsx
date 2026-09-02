@@ -8,11 +8,9 @@ const WHEEL_DOLLY_STEP = 0.9;
 const MAX_WHEEL_DOLLY_STEP = 10;
 const MAX_CAMERA_DISTANCE = 80000000;
 const PINCH_DOLLY_SPEED_SCALE = 0.3;
-const PROJECT_153_MIN_CAMERA_Y = 0.15;
-const PROJECT_153_MIN_TARGET_Y = 0;
-const PROJECT_153_MAX_POLAR_ANGLE = Math.PI / 2 - 0.03;
-
-const getProjectBaseId = (projectId: any) => String(projectId ?? "").trim().replace(/_L\d+$/i, "");
+const MIN_CAMERA_Y = 0.15;
+const MIN_TARGET_Y = 0;
+const MAX_POLAR_ANGLE = Math.PI / 2 - 0.03;
 
 export default function CameraController(props: any) {
     const { orbitControls, gl } = props;
@@ -22,7 +20,6 @@ export default function CameraController(props: any) {
     const pinchCenterRef = useRef(new THREE.Vector2());
     const isClampingControlsRef = useRef(false);
     const projectId = useGame((state: any) => state.projectID);
-    const isProject153 = getProjectBaseId(projectId) === "153";
 
     const settings = useMemo(() => {
         return {
@@ -40,31 +37,31 @@ export default function CameraController(props: any) {
         return forward.normalize();
     };
 
-    const clampProject153Camera = () => {
+    const clampCameraToScene = () => {
         const controls = orbitControls.current;
-        if (!isProject153 || !controls || !controls.object || isClampingControlsRef.current) return;
+        if (!controls || !controls.object || isClampingControlsRef.current) return;
 
         const camera = controls.object;
         const target = controls.target;
         let didClamp = false;
 
-        if (target.y < PROJECT_153_MIN_TARGET_Y) {
-            const lift = PROJECT_153_MIN_TARGET_Y - target.y;
+        if (target.y < MIN_TARGET_Y) {
+            const lift = MIN_TARGET_Y - target.y;
             target.y += lift;
             camera.position.y += lift;
             didClamp = true;
         }
 
-        if (camera.position.y < PROJECT_153_MIN_CAMERA_Y) {
-            camera.position.y = PROJECT_153_MIN_CAMERA_Y;
+        if (camera.position.y < MIN_CAMERA_Y) {
+            camera.position.y = MIN_CAMERA_Y;
             didClamp = true;
         }
 
         const offset = camera.position.clone().sub(target);
         const spherical = new THREE.Spherical().setFromVector3(offset);
 
-        if (spherical.phi > PROJECT_153_MAX_POLAR_ANGLE) {
-            spherical.phi = PROJECT_153_MAX_POLAR_ANGLE;
+        if (spherical.phi > MAX_POLAR_ANGLE) {
+            spherical.phi = MAX_POLAR_ANGLE;
             camera.position.copy(target).add(new THREE.Vector3().setFromSpherical(spherical));
             didClamp = true;
         }
@@ -102,7 +99,7 @@ export default function CameraController(props: any) {
 
         camera.updateMatrixWorld();
         orbitControls.current.update();
-        clampProject153Camera();
+        clampCameraToScene();
     };
 
     const getWheelDollyStep = (event: WheelEvent) => {
@@ -218,7 +215,7 @@ export default function CameraController(props: any) {
             spherical.theta += thetaDelta; // Azimuthal rotation (horizontal)
             spherical.phi = Math.max(
                 0.001,
-                Math.min(isProject153 ? PROJECT_153_MAX_POLAR_ANGLE : Math.PI - 0.001, spherical.phi + phiDelta)
+                Math.min(MAX_POLAR_ANGLE, spherical.phi + phiDelta)
             ); // Polar rotation (vertical), clamped
 
             // Convert back to Cartesian coordinates
@@ -262,7 +259,7 @@ export default function CameraController(props: any) {
 
         // Update controls to apply changes
         controls.update();
-        clampProject153Camera();
+        clampCameraToScene();
     });
 
     const onControlsChange = () => {
@@ -282,11 +279,10 @@ export default function CameraController(props: any) {
         controls.enableDamping = true;
         controls.dampingFactor = 0.1;
         controls.enablePan = true;
-        controls.screenSpacePanning = true;
+        controls.screenSpacePanning = false;
         const previousMaxPolarAngle = controls.maxPolarAngle;
-        if (isProject153) {
-            controls.maxPolarAngle = PROJECT_153_MAX_POLAR_ANGLE;
-        }
+        
+        controls.maxPolarAngle = MAX_POLAR_ANGLE;
         controls.minDistance = 0.00001;
         controls.maxDistance = MAX_CAMERA_DISTANCE;
 
@@ -302,7 +298,7 @@ export default function CameraController(props: any) {
 
         onControlsChange();
         controls.update();
-        clampProject153Camera();
+        clampCameraToScene();
 
         const previousTouchAction = domElement.style.touchAction;
         domElement.style.touchAction = "none";
@@ -365,7 +361,7 @@ export default function CameraController(props: any) {
         domElement.addEventListener("touchmove", handleTouchMove, { capture: true, passive: false });
         domElement.addEventListener("touchend", handleTouchEnd, { capture: true, passive: false });
         domElement.addEventListener("touchcancel", handleTouchEnd, { capture: true, passive: false });
-        controls.addEventListener("change", clampProject153Camera);
+        controls.addEventListener("change", clampCameraToScene);
 
         // Cleanup
         return () => {
@@ -374,7 +370,7 @@ export default function CameraController(props: any) {
             domElement.removeEventListener("touchmove", handleTouchMove, { capture: true });
             domElement.removeEventListener("touchend", handleTouchEnd, { capture: true });
             domElement.removeEventListener("touchcancel", handleTouchEnd, { capture: true });
-            controls.removeEventListener("change", clampProject153Camera);
+            controls.removeEventListener("change", clampCameraToScene);
             domElement.style.touchAction = previousTouchAction;
             controls.touches = previousTouches;
             controls.maxPolarAngle = previousMaxPolarAngle;

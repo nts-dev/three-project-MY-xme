@@ -3844,7 +3844,7 @@
     min-width: 0;
     margin-bottom: 6px;
     color: rgba(205, 217, 212, 0.72);
-    font-size: 8px;
+    font-size: 9px;
     font-weight: 500;
 }
 
@@ -3870,7 +3870,7 @@
     margin: 0;
     overflow: hidden;
     color: rgba(191, 205, 199, 0.68);
-    font-size: 8px;
+    font-size: 9px;
     line-height: 1.35;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -3922,7 +3922,7 @@
     margin-bottom: 5px;
     overflow: hidden;
     color: rgba(184, 201, 195, 0.46);
-    font-size: 6px;
+    font-size: 10px;
     font-weight: 800;
     letter-spacing: 0;
     line-height: 1.15;
@@ -3938,7 +3938,7 @@
     min-width: 0;
     overflow: hidden;
     color: #cffff0;
-    font-size: 7px;
+    font-size: 9px;
     font-weight: 700;
     line-height: 1.35;
     text-overflow: ellipsis;
@@ -3955,7 +3955,7 @@
 .play-building-label-popup__card p {
     margin: 7px 0 0;
     color: rgba(208, 220, 216, 0.7);
-    font-size: 6px;
+    font-size: 9px;
     line-height: 1.35;
 }
 
