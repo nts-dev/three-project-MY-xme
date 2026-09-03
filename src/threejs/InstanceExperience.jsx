@@ -398,7 +398,7 @@ const configureOriginalMeshMaterial = (material, mesh) => {
     // Make facade texture more visible
     if (material.emissive) {
         material.emissive.set(0xffffff);
-        material.emissiveIntensity = 0.4;
+        material.emissiveIntensity = 0.2;
 
         if (material.map) {
             material.emissiveMap = material.map;
