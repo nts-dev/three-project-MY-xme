@@ -486,7 +486,7 @@ export const createBuildingLabelSprite = ({
 
     const heightTop =  position.y + (Number(halfHeight)*2)/100 + 1;
     const labelAngle = THREE.MathUtils.degToRad(Number(angle) || 0);
-    const lengthTop =  [654795,654769].includes(instanceId) ? position.z : position.z - (Number(halfLength))/100;
+    const lengthTop =   position.z - (Number(halfLength))/100;
     const anchorPosition = new THREE.Vector3(
         position.x ,
         heightTop ,
