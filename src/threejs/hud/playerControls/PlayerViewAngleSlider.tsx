@@ -2,7 +2,7 @@ import * as React from 'react';
 import useGame from "../../../hooks/useGame";
 
 const MIN_VIEW_ANGLE = -0.35;
-const MAX_VIEW_ANGLE = 2;
+const MAX_VIEW_ANGLE = 3;
 
 export default function PlayerViewAngleSlider() {
     const playerViewAngle = useGame((state: any) => state.playerViewAngle);
