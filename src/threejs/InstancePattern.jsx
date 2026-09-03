@@ -619,9 +619,12 @@ export default async function InstancedPattern(
             fields,
             fallbackName: name,
             position,
+            angle,
             halfHeight: height ? parseFloat(height) / 2 : halfHeight,
+            halfLength: l,
             topY: labelBoxTmp.max.y,
             instanceId,
+            
         });
 
         if (buildingLabel) {

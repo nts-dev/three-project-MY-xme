@@ -400,52 +400,24 @@ function PlayMapDashboardChrome({ assetInfo }) {
 }
 
 export default function PlayAssetInfoHud({ cameraRef, sceneRef }) {
-    const buttonMode = useGame((state) => state.buttonMode);
+ 
     const isPuzzleGame = useGame((state) => state.isPuzzleGame);
-    const character = useGame((state) => state.character);
-    const firstPerson = useGame((state) => state.firstPerson);
+
     const [hiddenInstanceId, setHiddenInstanceId] = useState(null);
     const [hiddenRequestKey, setHiddenRequestKey] = useState(null);
     const [isSystemBuilderOpen, setIsSystemBuilderOpen] = useState(false);
+     const playAssetInfoRequest = useGame((state) => state.playAssetInfoRequest);
     const [labelPopup, setLabelPopup] = useState(null);
     const assetInfo = usePlayAssetInfo({
-        active: !isPuzzleGame && !character && !firstPerson,
+        active: !isPuzzleGame ,
         cameraRef,
         sceneRef,
     });
 
-    useEffect(() => {
-        const handleLabelClick = (event) => {
-            const instanceId = event.detail?.instanceId;
-            const info = buildSpritePopupInfo(instanceId);
-            if (!info) {
-                setLabelPopup(null);
-                return;
-            }
-            setLabelPopup((currentPopup) => {
-                if (String(currentPopup?.info?.instanceId || "") === String(instanceId)) {
-                    return {
-                        ...currentPopup,
-                        info,
-                    };
-                }
-
-                return {
-                    info,
-                    clientX: event.detail?.clientX,
-                    clientY: event.detail?.clientY,
-                };
-            });
-        };
-
-        window.addEventListener("play-building-label-click", handleLabelClick);
-        return () => {
-            window.removeEventListener("play-building-label-click", handleLabelClick);
-        };
-    }, []);
+ 
 
     useEffect(() => {
-       
+  
         if (hiddenInstanceId && assetInfo?.requestKey && assetInfo.requestKey !== hiddenRequestKey) {
             setHiddenInstanceId(null);
             setHiddenRequestKey(null);
@@ -458,13 +430,13 @@ export default function PlayAssetInfoHud({ cameraRef, sceneRef }) {
         }
     }, [assetInfo?.instanceId, assetInfo?.requestKey, hiddenInstanceId, hiddenRequestKey]);
 
-    const showMapDashboard = buttonMode === "Play mode";
+
     const isHiddenAsset = assetInfo && String(assetInfo.instanceId) === String(hiddenInstanceId);
 
     if (!assetInfo || isHiddenAsset) {
         return (
             <>
-                {showMapDashboard ? <PlayMapDashboardChrome assetInfo={assetInfo} /> : null}
+                {<PlayMapDashboardChrome assetInfo={assetInfo} /> }
                 <BuildingLabelPopup
                     popup={labelPopup}
                     activeAssetInfo={assetInfo}
@@ -476,7 +448,7 @@ export default function PlayAssetInfoHud({ cameraRef, sceneRef }) {
 
     return (
         <>
-            {showMapDashboard ? <PlayMapDashboardChrome assetInfo={assetInfo} /> : null}
+            { <PlayMapDashboardChrome assetInfo={assetInfo} /> }
             <BuildingLabelPopup
                 popup={labelPopup}
                 activeAssetInfo={assetInfo}

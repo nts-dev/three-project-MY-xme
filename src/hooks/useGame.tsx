@@ -1048,9 +1048,7 @@ const useGame = create((set) => ({
         })),
     setPlayAssetInfoRequest: (request: any) =>
         set((state: any) => {
-            if (request && (state.character || state.firstPerson)) {
-                return state;
-            }
+           
 
             return {
                 ...state,

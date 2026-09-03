@@ -62,6 +62,8 @@ const SLOPE_RAY_START_HEIGHT = 0.14;
 const SLOPE_RAY_LENGTH = 0.42;
 const SLOPE_MIN_NORMAL_Y = 0.35;
 const SLOPE_MAX_NORMAL_Y = 0.995;
+const MAX_PLAYER_VIEW_TARGET_OFFSET = 0.55;
+const EXTRA_PLAYER_VIEW_CAMERA_DISTANCE_SCALE = 2.5;
 
 const tmpMove = new THREE.Vector3();
 const tmpForward = new THREE.Vector3();
@@ -438,7 +440,9 @@ export default function KinematicPlayer({ orbitControlsRef, characterModel, clie
     const screenFactor = screenFactorRef.current;
     const cameraDistance = character ? 0.1 : 0.4;
     const screenScale = 600 / screenFactor;
-    const cameraDistanceScaled = (cameraDistance + Math.max(0, playerViewAngle) * 1.1) * screenScale;
+    const viewAngleOffset = Math.min(playerViewAngle, MAX_PLAYER_VIEW_TARGET_OFFSET);
+    const extraCameraDistance = Math.max(0, playerViewAngle - MAX_PLAYER_VIEW_TARGET_OFFSET) * EXTRA_PLAYER_VIEW_CAMERA_DISTANCE_SCALE;
+    const cameraDistanceScaled = (cameraDistance + Math.max(0, viewAngleOffset) * 1.1 + extraCameraDistance) * screenScale;
 
     if (!startupGroundedRef.current) {
       const ray = startupGroundRayRef.current;
@@ -1038,7 +1042,7 @@ export default function KinematicPlayer({ orbitControlsRef, characterModel, clie
 
       cameraTargetRef.current.set(
         nextX + tmpLookForward.x * 0.05,
-        nextY + 0.07 + playerViewAngle,
+        nextY + 0.07 + viewAngleOffset,
         nextZ + tmpLookForward.z * 0.05
       );
       orbitControls.target.lerp(cameraTargetRef.current, 10 * dt);

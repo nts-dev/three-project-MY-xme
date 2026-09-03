@@ -10,12 +10,13 @@ export const usePlayAssetInfo = ({ active }) => {
     const cacheRef = useRef(new Map());
 
     useEffect(() => {
-   
+
         if (!active) {
             return;
         }
-
+       
         const instanceId = playAssetInfoRequest?.instanceId;
+        
         const requestKey = playAssetInfoRequest?.requestKey || playAssetInfoRequest;
         if (!instanceId) {
             return;

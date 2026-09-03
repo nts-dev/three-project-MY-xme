@@ -913,6 +913,7 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
     const BusinessIcon = meta.businessKind.Icon;
 
     useEffect(() => {
+        
         setDraftRows(meta.rows.map((row) => ({
             fieldId: row.fieldId,
             name: row.name,

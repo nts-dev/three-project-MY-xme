@@ -29,6 +29,7 @@ const CATEGORY_STYLES = {
 };
 
 const LABEL_FONT = "\"Plus Jakarta Sans\", \"Inter\", \"Segoe UI\", Arial, sans-serif";
+const LABEL_TOP_OFFSET = 0.3;
 const labelLogoCache = new Map();
 
 const getFieldValue = (fields, names) => {
@@ -442,7 +443,9 @@ export const createBuildingLabelSprite = ({
     fields,
     fallbackName,
     position,
+    angle = 0,
     halfHeight = 0,
+    halfLength = 0,
     topY,
     instanceId,
 }) => {
@@ -468,25 +471,40 @@ export const createBuildingLabelSprite = ({
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.needsUpdate = true;
 
-    const material = new THREE.SpriteMaterial({
+    const material = new THREE.MeshBasicMaterial({
         map: texture,
         transparent: true,
-        depthTest: false,
+        depthTest: true,
         depthWrite: false,
-        sizeAttenuation: true,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2,
     });
 
-    const sprite = new THREE.Sprite(material);
-    sprite.scale.set(9.3, 3.42, 1);
+    const sprite = new THREE.Mesh(new THREE.PlaneGeometry(9.3, 3.42), material);
 
-    const heightTop = Number.isFinite(topY) ? topY : position.y + (Number(halfHeight) || 0);
-    sprite.position.set(position.x, (halfHeight/100)*2, position.z);
+    const heightTop =  position.y + (Number(halfHeight)*2)/100 + 1;
+    const labelAngle = THREE.MathUtils.degToRad(Number(angle) || 0);
+    const lengthTop =  [654795,654769].includes(instanceId) ? position.z : position.z - (Number(halfLength))/100;
+    const anchorPosition = new THREE.Vector3(
+        position.x ,
+        heightTop ,
+        lengthTop 
+    );
+    sprite.position.copy(anchorPosition);
+    sprite.rotation.set(0, labelAngle, 0);
+    sprite.onBeforeRender = (_renderer, _scene, camera) => {
+        sprite.position.copy(anchorPosition);
+        sprite.quaternion.copy(camera.quaternion);
+    };
     sprite.renderOrder = 10000;
     sprite.name = `building-label:${instanceId || title}`;
     sprite.userData = {
         ...(sprite.userData || {}),
         instanceId,
         isBuildingLabel: true,
+        anchorPosition,
         labelFallbackName: fallbackName,
         labelKind: kind,
     };
@@ -502,4 +520,5 @@ export const disposeBuildingLabelSprite = (sprite) => {
     const material = sprite.material;
     material?.map?.dispose?.();
     material?.dispose?.();
+    sprite.geometry?.dispose?.();
 };

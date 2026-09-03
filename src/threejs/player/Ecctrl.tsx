@@ -27,6 +27,8 @@ const JOYSTICK_TURN_ONLY_FORWARD_LIMIT = 0.45;
 const TURN_RESPONSE_MULTIPLIER = 1.4;
 const TURN_GESTURE_YAW = THREE.MathUtils.degToRad(15);
 const TURN_GESTURE_SMOOTHING = 10;
+const MAX_PLAYER_VIEW_TARGET_OFFSET = 0.55;
+const EXTRA_PLAYER_VIEW_CAMERA_DISTANCE_SCALE = 2.5;
 
 const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
                                                              children,
@@ -978,14 +980,16 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
             // Get character forward direction
             followForwardVec.set(0, 0, -1).applyQuaternion(characterModelRef.current.quaternion).normalize();
             // Offset the camera: behind and above
-            const distanceBehind = 2.25 + Math.max(0, playerViewAngle) * 2.2;
+            const viewAngleOffset = Math.min(playerViewAngle, MAX_PLAYER_VIEW_TARGET_OFFSET);
+            const extraCameraDistance = Math.max(0, playerViewAngle - MAX_PLAYER_VIEW_TARGET_OFFSET) * EXTRA_PLAYER_VIEW_CAMERA_DISTANCE_SCALE;
+            const distanceBehind = 2.25 + Math.max(0, viewAngleOffset) * 2.2 + extraCameraDistance;
             const heightAbove = 1.2;
             followOffsetVec.copy(followForwardVec).multiplyScalar(distanceBehind);
             followOffsetVec.y = heightAbove;
             followCameraPosVec.copy(currentPos).add(followOffsetVec);
             state.camera.position.copy(followCameraPosVec);
             orbitControls.current.target.copy(currentPos);
-            orbitControls.current.target.y += (String(projectID).includes('137') ? 0.65 : 0.55) + playerViewAngle;
+            orbitControls.current.target.y += (String(projectID).includes('137') ? 0.65 : 0.55) + viewAngleOffset;
             orbitControls.current.update();
         }
     };

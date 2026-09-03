@@ -227,8 +227,8 @@ export default function ThreeView() {
     const gridSize = useGame((state) => state.gridSize);
     const pauseGame = useGame((state) => state.pauseGame)
     const hasDied = useGame((state) => state.hasDied);
-    const setPackageControl = useGame((state) => state.setPackageControl);
-    const setProjectID = useGame((state) => state.setProjectID);
+    
+   
     const currentMenu = useRef([]);
     const [isTouchScreen, setIsTouchScreen] = useState(false)
     const [isLowGpu, setIsLowGpu] = useState(null)
@@ -698,6 +698,7 @@ export default function ThreeView() {
         };
     }, [buttonMode, zoomSelectedAsset]);
 
+
     return (
 
         <>
@@ -798,7 +799,7 @@ export default function ThreeView() {
                                         </KeyboardControls>
                                         {/*</Bvh >*/}
                                     </Physics>
-                                    {!isPuzzleGame && <Events orbitControls={orbitControls} />}
+                                    {(!isPuzzleGame || character || firstPerson) && <Events orbitControls={orbitControls} />}
                                 </>
                             )}
                     {!isXrPresenting && !character && !firstPerson  && <ZoomAsset orbitControls={orbitControls} toast={toast} gl={glRef} />}
@@ -830,7 +831,7 @@ export default function ThreeView() {
             {!isXrPresenting && isGameRuntime && <GameRuntimeChrome cameraRef={cameraRef} />}
             {!isXrPresenting && !isPuzzleGame && !isCadProject && (buttonMode === 'Play mode' || showUrlViewControls || showGoogleThreeViewControls) && <PlayModeViewControls />}
             {/* {!isPuzzleGame && buttonMode === 'Play mode' && <PlayCategoryPopup />} */}
-            {!isXrPresenting && !isPuzzleGame && <PlayAssetInfoHud cameraRef={cameraRef} sceneRef={sceneRef} />}
+            {!isXrPresenting && (!isPuzzleGame ) && <PlayAssetInfoHud cameraRef={cameraRef} sceneRef={sceneRef} />}
             {isGameRuntime && <AvatarSetupConfirm />}
             {showAvatarLoadingOverlay && <AvatarLoadingOverlay />}
 
