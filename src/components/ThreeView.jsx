@@ -831,7 +831,7 @@ export default function ThreeView() {
             {!isXrPresenting && isGameRuntime && <GameRuntimeChrome cameraRef={cameraRef} />}
             {!isXrPresenting && !isPuzzleGame && !isCadProject && (buttonMode === 'Play mode' || showUrlViewControls || showGoogleThreeViewControls) && <PlayModeViewControls />}
             {/* {!isPuzzleGame && buttonMode === 'Play mode' && <PlayCategoryPopup />} */}
-            {!isXrPresenting && (!isPuzzleGame ) && <PlayAssetInfoHud cameraRef={cameraRef} sceneRef={sceneRef} />}
+            {!isXrPresenting && (!isPuzzleGame || character || firstPerson) && <PlayAssetInfoHud cameraRef={cameraRef} sceneRef={sceneRef} />}
             {isGameRuntime && <AvatarSetupConfirm />}
             {showAvatarLoadingOverlay && <AvatarLoadingOverlay />}
 

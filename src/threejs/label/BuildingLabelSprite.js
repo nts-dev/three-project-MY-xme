@@ -504,6 +504,7 @@ export const createBuildingLabelSprite = ({
         ...(sprite.userData || {}),
         instanceId,
         isBuildingLabel: true,
+        opensBuildingLabelPopup: true,
         anchorPosition,
         labelFallbackName: fallbackName,
         labelKind: kind,

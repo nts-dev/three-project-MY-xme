@@ -93,7 +93,7 @@ const buildSpritePopupInfo = (instanceId) => {
     const sceneAsset = sceneAssets?.[instanceId];
     const fields = sceneAsset?.instanceData?.assetObject?.fields;
     const fieldList = normalizeSpriteFields(fields);
-    if (!fieldList.some((field) => String(field?.value ?? "").trim())) return null;
+    if (!sceneAsset && !fieldList.some((field) => String(field?.value ?? "").trim())) return null;
 
     const title = getSpriteFieldValue(fields, ["Company Name", "AssetName", "Asset Name"], sceneAsset?.name || `Asset ${instanceId}`);
     const businessType = getSpriteFieldValue(fields, ["Business Type", "Type"], "N/A");
@@ -402,6 +402,8 @@ function PlayMapDashboardChrome({ assetInfo }) {
 export default function PlayAssetInfoHud({ cameraRef, sceneRef }) {
  
     const isPuzzleGame = useGame((state) => state.isPuzzleGame);
+    const character = useGame((state) => state.character);
+    const firstPerson = useGame((state) => state.firstPerson);
 
     const [hiddenInstanceId, setHiddenInstanceId] = useState(null);
     const [hiddenRequestKey, setHiddenRequestKey] = useState(null);
@@ -409,12 +411,38 @@ export default function PlayAssetInfoHud({ cameraRef, sceneRef }) {
      const playAssetInfoRequest = useGame((state) => state.playAssetInfoRequest);
     const [labelPopup, setLabelPopup] = useState(null);
     const assetInfo = usePlayAssetInfo({
-        active: !isPuzzleGame ,
+        active: !isPuzzleGame || character || firstPerson,
         cameraRef,
         sceneRef,
     });
 
- 
+    useEffect(() => {
+        const handleBuildingLabelClick = (event) => {
+            const instanceId = event.detail?.instanceId;
+            const info = buildSpritePopupInfo(instanceId);
+
+            if (!info) {
+                setLabelPopup(null);
+                return;
+            }
+
+            setLabelPopup({
+                info,
+                clientX: event.detail?.clientX,
+                clientY: event.detail?.clientY,
+            });
+
+            if (assetInfo?.instanceId) {
+                setHiddenInstanceId(assetInfo.instanceId);
+                setHiddenRequestKey(assetInfo.requestKey || null);
+            }
+        };
+
+        window.addEventListener("play-building-label-click", handleBuildingLabelClick);
+        return () => {
+            window.removeEventListener("play-building-label-click", handleBuildingLabelClick);
+        };
+    }, [assetInfo?.instanceId, assetInfo?.requestKey]);
 
     useEffect(() => {
   
