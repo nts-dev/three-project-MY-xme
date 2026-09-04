@@ -58,11 +58,11 @@ export default function RemotePlayer({ player, rPlayer, animations }: any) {
         const model = SkeletonUtils.clone(rPlayer);
         if (player?.isTrackReplay) {
             setYOffset(-0.4)
-            model.scale.multiplyScalar(2.5);
+            
         }
-        else{
-          model.scale.multiplyScalar(2.2);
-        }
+   
+          model.scale.multiplyScalar(2.5);
+        
             
         
         return model;
