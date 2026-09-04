@@ -52,13 +52,19 @@ export default function RemotePlayer({ player, rPlayer, animations }: any) {
     } = player;
 
     const projectID = useGame((state: any) => state.projectID);
-    const [yOffset, setYOffset] = useState(-0.64)
+    const [yOffset, setYOffset] = useState(-1)
     // Clone the model for independent animation control
     const clonedModel = React.useMemo(() => {
         const model = SkeletonUtils.clone(rPlayer);
         if (player?.isTrackReplay) {
-            model.scale.multiplyScalar(3);
+            setYOffset(-0.4)
+            model.scale.multiplyScalar(2.5);
         }
+        else{
+          model.scale.multiplyScalar(2.2);
+        }
+            
+        
         return model;
     }, [rPlayer, player?.isTrackReplay]);
     const { actions } = useAnimations(animations, playerRef);
