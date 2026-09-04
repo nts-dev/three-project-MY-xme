@@ -51,7 +51,7 @@ export default function PlayerContent({ charUrl, projectID, client, orbitControl
             });
         }
    
-     model.scene?.scale.set(2,2,2)
+     model.scene?.scale.set(1.4,1.4,1.4)
         return model;
     }, [character, firstPerson, projectID,model, projectID]);
 

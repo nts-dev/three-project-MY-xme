@@ -61,7 +61,7 @@ export default function RemotePlayer({ player, rPlayer, animations }: any) {
             
         }
    
-          model.scale.multiplyScalar(2.5);
+          model.scale.multiplyScalar(1.7);
         
             
         
