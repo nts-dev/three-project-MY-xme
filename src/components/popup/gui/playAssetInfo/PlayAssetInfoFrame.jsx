@@ -14,9 +14,11 @@ import {
     FaMapMarkerAlt,
     FaPhoneAlt,
     FaRegClock,
+    FaRegStar,
     FaSchool,
     FaShareAlt,
     FaStar,
+    FaStarHalfAlt,
     FaStore,
     FaTimes,
     FaUtensils,
@@ -650,6 +652,12 @@ const valueText = (value) => {
     return String(value).trim();
 };
 
+const getApiBaseUrl = () => (
+    String(import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:4000/api" : "/api"))
+        .trim()
+        .replace(/\/+$/, "")
+);
+
 const findMetaValue = (rows, names) => {
     const targets = names.map((name) => String(name).trim().toLowerCase());
     const exactMatch = rows.find((row) => targets.includes(String(row?.name || "").trim().toLowerCase()));
@@ -661,6 +669,41 @@ const findMetaValue = (rows, names) => {
     });
 
     return looseMatch ? valueText(looseMatch.value) : "";
+};
+
+const getRatingStars = (rating) => {
+    const numericRating = Math.max(0, Math.min(5, Number.parseFloat(rating) || 0));
+    const fullStars = Math.floor(numericRating);
+    const hasHalfStar = numericRating % 1 >= 0.25 && numericRating % 1 < 0.75;
+    const roundedFullStars = numericRating % 1 >= 0.75 ? Math.min(fullStars + 1, 5) : fullStars;
+    const emptyStars = Math.max(0, 5 - roundedFullStars - (hasHalfStar ? 1 : 0));
+
+    return [
+        ...Array.from({ length: roundedFullStars }, (_, index) => ({ type: "full", key: `full-${index}` })),
+        ...(hasHalfStar ? [{ type: "half", key: "half" }] : []),
+        ...Array.from({ length: emptyStars }, (_, index) => ({ type: "empty", key: `empty-${index}` })),
+    ];
+};
+
+const fetchGooglePlaceDetails = async ({ companyName, coordinates, fallbackAddress, fallbackRating, fallbackReviews }) => {
+    if (!companyName || !coordinates) return null;
+
+    try {
+        const url = `${getApiBaseUrl()}/search-places?cordinates=${encodeURIComponent(coordinates)}&companyName=${encodeURIComponent(companyName)}`;
+        const response = await fetch(url);
+        if (!response.ok) return null;
+
+        const place = await response.json();
+        return {
+            title: place.name || place.title || companyName,
+            address: place.address || place.formatted_address || place.vicinity || fallbackAddress,
+            rating: String(place.rating ?? place.googleRating ?? fallbackRating),
+            reviews: String(place.reviewCount ?? place.user_ratings_total ?? place.reviews ?? fallbackReviews),
+        };
+    } catch (error) {
+        console.warn("Places lookup failed", error);
+        return null;
+    }
 };
 
 const getBusinessKind = (businessType, title, description) => {

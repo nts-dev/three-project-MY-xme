@@ -27,9 +27,16 @@ const JOYSTICK_TURN_ONLY_FORWARD_LIMIT = 0.45;
 const TURN_RESPONSE_MULTIPLIER = 1.4;
 const TURN_GESTURE_YAW = THREE.MathUtils.degToRad(15);
 const TURN_GESTURE_SMOOTHING = 10;
-const MAX_PLAYER_VIEW_TARGET_OFFSET = 0.55;
-const EXTRA_PLAYER_VIEW_CAMERA_BACK_SCALE = 6.5;
-const EXTRA_PLAYER_VIEW_CAMERA_UP_SCALE = 2.5;
+const BASE_PLAYER_CAMERA_DISTANCE = 10.25;
+const BASE_PLAYER_CAMERA_HEIGHT = 3.2;
+const MIN_PLAYER_CAMERA_ELEVATION = THREE.MathUtils.degToRad(2);
+const MAX_PLAYER_CAMERA_ELEVATION = THREE.MathUtils.degToRad(80);
+const GAMEPLAY_RAYCAST_COLLIDER_KEY = "gameplayRaycastCollider";
+const MIN_GAMEPLAY_COLLIDER_HEIGHT = 0.15;
+const CAMERA_COLLISION_SPRING = 16;
+const AVATAR_COLLISION_SKIN = 0.04;
+const AVATAR_COLLISION_RAY_HEIGHTS = [0.2, 0.75, 1.25];
+const AVATAR_COLLISION_STOP_DISTANCE = 0.2;
 
 const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
                                                              children,
@@ -43,7 +50,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
                                                              disableFollowCamPos = {x: 0, y: 0, z: 0},
                                                              disableFollowCamTarget = {x: 0, y: 0, z: 0},
                                                              // Follow camera setups
-                                                             camInitDis = -5,
+                                                             camInitDis = -10,
                                                              camMaxDis = -50,
                                                              camMinDis = -5,
                                                              camInitDir = {x: 0, y: -Math.PI, z: 0}, // in rad
@@ -497,6 +504,20 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     const followForwardVec = useMemo(() => new THREE.Vector3(), []);
     const followOffsetVec = useMemo(() => new THREE.Vector3(), []);
     const followCameraPosVec = useMemo(() => new THREE.Vector3(), []);
+    const cameraTargetVec = useMemo(() => new THREE.Vector3(), []);
+    const cameraCollisionOriginVec = useMemo(() => new THREE.Vector3(), []);
+    const cameraCollisionDirectionVec = useMemo(() => new THREE.Vector3(), []);
+    const cameraCollisionRaycaster = useMemo(() => new THREE.Raycaster(), []);
+    const collisionResolvedPositionVec = useMemo(() => new THREE.Vector3(), []);
+    const collisionResolvedVelocityVec = useMemo(() => new THREE.Vector3(), []);
+    const avatarCollisionDirectionVec = useMemo(() => new THREE.Vector3(), []);
+    const avatarCollisionSideVec = useMemo(() => new THREE.Vector3(), []);
+    const avatarCollisionOriginVec = useMemo(() => new THREE.Vector3(), []);
+    const avatarCollisionNormalVec = useMemo(() => new THREE.Vector3(), []);
+    const avatarCollisionNormalMatrix = useMemo(() => new THREE.Matrix3(), []);
+    const avatarCollisionInstanceMatrix = useMemo(() => new THREE.Matrix4(), []);
+    const avatarCollisionWorldMatrix = useMemo(() => new THREE.Matrix4(), []);
+    const avatarCollisionRaycaster = useMemo(() => new THREE.Raycaster(), []);
     const resetPositionVec = useMemo(() => new THREE.Vector3(), []);
     const turnGestureYawRef = useRef(0);
 
@@ -506,7 +527,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
 
     const character: any = useGame((state: any) => state.character)
     const firstPerson: any = useGame((state: any) => state.firstPerson)
-    const {camera} = useThree()
+    const {camera, scene} = useThree()
     const setCharacterRef = useGame((state: any) => state.setCharacterRef)
     const floorHeight = useGame((state: any) => state.floorHeight)
     const playerViewAngle = useGame((state: any) => state.playerViewAngle)
@@ -811,6 +832,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
             horizontalMoveVelocity,
             desiredMoveAccel.multiplyScalar(safeDelta)
         );
+        finalMoveVelocity.copy(resolveAvatarSceneCollision(characterBody, safeDelta, finalMoveVelocity));
         horizontalMoveVelocity.copy(finalMoveVelocity);
 
         // --- Apply the final velocity ---
@@ -980,21 +1002,169 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
         if (orbitControls.current && characterModelRef.current) {
             // Get character forward direction
             followForwardVec.set(0, 0, -1).applyQuaternion(characterModelRef.current.quaternion).normalize();
-            // Offset the camera: behind and above
-            const viewAngleOffset = Math.min(playerViewAngle, MAX_PLAYER_VIEW_TARGET_OFFSET);
-            const extraViewRange = Math.max(0, playerViewAngle - MAX_PLAYER_VIEW_TARGET_OFFSET);
-            const extraCameraBack = extraViewRange * EXTRA_PLAYER_VIEW_CAMERA_BACK_SCALE;
-            const extraCameraUp = extraViewRange * EXTRA_PLAYER_VIEW_CAMERA_UP_SCALE;
-            const distanceBehind = 2.25 + Math.max(0, viewAngleOffset) * 2.2 + extraCameraBack;
-            const heightAbove = 1.2 + extraCameraUp;
+            const targetHeight = (String(projectID).includes('137') ? 0.65 : 0.55);
+            const baseCameraRise = BASE_PLAYER_CAMERA_HEIGHT - targetHeight;
+            const cameraRadius = Math.sqrt(
+                BASE_PLAYER_CAMERA_DISTANCE * BASE_PLAYER_CAMERA_DISTANCE +
+                baseCameraRise * baseCameraRise
+            );
+            const baseElevation = Math.atan2(baseCameraRise, BASE_PLAYER_CAMERA_DISTANCE);
+            const viewElevation = THREE.MathUtils.clamp(
+                baseElevation + playerViewAngle,
+                MIN_PLAYER_CAMERA_ELEVATION,
+                MAX_PLAYER_CAMERA_ELEVATION
+            );
+            const distanceBehind = Math.cos(viewElevation) * cameraRadius;
+            const heightAbove = targetHeight + Math.sin(viewElevation) * cameraRadius;
             followOffsetVec.copy(followForwardVec).multiplyScalar(distanceBehind);
             followOffsetVec.y = heightAbove;
             followCameraPosVec.copy(currentPos).add(followOffsetVec);
-            state.camera.position.copy(followCameraPosVec);
-            orbitControls.current.target.copy(currentPos);
-            orbitControls.current.target.y += (String(projectID).includes('137') ? 0.65 : 0.55) + viewAngleOffset + extraCameraUp;
+            cameraTargetVec.copy(currentPos);
+            cameraTargetVec.y += targetHeight;
+            resolveCameraCollision(followCameraPosVec, cameraTargetVec);
+            const cameraSpringAlpha = 1 - Math.exp(-CAMERA_COLLISION_SPRING * Math.max(delta, 1 / 240));
+            state.camera.position.lerp(followCameraPosVec, cameraSpringAlpha);
+            orbitControls.current.target.copy(cameraTargetVec);
             orbitControls.current.update();
         }
+    };
+
+    const getGameplayRaycastTargets = () => {
+        const targets: any[] = [];
+        scene?.traverse?.((object: any) => {
+            if (
+                object?.isInstancedMesh &&
+                object?.visible !== false &&
+                object?.userData?.[GAMEPLAY_RAYCAST_COLLIDER_KEY] &&
+                Number(object?.userData?.gameplayColliderHeight || 0) >= MIN_GAMEPLAY_COLLIDER_HEIGHT &&
+                !object?.userData?.camExcludeCollision
+            ) {
+                targets.push(object);
+            }
+        });
+        return targets;
+    };
+
+    const resolveCameraCollision = (desiredCameraPosition: THREE.Vector3, targetPosition: THREE.Vector3) => {
+        if (!camCollision) {
+            return desiredCameraPosition;
+        }
+
+        cameraCollisionOriginVec.copy(targetPosition);
+        cameraCollisionDirectionVec.copy(desiredCameraPosition).sub(cameraCollisionOriginVec);
+        const desiredDistance = cameraCollisionDirectionVec.length();
+        if (desiredDistance <= 0.001) {
+            return desiredCameraPosition;
+        }
+
+        cameraCollisionDirectionVec.divideScalar(desiredDistance);
+        cameraCollisionRaycaster.set(cameraCollisionOriginVec, cameraCollisionDirectionVec);
+        cameraCollisionRaycaster.near = 0.05;
+        cameraCollisionRaycaster.far = desiredDistance;
+
+        const hit = cameraCollisionRaycaster.intersectObjects(getGameplayRaycastTargets(), false)[0];
+        if (hit) {
+            desiredCameraPosition
+                .copy(cameraCollisionOriginVec)
+                .addScaledVector(cameraCollisionDirectionVec, Math.max(0.5, hit.distance - camCollisionOffset));
+        }
+
+        return desiredCameraPosition;
+    };
+
+    const resolveAvatarSceneCollision = (characterBody: RapierRigidBody, delta: number, velocity: THREE.Vector3) => {
+        collisionResolvedVelocityVec.copy(velocity);
+        const safeDelta = Math.max(delta, 1 / 240);
+        const playerRadius = capsuleRadius + AVATAR_COLLISION_SKIN;
+        const travelDistance = collisionResolvedVelocityVec.length() * safeDelta;
+        const bodyPosition = characterBody.translation();
+        currentPos.set(bodyPosition.x, bodyPosition.y, bodyPosition.z);
+
+        if (travelDistance <= 0.001) {
+            return collisionResolvedVelocityVec;
+        }
+
+        const targets = getGameplayRaycastTargets();
+        if (!targets.length) {
+            return collisionResolvedVelocityVec;
+        }
+
+        avatarCollisionDirectionVec.copy(collisionResolvedVelocityVec).normalize();
+        avatarCollisionSideVec.set(-avatarCollisionDirectionVec.z, 0, avatarCollisionDirectionVec.x).normalize();
+        let nearestDistance = travelDistance + playerRadius + AVATAR_COLLISION_STOP_DISTANCE;
+        let nearestHit: THREE.Intersection | null = null;
+        const sideOffsets = [0, playerRadius * 0.85, -playerRadius * 0.85];
+
+        for (const heightOffset of AVATAR_COLLISION_RAY_HEIGHTS) {
+            for (const sideOffset of sideOffsets) {
+                avatarCollisionOriginVec
+                    .copy(currentPos)
+                    .addScaledVector(avatarCollisionSideVec, sideOffset);
+                avatarCollisionOriginVec.y += heightOffset;
+
+                avatarCollisionRaycaster.set(avatarCollisionOriginVec, avatarCollisionDirectionVec);
+                avatarCollisionRaycaster.near = 0;
+                avatarCollisionRaycaster.far = travelDistance + playerRadius + AVATAR_COLLISION_STOP_DISTANCE;
+
+                const hit = avatarCollisionRaycaster.intersectObjects(targets, false)[0];
+                if (hit && hit.distance < nearestDistance) {
+                    nearestDistance = hit.distance;
+                    nearestHit = hit;
+                }
+            }
+        }
+
+        if (nearestHit && nearestDistance <= travelDistance + playerRadius + AVATAR_COLLISION_STOP_DISTANCE) {
+            const allowedDistance = Math.max(0, nearestDistance - playerRadius - AVATAR_COLLISION_STOP_DISTANCE);
+            const allowedScale = Math.min(1, allowedDistance / travelDistance);
+
+            if (nearestHit.face?.normal && nearestHit.object) {
+                const hitObject: any = nearestHit.object;
+                avatarCollisionWorldMatrix.copy(hitObject.matrixWorld);
+                if (
+                    nearestHit.instanceId !== undefined &&
+                    typeof hitObject.getMatrixAt === "function"
+                ) {
+                    hitObject.getMatrixAt(nearestHit.instanceId, avatarCollisionInstanceMatrix);
+                    avatarCollisionWorldMatrix.multiply(avatarCollisionInstanceMatrix);
+                }
+
+                avatarCollisionNormalMatrix.getNormalMatrix(avatarCollisionWorldMatrix);
+                avatarCollisionNormalVec.copy(nearestHit.face.normal).applyMatrix3(avatarCollisionNormalMatrix).normalize();
+                avatarCollisionNormalVec.y = 0;
+                if (avatarCollisionNormalVec.lengthSq() <= 0.0001) {
+                    return collisionResolvedVelocityVec;
+                }
+                avatarCollisionNormalVec.normalize();
+                if (avatarCollisionNormalVec.dot(avatarCollisionDirectionVec) > 0) {
+                    avatarCollisionNormalVec.multiplyScalar(-1);
+                }
+
+                collisionResolvedVelocityVec.addScaledVector(
+                    avatarCollisionNormalVec,
+                    -collisionResolvedVelocityVec.dot(avatarCollisionNormalVec)
+                );
+
+                if (nearestDistance < playerRadius + AVATAR_COLLISION_STOP_DISTANCE) {
+                    currentPos.addScaledVector(
+                        avatarCollisionNormalVec,
+                        playerRadius + AVATAR_COLLISION_STOP_DISTANCE - nearestDistance
+                    );
+                }
+            } else {
+                collisionResolvedVelocityVec.multiplyScalar(allowedScale);
+            }
+
+            collisionResolvedPositionVec.copy(currentPos).addScaledVector(collisionResolvedVelocityVec, safeDelta);
+            characterBody.setTranslation({
+                x: collisionResolvedPositionVec.x,
+                y: currentPos.y,
+                z: collisionResolvedPositionVec.z,
+            }, true);
+            currentPos.set(collisionResolvedPositionVec.x, currentPos.y, collisionResolvedPositionVec.z);
+        }
+
+        return collisionResolvedVelocityVec;
     };
 
 
@@ -1647,7 +1817,7 @@ if(!firstPerson && !character) return null
             onCollisionExit={handleOnCharacterIntersectionExit}
             onCollisionEnter={handleOnCharacterIntersectionEnter}
             userData={{canJump: false, name: 'avatar'}}
-            position={[center?.x, center?.y, center?.z]}
+            position={[20,0, -60]}
             {...props}
         >
             <PlayerLabel

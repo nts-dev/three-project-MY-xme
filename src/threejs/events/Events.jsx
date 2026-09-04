@@ -1101,7 +1101,7 @@ export default function Events() {
             docs[0].addEventListener("click", onMouseClick, true);
             docs[0].addEventListener("dblclick", onMouseDoubleClick);
             docs[0].addEventListener("mousemove", onMouseHover);
-            docs[0].addEventListener("mouseleave", onMouseLeave);
+            // docs[0].addEventListener("mouseleave", onMouseLeave);
         }
         gl.domElement.addEventListener('mousemove', onMouseHover);
         // gl.domElement.addEventListener('dblclick', onMouseClick);
@@ -1111,7 +1111,7 @@ export default function Events() {
                 docs[0].removeEventListener('click', onMouseClick, true);
                 docs[0].removeEventListener('dblclick', onMouseDoubleClick);
                 docs[0].removeEventListener('mousemove', onMouseHover);
-                docs[0].removeEventListener('mouseleave', onMouseLeave);
+                // docs[0].removeEventListener('mouseleave', onMouseLeave);
             }
             gl.domElement.removeEventListener('mousemove', onMouseHover);
             // gl.domElement.removeEventListener('dblclick', onMouseClick);

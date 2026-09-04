@@ -1,4 +1,5 @@
 import React, { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useThree } from "@react-three/fiber";
 import { Box3 } from "three";
 import * as THREE from "three";
 import Instances from "./Instances";
@@ -11,6 +12,50 @@ import AnimatedAsset from "./AnimatedAsset";
 import { readDslAnimations } from "./dslAnimationRuntime";
 import { objects, sceneAssets,assetCommands } from "./player/puzzle/character/Constants.jsx";
 import IndividualAssetsComponent from "./IndividualAssetsComponent";
+
+const GAMEPLAY_COLLISION_BOXES_KEY = "gameplayCollisionBoxes";
+
+const shouldRegisterGameplayCollision = (name = "") => {
+    const lowerName = String(name || "").toLowerCase();
+    return ![
+        "location",
+        "character",
+        "coin",
+        "ocean",
+        "water",
+        "label",
+        "text",
+        "path",
+        "route",
+        "arrow",
+        "teleport",
+        "ceiling light",
+    ].some((token) => lowerName.includes(token));
+};
+
+const registerGameplayCollisionBox = (scene, box, metadata = {}) => {
+    if (!scene || !box || box.isEmpty?.()) {
+        return;
+    }
+
+    if (!Array.isArray(scene.userData[GAMEPLAY_COLLISION_BOXES_KEY])) {
+        scene.userData[GAMEPLAY_COLLISION_BOXES_KEY] = [];
+    }
+
+    scene.userData[GAMEPLAY_COLLISION_BOXES_KEY].push({
+        box: box.clone(),
+        ...metadata,
+    });
+};
+
+const clearGameplayCollisionBoxesForKey = (scene, cleanKey) => {
+    const boxes = scene?.userData?.[GAMEPLAY_COLLISION_BOXES_KEY];
+    if (!Array.isArray(boxes)) {
+        return;
+    }
+
+    scene.userData[GAMEPLAY_COLLISION_BOXES_KEY] = boxes.filter((collision) => collision?.cleanKey !== cleanKey);
+};
 
 export default function R3fInstancePattern({
     fbx,
@@ -28,6 +73,7 @@ export default function R3fInstancePattern({
     registerGlobalInstances = true,
     visible
 }) {
+    const { scene } = useThree();
     const projectId = useGame((state) => state.projectID);
     const setTotalCoins = useGame((state) => state.setTotalCoins);
     const isPuzzleGame = useGame((state) => state.isPuzzleGame);
@@ -114,6 +160,7 @@ export default function R3fInstancePattern({
     ).length, [assets, name])
     useEffect(() => {
         cleanupOwnedSceneAssets(mountedInstanceKeysRef.current);
+        clearGameplayCollisionBoxesForKey(scene, safeName);
         mountedInstanceKeysRef.current = [];
         setCreateInstances([]); // Clear the instances
         setIndividualInstances([])
@@ -247,6 +294,19 @@ export default function R3fInstancePattern({
 
             const euler = new THREE.Euler();
             euler.setFromQuaternion(finalQuaternion, "XYZ");
+            const collisionMatrix = new THREE.Matrix4();
+            const collisionBox = new THREE.Box3().copy(pivotBox);
+            collisionMatrix.compose(position, finalQuaternion, absScale);
+            collisionBox.applyMatrix4(collisionMatrix);
+
+            if (shouldRegisterGameplayCollision(safeName)) {
+                registerGameplayCollisionBox(scene, collisionBox, {
+                    instanceId: instanceKey,
+                    cloneKey: renderInstanceKey,
+                    name: safeName,
+                    cleanKey: safeName,
+                });
+            }
             
             objects[safeName] = {
                 object,
@@ -401,11 +461,12 @@ export default function R3fInstancePattern({
             }
 
             cleanupOwnedSceneAssets(mountedInstanceKeysRef.current);
+            clearGameplayCollisionBoxesForKey(scene, safeName);
             mountedInstanceKeysRef.current = [];
             delete objects[safeName];
         };
 
-    }, [safeName, fbx, assets, projectId, defaultColor, fileName, id, cleanKey, renderKey, setDoorList, size, object, material])// Added assets as a dependency
+    }, [safeName, fbx, assets, projectId, defaultColor, fileName, id, cleanKey, renderKey, setDoorList, size, object, material, scene])// Added assets as a dependency
 
     // Update totalCoins in the global state
     useEffect(() => {

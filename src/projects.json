@@ -161,9 +161,9 @@
         "name": "MY Map",
         "floors": [0,560,880,1380],
         "landing_point": {
-          "x": 274.6,
+          "x": 0,
           "y": 624.9,
-          "z": 806.9
+          "z": 0
         },
         "branch_name": "NTS Computers SDN BHD",
         "branch_id": "8"

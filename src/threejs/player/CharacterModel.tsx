@@ -51,16 +51,7 @@ export default function CharacterModel({charModel}: any) {
     }, [scene,projectID]);
 
     useEffect(() => {
-        if(projectID==144 ){
-            positionY.current = 0.1
-            setPlayerSpeed(90)
-
-        }else {
-            positionY.current = 0.1
-            setPlayerSpeed(10)
-
-
-        }
+  
         resetAnimation()
 
     }, [projectID]);
@@ -121,21 +112,13 @@ export default function CharacterModel({charModel}: any) {
 
     }, [curAnimation, scene, projectID,playerSpeed]);
     useEffect(() => {
-        if (projectID == 144) {
-            scene.scale.set(0.3,0.3,0.3)
-            setcharYPosOffset(0.04)
-
-        } else {
-            scene.scale.set(0.8,0.8,0.8)
-            setcharYPosOffset(-0.08)
-
-        }
+     //scene.scale.set(0.6,0.6,0.6)
     }, [projectID]);
 
     return (
-        <>
+        <>d
             <group ref={groupRef} key={projectID} >
-                <group name="Scene"  position={[0, floorValue + positionY.current , 0]} >
+                <group name="Scene"  position={[0, -1.4 , 0]} >
                     <group key={"char"} name="KayKit_Animated_Character">
                         <primitive object={scene} position-y={charYPosOffset}/>
                     </group>

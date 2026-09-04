@@ -17,6 +17,47 @@ import {
 } from "./player/puzzle/character/Constants.jsx";
 
 const FONT_URL = `${import.meta.env.VITE_FILE_URL}/fonts/optimer_regular.typeface.json`; // reused
+const GAMEPLAY_RAYCAST_COLLIDER_KEY = "gameplayRaycastCollider";
+const MIN_GAMEPLAY_COLLIDER_HEIGHT = 0.15;
+
+const makeCollisionMaterialDoubleSided = (material) => {
+    const materials = Array.isArray(material) ? material : [material];
+    materials.forEach((item) => {
+        if (!item || item.side === THREE.DoubleSide) {
+            return;
+        }
+
+        item.userData = item.userData || {};
+        if (item.userData.originalGameplayCollisionSide === undefined) {
+            item.userData.originalGameplayCollisionSide = item.side;
+        }
+        item.side = THREE.DoubleSide;
+        item.needsUpdate = true;
+    });
+};
+
+const shouldRegisterGameplayCollision = (name = "") => {
+    const lowerName = String(name || "").toLowerCase();
+    return ![
+        "location",
+        "character",
+        "coin",
+        "ocean",
+        "water",
+        "label",
+        "text",
+        "path",
+        "route",
+        "arrow",
+        "road",
+        "ground",
+        "terrain",
+        "map",
+        "floor",
+        "plane",
+        "base",
+    ].some((token) => lowerName.includes(token));
+};
 
 const buildBackendLogoUrl = (logoNameOrUrl) => {
     const value = String(logoNameOrUrl || "").trim();
@@ -261,6 +302,7 @@ export default async function InstancedPattern(
 
     const pivotBox = new Box3().setFromObject(object);
     const pivotSize = pivotBox.getSize(new Vector3());
+    const hasVerticalCollisionSurface = pivotSize.y >= MIN_GAMEPLAY_COLLIDER_HEIGHT;
 
     let axis;
     if (generatedAsset) {
@@ -276,6 +318,11 @@ export default async function InstancedPattern(
     const instancedMesh = new THREE.InstancedMesh(object.geometry, material, assets.length);
     instancedMesh.frustumCulled = false;
     instancedMesh.userData.instances = [];
+    instancedMesh.userData.gameplayColliderHeight = pivotSize.y;
+    instancedMesh.userData[GAMEPLAY_RAYCAST_COLLIDER_KEY] = shouldRegisterGameplayCollision(name) && hasVerticalCollisionSurface;
+    if (instancedMesh.userData[GAMEPLAY_RAYCAST_COLLIDER_KEY]) {
+        makeCollisionMaterialDoubleSided(instancedMesh.material);
+    }
     const rotationQuaternionTmp = new THREE.Quaternion();
     const finalQuaternionTmp = new THREE.Quaternion();
     const matrixTmp = new THREE.Matrix4();
