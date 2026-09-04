@@ -89,6 +89,53 @@ const getRatingStars = (rating) => {
     ];
 };
 
+const normalizePhoneNumber = (value) => (
+    String(value || "")
+        .replace(/[^\d+]/g, "")
+        .replace(/^00/, "+")
+);
+
+const normalizeWhatsAppMessages = (payload) => {
+    const rows = Array.isArray(payload)
+        ? payload
+        : payload?.messages || payload?.data || payload?.rows || payload?.items || [];
+
+    return (Array.isArray(rows) ? rows : []).map((message, index) => ({
+        id: message.id || message.message_id || `${message.timestamp || ""}-${index}`,
+        author: message.author || message.sender || message.senderName || message.userName || message.from || "WhatsApp",
+        text: message.text || message.body || message.message || message.content || "",
+        timestamp: message.timestamp || message.createdAt || message.created_at || message.time || "",
+    })).filter((message) => String(message.text || "").trim());
+};
+
+const fetchWhatsAppMessagesForNumber = async (phoneNumber) => {
+    const normalizedNumber = normalizePhoneNumber(phoneNumber);
+    if (!normalizedNumber) return [];
+
+    const apiBase = String(import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+    const configuredUrl = String(import.meta.env.VITE_WHATSAPP_MESSAGES_URL || "").trim();
+    const encodedNumber = encodeURIComponent(normalizedNumber);
+    const candidates = [
+        configuredUrl && `${configuredUrl.replace(/\/+$/, "")}?phone=${encodedNumber}`,
+        apiBase && `${apiBase}/whatsapp/group-messages?phone=${encodedNumber}`,
+        apiBase && `${apiBase}/whatsapp/messages?phone=${encodedNumber}`,
+        apiBase && `${apiBase}/whatsapp-chat/${encodedNumber}`,
+    ].filter(Boolean);
+
+    for (const url of candidates) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) continue;
+            const messages = normalizeWhatsAppMessages(await response.json());
+            if (messages.length) return messages;
+        } catch (error) {
+            console.warn("Failed to load WhatsApp messages:", error);
+        }
+    }
+
+    return [];
+};
+
 const buildSpritePopupInfo = (instanceId) => {
     const sceneAsset = sceneAssets?.[instanceId];
     const fields = sceneAsset?.instanceData?.assetObject?.fields;
@@ -144,6 +191,9 @@ const buildSpritePopupInfo = (instanceId) => {
 function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
     const [uploadStatus, setUploadStatus] = useState("");
     const [popupAssetInfo, setPopupAssetInfo] = useState(null);
+    const [whatsAppChat, setWhatsAppChat] = useState(null);
+    const [whatsAppMessages, setWhatsAppMessages] = useState([]);
+    const [whatsAppStatus, setWhatsAppStatus] = useState("idle");
 
     useEffect(() => {
         let cancelled = false;
@@ -166,6 +216,40 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
         };
     }, [popup?.info?.instanceId, popup?.info?.title]);
 
+    useEffect(() => {
+        setWhatsAppChat(null);
+        setWhatsAppMessages([]);
+        setWhatsAppStatus("idle");
+    }, [popup?.info?.instanceId]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const phoneNumber = whatsAppChat?.phoneNumber;
+
+        if (!phoneNumber) return undefined;
+
+        setWhatsAppStatus("loading");
+        setWhatsAppMessages([]);
+
+        fetchWhatsAppMessagesForNumber(phoneNumber)
+            .then((messages) => {
+                if (cancelled) return;
+                setWhatsAppMessages(messages);
+                setWhatsAppStatus(messages.length ? "ready" : "empty");
+            })
+            .catch((error) => {
+                console.warn("Failed to load WhatsApp chat:", error);
+                if (!cancelled) {
+                    setWhatsAppMessages([]);
+                    setWhatsAppStatus("error");
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [whatsAppChat?.phoneNumber]);
+
     if (!popup?.info) return null;
 
     const { info } = popup;
@@ -180,6 +264,16 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
         : "";
     const resolvedPopupPhotoUrl = popupAssetInfo?.images?.[0]?.itemImageSrc || popupAssetInfo?.imageUrl;
     const popupPhotoUrl = sidebarPhotoUrl || resolvedPopupPhotoUrl || info.photoUrl || buildImageHostUrl("no_image.png");
+
+    const openWhatsAppChat = (phoneNumber) => {
+        const normalizedNumber = normalizePhoneNumber(phoneNumber);
+        if (!normalizedNumber || normalizedNumber.toUpperCase?.() === "N/A") return;
+
+        setWhatsAppChat({
+            phoneNumber: normalizedNumber,
+            title: info.title,
+        });
+    };
 
     const uploadLogo = async (event) => {
         const file = event.target.files?.[0];
@@ -275,20 +369,28 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
                         <p>{info.sundayHours}</p>
                     </div>
                 </div>
-                <div className="play-building-label-popup__card">
+                <button
+                    type="button"
+                    className="play-building-label-popup__card play-building-label-popup__card--button"
+                    onClick={() => openWhatsAppChat(info.phone)}
+                >
                     <FaPhoneAlt aria-hidden="true" />
                     <div>
                         <span>Phone Number</span>
                         <strong>{info.phone}</strong>
                     </div>
-                </div>
-                <div className="play-building-label-popup__card">
+                </button>
+                <button
+                    type="button"
+                    className="play-building-label-popup__card play-building-label-popup__card--button"
+                    onClick={() => openWhatsAppChat(info.whatsapp)}
+                >
                     <FaWhatsapp aria-hidden="true" />
                     <div>
                         <span>Whatsapp</span>
                         <strong>{info.whatsapp}</strong>
                     </div>
-                </div>
+                </button>
                 <div className="play-building-label-popup__card">
                     <FaGlobe aria-hidden="true" />
                     <div>
@@ -323,6 +425,34 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
                 <input type="file" accept="image/*" onChange={uploadLogo} />
             </label>
             {uploadStatus && <span className="play-building-label-popup__status">{uploadStatus}</span>}
+            {whatsAppChat && (
+                <div className="play-building-label-whatsapp" role="dialog" aria-label={`WhatsApp chat for ${whatsAppChat.phoneNumber}`}>
+                    <div className="play-building-label-whatsapp__head">
+                        <span><FaWhatsapp aria-hidden="true" /></span>
+                        <div>
+                            <strong>WhatsApp Chat</strong>
+                            <p>{whatsAppChat.title} · {whatsAppChat.phoneNumber}</p>
+                        </div>
+                        <button type="button" aria-label="Close WhatsApp chat" onClick={() => setWhatsAppChat(null)}>
+                            <FaTimes aria-hidden="true" />
+                        </button>
+                    </div>
+                    <div className="play-building-label-whatsapp__messages">
+                        {whatsAppStatus === "loading" && <p className="play-building-label-whatsapp__empty">Loading messages...</p>}
+                        {whatsAppStatus === "empty" && <p className="play-building-label-whatsapp__empty">No WhatsApp group messages found for this number.</p>}
+                        {whatsAppStatus === "error" && <p className="play-building-label-whatsapp__empty">Unable to load WhatsApp messages.</p>}
+                        {whatsAppMessages.map((message) => (
+                            <div className="play-building-label-whatsapp__message" key={message.id}>
+                                <div>
+                                    <strong>{message.author}</strong>
+                                    {message.timestamp ? <span>{new Date(message.timestamp).toLocaleString()}</span> : null}
+                                </div>
+                                <p>{message.text}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
