@@ -266,7 +266,13 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
             fallbackName: popup?.info?.title || "",
         }).then((nextInfo) => {
             if (!cancelled) {
-                setPopupAssetInfo(nextInfo);
+                // Keep the loaded image data tied to the exact instance that
+                // requested it. This prevents a late response from a previous
+                // selection from becoming the image for the newly selected ID.
+                setPopupAssetInfo({
+                    instanceId: String(instanceId),
+                    data: nextInfo,
+                });
             }
         });
 
@@ -334,14 +340,24 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
     const { info } = popup;
     const left = Math.min(Math.max((popup.clientX || window.innerWidth / 2) + 16, 26), window.innerWidth - 314);
     const top = Math.min(Math.max((popup.clientY || window.innerHeight / 2) - 34, 42), window.innerHeight - 396);
+    // Only reuse sidebar image data when it belongs to this exact instance ID.
+    // Matching by title can accidentally reuse the previous asset's image when
+    // two assets have the same/fallback title.
     const isSidebarMatch = activeAssetInfo && (
-        String(activeAssetInfo.instanceId || "") === String(info.instanceId || "") ||
-        String(activeAssetInfo.title || "").trim().toLowerCase() === String(info.title || "").trim().toLowerCase()
+        String(activeAssetInfo.instanceId || "") === String(info.instanceId || "")
     );
     const sidebarPhotoUrl = isSidebarMatch
         ? activeAssetInfo?.images?.[0]?.itemImageSrc || activeAssetInfo?.imageUrl
         : "";
-    const resolvedPopupPhotoUrl = popupAssetInfo?.images?.[0]?.itemImageSrc || popupAssetInfo?.imageUrl;
+
+    // Only use the async image result if it was loaded for the currently
+    // selected instance.
+    const isPopupAssetInfoMatch = (
+        popupAssetInfo &&
+        String(popupAssetInfo.instanceId || "") === String(info.instanceId || "")
+    );
+    const resolvedPopupInfo = isPopupAssetInfoMatch ? popupAssetInfo.data : null;
+    const resolvedPopupPhotoUrl = resolvedPopupInfo?.images?.[0]?.itemImageSrc || resolvedPopupInfo?.imageUrl;
     const popupPhotoUrl = sidebarPhotoUrl || resolvedPopupPhotoUrl || info.photoUrl || buildImageHostUrl("no_image.png");
     const displayTitle = googlePlace?.title || info.title;
     const isWaitingForGooglePlace = Boolean(info.coordinates) && googlePlaceStatus === "loading";
@@ -516,7 +532,13 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
                 </div>
             </div>
             <div className="play-building-label-popup__photo">
-                {popupPhotoUrl ? <img src={popupPhotoUrl} alt="" /> : null}
+                {popupPhotoUrl ? (
+                    <img
+                        key={`${info.instanceId}-${popupPhotoUrl}`}
+                        src={popupPhotoUrl}
+                        alt=""
+                    />
+                ) : null}
             </div>
             <dl className="play-building-label-popup__rows">
                 <div><dt>Business Type</dt><dd>{info.businessType}</dd></div>
