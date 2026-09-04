@@ -771,6 +771,9 @@ const buildMetaModel = (assetInfo, title) => {
     const openingHours = findMetaValue(rows, ["Opening Hours", "Hours"]);
     const website = findMetaValue(rows, ["Website Url", "Website URL", "Website"]);
     const telephone = findMetaValue(rows, ["Telephone", "Phone", "Contact"]);
+    const coordinates = findMetaValue(rows, ["Cordinates", "Coordinates"]);
+    const rating = findMetaValue(rows, ["Rating", "Google Rating"]) || "4.5";
+    const reviews = findMetaValue(rows, ["Reviews", "Review Count"]) || "127";
     const businessKind = getBusinessKind(businessType, companyName, description);
     const consumedNames = new Set([
         "company name",
@@ -803,6 +806,12 @@ const buildMetaModel = (assetInfo, title) => {
         "telephone",
         "phone",
         "contact",
+        "cordinates",
+        "coordinates",
+        "rating",
+        "google rating",
+        "reviews",
+        "review count",
     ]);
     const extraRows = rows
         .filter((row) => !consumedNames.has(String(row?.name || "").trim().toLowerCase()))
@@ -817,9 +826,12 @@ const buildMetaModel = (assetInfo, title) => {
         city,
         comments,
         companyName,
+        coordinates,
         description,
         extraRows,
         openingHours,
+        rating,
+        reviews,
         rows,
         telephone,
         website,
@@ -953,7 +965,42 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
     const meta = useMemo(() => buildMetaModel(assetInfo, title), [assetInfo, title]);
     const [isEditing, setIsEditing] = useState(false);
     const [draftRows, setDraftRows] = useState([]);
+    const [googlePlace, setGooglePlace] = useState(null);
+    const [googlePlaceStatus, setGooglePlaceStatus] = useState("idle");
     const BusinessIcon = meta.businessKind.Icon;
+
+    useEffect(() => {
+        let cancelled = false;
+        const hasCoordinates = Boolean(String(meta.coordinates || "").trim());
+
+        setGooglePlace(null);
+        setGooglePlaceStatus(hasCoordinates ? "loading" : "idle");
+
+        if (!hasCoordinates || !meta.companyName) return undefined;
+
+        fetchGooglePlaceDetails({
+            companyName: meta.companyName,
+            coordinates: meta.coordinates,
+            fallbackAddress: meta.address,
+            fallbackRating: meta.rating,
+            fallbackReviews: meta.reviews,
+        }).then((data) => {
+            if (cancelled) return;
+            if (data) setGooglePlace(data);
+            setGooglePlaceStatus(data ? "ready" : "empty");
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        selectedAssetId,
+        meta.companyName,
+        meta.coordinates,
+        meta.address,
+        meta.rating,
+        meta.reviews,
+    ]);
 
     useEffect(() => {
         
@@ -1003,7 +1050,12 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
         }));
     };
 
-    
+    const isWaitingForGooglePlace = Boolean(meta.coordinates) && googlePlaceStatus === "loading";
+    const displayTitle = googlePlace?.title || meta.companyName || title;
+    const displayAddress = isWaitingForGooglePlace ? "Loading address..." : googlePlace?.address || meta.address;
+    const displayRating = isWaitingForGooglePlace ? "..." : googlePlace?.rating || meta.rating;
+    const displayReviews = isWaitingForGooglePlace ? "..." : googlePlace?.reviews || meta.reviews;
+
     if (!assetInfo) return null;
 
     return (
@@ -1032,19 +1084,24 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
 
             <div className="play-asset-info__body">
                 <div className="play-asset-info__title-block">
-                    <h2>{meta.companyName || title}</h2>
+                    <h2>{displayTitle}</h2>
                     {meta.city && <span className="play-asset-info__subtitle">{meta.city.split(",")[0]}</span>}
                     <div className="play-asset-info__rating-line">
                         <span className="play-asset-info__google-mark">G</span>
-                        <strong>4.5</strong>
-                        <span className="play-asset-info__rating-stars" aria-label="4.5 out of 5 stars">
-                            <FaStar aria-hidden="true" />
-                            <FaStar aria-hidden="true" />
-                            <FaStar aria-hidden="true" />
-                            <FaStar aria-hidden="true" />
-                            <FaStar aria-hidden="true" />
+                        <strong>{displayRating}</strong>
+                        <span
+                            className="play-asset-info__rating-stars"
+                            aria-label={`${displayRating} out of 5 stars`}
+                        >
+                            {getRatingStars(displayRating).map((star) => (
+                                star.type === "half"
+                                    ? <FaStarHalfAlt key={star.key} aria-hidden="true" />
+                                    : star.type === "empty"
+                                        ? <FaRegStar key={star.key} aria-hidden="true" />
+                                        : <FaStar key={star.key} aria-hidden="true" />
+                            ))}
                         </span>
-                        <span>(127 reviews)</span>
+                        <span>({displayReviews} reviews)</span>
                     </div>
                     <div className={`play-asset-info__business-badge play-asset-info__business-badge--${meta.businessKind.className}`}>
                         <BusinessIcon aria-hidden="true" />
@@ -1109,12 +1166,12 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                         </div>
                     ) : (
                         <div className="play-asset-info__meta-list">
-                        {meta.address && (
+                        {displayAddress && (
                             <div className="play-asset-info__meta-item">
                                 <FaMapMarkerAlt aria-hidden="true" />
                                 <div>
-                                    <strong>{meta.address}</strong>
-                                    {meta.city && <span>{meta.city}</span>}
+                                    <strong>{displayAddress}</strong>
+                                    {!googlePlace?.address && meta.city && <span>{meta.city}</span>}
                                 </div>
                             </div>
                         )}
@@ -1157,7 +1214,7 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                                 </div>
                             </div>
                         ))}
-                        {!meta.address && !meta.openingHours && !meta.website && !meta.telephone && !meta.extraRows.length && (
+                        {!displayAddress && !meta.openingHours && !meta.website && !meta.telephone && !meta.extraRows.length && (
                             <div className="play-asset-info__empty">No metadata available</div>
                         )}
                         </div>
