@@ -75,7 +75,7 @@ const normalizeSpriteFields = (fields) => {
 const getSpriteFieldValue = (fields, names, fallback = "") => {
     const wanted = names.map((name) => String(name).trim().toLowerCase());
     const field = normalizeSpriteFields(fields).find((item) => (
-        wanted.includes(String(item?.name || "").trim().toLowerCase())
+        wanted.includes(String(item?.name || item?.label || "").trim().toLowerCase())
     ));
     const value = field?.value;
     return value === undefined || value === null || String(value).trim() === "" ? fallback : String(value);
@@ -125,6 +125,30 @@ const buildWebsiteHref = (value) => {
 const buildMailHref = (value) => {
     const email = String(value || "").trim();
     return isUsableContactValue(email) ? `mailto:${email}` : "";
+};
+
+const flattenAssetInfoRows = (assetInfo) => (
+    (assetInfo?.specGroups || []).flatMap((group) => group?.children || group?.rows || [])
+);
+
+const findAssetInfoValue = (assetInfo, names, fallback = "") => {
+    const rows = flattenAssetInfoRows(assetInfo);
+    const targets = names.map((name) => String(name).trim().toLowerCase());
+    const exactMatch = rows.find((row) => (
+        targets.includes(String(row?.name || row?.label || "").trim().toLowerCase())
+    ));
+
+    const looseMatch = exactMatch || rows.find((row) => {
+        const rowName = String(row?.name || row?.label || "").trim().toLowerCase();
+        return targets.some((target) => rowName.includes(target));
+    });
+
+    const value = looseMatch?.value;
+    if (looseMatch && (value === undefined || value === null || String(value).trim() === "")) {
+        return "N/A";
+    }
+
+    return value === undefined || value === null || String(value).trim() === "" ? fallback : String(value).trim();
 };
 
 
@@ -206,8 +230,8 @@ const buildSpritePopupInfo = (instanceId) => {
     const address = getSpriteFieldValue(fields, ["Address", "Street Address"], area);
     const phone = getSpriteFieldValue(fields, ["Phone Number", "Phone", "Telephone", "Contact Number"], "+60 11-1073 6259");
     const whatsapp = getSpriteFieldValue(fields, ["WhatsApp", "Whatsapp", "WhatsApp Number"], phone);
-    const website = getSpriteFieldValue(fields, ["Website", "Web", "URL"], "smilehotel.com.my");
-    const email = getSpriteFieldValue(fields, ["Email", "Email Address"], "info@smilehotel.com.my");
+    const website = getSpriteFieldValue(fields, ["Website Url", "Website URL", "Website", "Web", "URL"], "N/A");
+    const email = getSpriteFieldValue(fields, ["Email", "Email Address"], "N/A");
     const openingHours = getSpriteFieldValue(fields, ["Opening Hours", "Opening Hour", "Hours"], "Mon-Fri: 9:00 AM-5:30");
     const saturdayHours = getSpriteFieldValue(fields, ["Saturday Hours", "Sat Hours"], "PM Sat: 9:00AM-1:30");
     const sundayHours = getSpriteFieldValue(fields, ["Sunday Hours", "Sun Hours"], "PM Sun: Closed");
@@ -282,24 +306,36 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
     }, [popup?.info?.instanceId, popup?.info?.title]);
     useEffect(() => {
         let cancelled = false;
-        const hasCoordinates = Boolean(String(popup?.info?.coordinates || "").trim());
+        const currentLoadedInfo = (
+            popupAssetInfo &&
+            String(popupAssetInfo.instanceId || "") === String(popup?.info?.instanceId || "")
+        ) ? popupAssetInfo.data : null;
+        const fieldsForLookup = currentLoadedInfo
+            ? flattenAssetInfoRows(currentLoadedInfo)
+            : popup?.info?.fields;
+        const coordinates = getSpriteFieldValue(fieldsForLookup, ["Cordinates", "Coordinates"], popup?.info?.coordinates || "");
+        const companyName = getSpriteFieldValue(fieldsForLookup, ["Company Name", "AssetName", "Asset Name"], currentLoadedInfo?.title || popup?.info?.title || "");
+        const address = getSpriteFieldValue(fieldsForLookup, ["Address", "Street Address"], popup?.info?.address || "");
+        const rating = getSpriteFieldValue(fieldsForLookup, ["Rating", "Google Rating"], popup?.info?.rating || "");
+        const reviews = getSpriteFieldValue(fieldsForLookup, ["Reviews", "Review Count"], popup?.info?.reviews || "");
+        const hasCoordinates = Boolean(String(coordinates || "").trim());
         setGooglePlace(null);
         setGooglePlaceStatus(hasCoordinates ? "loading" : "idle");
-        if (!popup?.info?.fields || !hasCoordinates) return;
+        if (!fieldsForLookup || !hasCoordinates) return;
         
         fetchGooglePlaceDetails(
-            popup.info.fields,
-            popup.info.title,
-            popup.info.address,
-            popup.info.rating,
-            popup.info.reviews
+            fieldsForLookup,
+            companyName,
+            address,
+            rating,
+            reviews
         ).then((data)=>{
             if (cancelled) return;
             if (data) setGooglePlace(data);
             setGooglePlaceStatus(data ? "ready" : "empty");
         });
         return ()=>{cancelled=true;};
-    }, [popup?.info?.instanceId]);
+    }, [popup?.info?.instanceId, popupAssetInfo]);
 
     useEffect(() => {
         setWhatsAppChat(null);
@@ -359,15 +395,24 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
     const resolvedPopupInfo = isPopupAssetInfoMatch ? popupAssetInfo.data : null;
     const resolvedPopupPhotoUrl = resolvedPopupInfo?.images?.[0]?.itemImageSrc || resolvedPopupInfo?.imageUrl;
     const popupPhotoUrl = sidebarPhotoUrl || resolvedPopupPhotoUrl || info.photoUrl || buildImageHostUrl("no_image.png");
-    const displayTitle = googlePlace?.title || info.title;
-    const isWaitingForGooglePlace = Boolean(info.coordinates) && googlePlaceStatus === "loading";
-    const displayAddress = isWaitingForGooglePlace ? "Loading address..." : googlePlace?.address || info.address;
-    const displayRating = isWaitingForGooglePlace ? "..." : googlePlace?.rating || info.rating;
-    const displayReviews = isWaitingForGooglePlace ? "..." : googlePlace?.reviews || info.reviews;
-    const phoneHref = buildPhoneHref(info.phone);
-    const whatsAppHref = buildWhatsAppHref(info.whatsapp);
-    const websiteHref = buildWebsiteHref(info.website);
-    const mailHref = buildMailHref(info.email);
+    const displayPhone = findAssetInfoValue(resolvedPopupInfo, ["Telephone", "Phone Number", "Phone", "Contact Number"], info.phone);
+    const displayWhatsApp = findAssetInfoValue(resolvedPopupInfo, ["WhatsApp", "Whatsapp", "WhatsApp Number"], info.whatsapp || displayPhone);
+    const displayWebsite = findAssetInfoValue(resolvedPopupInfo, ["Website Url", "Website URL", "Website", "Web", "URL"], info.website);
+    const displayEmail = findAssetInfoValue(resolvedPopupInfo, ["Email", "Email Address"], info.email);
+    const displayOpeningHours = findAssetInfoValue(resolvedPopupInfo, ["Opening Hours", "Opening Hour", "Hours"], info.openingHours);
+    const resolvedAddress = findAssetInfoValue(resolvedPopupInfo, ["Address", "Street Address"], info.address);
+    const resolvedRating = findAssetInfoValue(resolvedPopupInfo, ["Rating", "Google Rating"], info.rating);
+    const resolvedReviews = findAssetInfoValue(resolvedPopupInfo, ["Reviews", "Review Count"], info.reviews);
+    const resolvedCoordinates = findAssetInfoValue(resolvedPopupInfo, ["Cordinates", "Coordinates"], info.coordinates);
+    const displayTitle = googlePlace?.title || resolvedPopupInfo?.title || info.title;
+    const isWaitingForGooglePlace = Boolean(resolvedCoordinates) && googlePlaceStatus === "loading";
+    const displayAddress = isWaitingForGooglePlace ? "Loading address..." : googlePlace?.address || resolvedAddress;
+    const displayRating = isWaitingForGooglePlace ? "..." : googlePlace?.rating || resolvedRating;
+    const displayReviews = isWaitingForGooglePlace ? "..." : googlePlace?.reviews || resolvedReviews;
+    const phoneHref = buildPhoneHref(displayPhone);
+    const whatsAppHref = buildWhatsAppHref(displayWhatsApp);
+    const websiteHref = buildWebsiteHref(displayWebsite);
+    const mailHref = buildMailHref(displayEmail);
 
     const openWhatsAppChat = (phoneNumber) => {
         const normalizedNumber = normalizePhoneNumber(phoneNumber);
@@ -375,7 +420,7 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
 
         setWhatsAppChat({
             phoneNumber: normalizedNumber,
-            title: info.title,
+            title: displayTitle,
         });
     };
 
@@ -469,14 +514,14 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
                     <div>
                         <span>Opening Hours</span>
                         <strong><i aria-hidden="true" />Open</strong>
-                        <p>{info.openingHours}</p>
+                        <p>{displayOpeningHours}</p>
                         <p>{info.saturdayHours}</p>
                         <p>{info.sundayHours}</p>
                     </div>
                 </div>
                 <div className="play-building-label-popup__card">
                     {phoneHref ? (
-                        <a className="play-building-label-popup__card-icon" href={phoneHref} aria-label={`Call ${info.phone}`}>
+                        <a className="play-building-label-popup__card-icon" href={phoneHref} aria-label={`Call ${displayPhone}`}>
                             <FaPhoneAlt aria-hidden="true" />
                         </a>
                     ) : (
@@ -484,14 +529,14 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
                     )}
                     <div>
                         <span>Phone Number</span>
-                        <button type="button" className="play-building-label-popup__value-button" onClick={() => openWhatsAppChat(info.phone)}>
-                            {info.phone}
+                        <button type="button" className="play-building-label-popup__value-button" onClick={() => openWhatsAppChat(displayPhone)}>
+                            {displayPhone}
                         </button>
                     </div>
                 </div>
                 <div className="play-building-label-popup__card">
                     {whatsAppHref ? (
-                        <a className="play-building-label-popup__card-icon" href={whatsAppHref} target="_blank" rel="noreferrer" aria-label={`Open WhatsApp for ${info.whatsapp}`}>
+                        <a className="play-building-label-popup__card-icon" href={whatsAppHref} target="_blank" rel="noreferrer" aria-label={`Open WhatsApp for ${displayWhatsApp}`}>
                             <FaWhatsapp aria-hidden="true" />
                         </a>
                     ) : (
@@ -499,14 +544,14 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
                     )}
                     <div>
                         <span>Whatsapp</span>
-                        <button type="button" className="play-building-label-popup__value-button" onClick={() => openWhatsAppChat(info.whatsapp)}>
-                            {info.whatsapp}
+                        <button type="button" className="play-building-label-popup__value-button" onClick={() => openWhatsAppChat(displayWhatsApp)}>
+                            {displayWhatsApp}
                         </button>
                     </div>
                 </div>
                 <div className="play-building-label-popup__card">
                     {websiteHref ? (
-                        <a className="play-building-label-popup__card-icon" href={websiteHref} target="_blank" rel="noreferrer" aria-label={`Open website ${info.website}`}>
+                        <a className="play-building-label-popup__card-icon" href={websiteHref} target="_blank" rel="noreferrer" aria-label={`Open website ${displayWebsite}`}>
                             <FaGlobe aria-hidden="true" />
                         </a>
                     ) : (
@@ -514,12 +559,12 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
                     )}
                     <div>
                         <span>Website</span>
-                        <strong>{info.website}</strong>
+                        <strong>{displayWebsite}</strong>
                     </div>
                 </div>
                 <div className="play-building-label-popup__card">
                     {mailHref ? (
-                        <a className="play-building-label-popup__card-icon" href={mailHref} aria-label={`Email ${info.email}`}>
+                        <a className="play-building-label-popup__card-icon" href={mailHref} aria-label={`Email ${displayEmail}`}>
                             <FaEnvelope aria-hidden="true" />
                         </a>
                     ) : (
@@ -527,7 +572,7 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
                     )}
                     <div>
                         <span>Email</span>
-                        <strong>{info.email}</strong>
+                        <strong>{displayEmail}</strong>
                     </div>
                 </div>
             </div>
