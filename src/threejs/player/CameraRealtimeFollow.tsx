@@ -6,6 +6,7 @@ import { socket } from "../../socket";
 
 const CAMERA_FOLLOW_DISTANCE = 8.5;
 const CAMERA_FOLLOW_HEIGHT = 0;
+const CAMERA_FOLLOW_Y_SCALE = 0.5;
 const MIN_CAMERA_ELEVATION = THREE.MathUtils.degToRad(-20);
 const MAX_CAMERA_ELEVATION = THREE.MathUtils.degToRad(66);
 const CAMERA_POSITION_SMOOTHING = 7;
@@ -30,6 +31,10 @@ function toScenePosition(player: any, target: THREE.Vector3) {
 
 function getCameraFollowHeight(_projectID: any) {
     return CAMERA_FOLLOW_HEIGHT
+}
+
+function getCameraY(playerY: number, projectID: any) {
+    return playerY * CAMERA_FOLLOW_Y_SCALE + getCameraFollowHeight(projectID);
 }
 
 function getClampedViewElevation(playerViewAngle: any) {
@@ -114,7 +119,7 @@ export default function CameraRealtimeFollow() {
            
             camera.position.set(0, getCameraFollowHeight(projectID), 0);
              const originTargetY = getForwardTargetY(camera.position.y, getClampedViewElevation(playerViewAngle));
-            console.log(originTargetY)
+            
             const controls = orbitControlsRef?.current;
             if (controls?.target) {
                 controls.target.set(0, originTargetY, -CAMERA_FOLLOW_DISTANCE);
@@ -148,13 +153,13 @@ export default function CameraRealtimeFollow() {
             followDirectionRef.current.lerp(movementDirection.normalize(), 1 - Math.exp(-9 * delta)).normalize();
         }
 
-        // const baseCameraHeight = getCameraFollowHeight(projectID);
+        const baseCameraHeight = getCameraFollowHeight(projectID);
         const viewElevation = getClampedViewElevation(playerViewAngle);
 
         desiredCameraRef.current
             .copy(currentPositionRef.current)
             .addScaledVector(followDirectionRef.current, -CAMERA_FOLLOW_DISTANCE);
-        desiredCameraRef.current.y -= 3;
+        desiredCameraRef.current.y = getCameraY(currentPositionRef.current.y, projectID);
 
         desiredTargetRef.current
             .copy(currentPositionRef.current)
