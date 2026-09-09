@@ -1,5 +1,5 @@
 import React, { useCallback } from "react";
-import { FaVideo } from "react-icons/fa";
+import { FaLocationArrow, FaVideo } from "react-icons/fa";
 import useGame from "../../../../hooks/useGame";
 import { publicAssetUrl } from "../../../../puzzleUi/publicAssetUrl";
 import VrViewButton from "./VrViewButton";
@@ -34,11 +34,15 @@ export default function PlayModeViewControls() {
     const setButtonMode = useGame((state) => state.setButtonMode);
     const playerTrackReplay = useGame((state) => state.playerTrackReplay);
     const setPlayerTrackReplay = useGame((state) => state.setPlayerTrackReplay);
+    const cameraPathReplay = useGame((state) => state.cameraPathReplay);
+    const setCameraPathReplay = useGame((state) => state.setCameraPathReplay);
 
     const activeView = firstPerson ? "firstPerson" : character ? "character" : "orbit";
 
     const setViewMode = useCallback(
         (mode) => {
+            setCameraPathReplay(false);
+
             if (mode === "firstPerson") {
                 setButtonMode("Play mode");
                 setFirstPerson(true);
@@ -57,8 +61,17 @@ export default function PlayModeViewControls() {
             setFirstPerson(false);
             setCharacter(false);
         },
-        [setButtonMode, setCharacter, setFirstPerson]
+        [setButtonMode, setCameraPathReplay, setCharacter, setFirstPerson]
     );
+
+    const toggleCameraPathReplay = useCallback(() => {
+        const nextCameraPathReplay = !cameraPathReplay;
+
+        setButtonMode("Play mode");
+        setFirstPerson(false);
+        setCharacter(false);
+        setCameraPathReplay(nextCameraPathReplay);
+    }, [cameraPathReplay, setButtonMode, setCameraPathReplay, setCharacter, setFirstPerson]);
 
     return (
         <div className="play-view-controls" role="toolbar" aria-label="Play mode view controls">
@@ -85,6 +98,17 @@ export default function PlayModeViewControls() {
                 })}
                 <VrViewButton />
             </div>
+
+            <button
+                type="button"
+                className={`play-view-controls__button play-view-controls__button--camera-path${cameraPathReplay ? " is-active" : ""}`}
+                aria-label={cameraPathReplay ? "Stop camera route" : "Play camera route"}
+                aria-pressed={cameraPathReplay}
+                data-tooltip={cameraPathReplay ? "Stop camera route" : "Play camera route"}
+                onClick={toggleCameraPathReplay}
+            >
+                <FaLocationArrow className="play-view-controls__svg-icon play-view-controls__svg-icon--cameraPath" aria-hidden="true" />
+            </button>
 
             <button
                 type="button"

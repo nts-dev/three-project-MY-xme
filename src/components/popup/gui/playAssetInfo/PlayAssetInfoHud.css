@@ -76,6 +76,11 @@
     height: 23px;
 }
 
+.play-view-controls__svg-icon--cameraPath {
+    width: 19px;
+    height: 19px;
+}
+
 .play-view-controls__button:hover {
     color: #ffffff;
 }

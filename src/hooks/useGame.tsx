@@ -251,6 +251,7 @@ const useGame = create((set) => ({
     activatedTile: null,
     controlClose: false,
     playerTrackReplay: false,
+    cameraPathReplay: false,
     confirmationObj: {},
     uName: '',
     gameStartTick: 0,
@@ -529,6 +530,11 @@ const useGame = create((set) => ({
         set((state: any) => ({
             ...state,
             playerTrackReplay
+        })),
+    setCameraPathReplay: (cameraPathReplay: boolean) =>
+        set((state: any) => ({
+            ...state,
+            cameraPathReplay
         })),
     setActivatedTile: (activatedTile: number) =>
         set((state: any) => ({
