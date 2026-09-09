@@ -35,9 +35,11 @@ function getProjectBaseId(projectID: any) {
 }
 
 function getCameraFollowHeight(projectID: any) {
-    return getProjectBaseId(projectID) === "126"
-        ? CAMERA_FOLLOW_HEIGHT * PROJECT_126_CAMERA_HEIGHT_SCALE
-        : CAMERA_FOLLOW_HEIGHT;
+    return CAMERA_FOLLOW_HEIGHT
+    
+    // getProjectBaseId(projectID) === "126"
+    //     ? CAMERA_FOLLOW_HEIGHT * PROJECT_126_CAMERA_HEIGHT_SCALE
+    //     : CAMERA_FOLLOW_HEIGHT;
 }
 
 function getClampedViewElevation(playerViewAngle: any) {
