@@ -6,7 +6,7 @@ import { socket } from "../../socket";
 
 const CAMERA_FOLLOW_DISTANCE = 8.5;
 const CAMERA_FOLLOW_HEIGHT = 2.4;
-const PROJECT_126_CAMERA_HEIGHT_SCALE = -20;
+const PROJECT_126_CAMERA_HEIGHT_SCALE = -0.120;
 const MIN_CAMERA_ELEVATION = THREE.MathUtils.degToRad(-20);
 const MAX_CAMERA_ELEVATION = THREE.MathUtils.degToRad(66);
 const CAMERA_POSITION_SMOOTHING = 7;
