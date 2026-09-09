@@ -5,6 +5,7 @@ import useGame from "../../hooks/useGame";
 import usePlayerTrackReplay from "./usePlayerTrackReplay";
 
 const CAMERA_ROUTE_HEIGHT = 1.7;
+const PROJECT_126_CAMERA_HEIGHT_SCALE = -0.21;
 const CAMERA_ROUTE_SPEED = 3.2;
 const CAMERA_ROUTE_LOOK_AHEAD = 7.5;
 const POSITION_SMOOTHING = 7;
@@ -37,6 +38,16 @@ function getPointPosition(point: any) {
         toNumber(position.y, toNumber(point?.posY) / 100),
         toNumber(position.z, toNumber(point?.posZ) / 100)
     );
+}
+
+function getProjectBaseId(projectID: any) {
+    return String(projectID || "").replace(/_L\d+$/i, "");
+}
+
+function getCameraRouteHeight(projectID: any) {
+    return getProjectBaseId(projectID) === "126"
+        ? CAMERA_ROUTE_HEIGHT * PROJECT_126_CAMERA_HEIGHT_SCALE
+        : CAMERA_ROUTE_HEIGHT;
 }
 
 function buildPathSegments(points: any[]) {
@@ -186,7 +197,7 @@ export default function CameraPathReplay() {
         const desiredPosition = desiredPositionRef.current
             .copy(currentSample.point)
             .addScaledVector(currentSample.direction, -0.35);
-        desiredPosition.y += CAMERA_ROUTE_HEIGHT;
+        desiredPosition.y += getCameraRouteHeight(projectID);
 
         const desiredTarget = desiredTargetRef.current
             .copy(lookSample.point)

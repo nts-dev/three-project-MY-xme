@@ -191,6 +191,7 @@ export default function ThreeView() {
     const projectId = useGame((state) => state.projectID)
     const character = useGame((state) => state.character)
     const firstPerson = useGame((state) => state.firstPerson)
+    const cameraRealtimeFollow = useGame((state) => state.cameraRealtimeFollow)
     const uName = useGame((state) => state.uName)
     const isGrid = useGame((state) => state.grid)
     const setGrid = useGame((state) => state.setGrid)
@@ -606,7 +607,7 @@ export default function ThreeView() {
     );
     const showGoogleThreeViewControls = isGoogleMapsWebGLProject(projectId) && googleMapsViewportMode === "three";
     const hasActiveProject = String(projectId ?? "").trim() !== "" && String(projectId ?? "").trim() !== "0";
-    const showPlayerRuntimeControls = hasActiveProject && (character || firstPerson);
+    const showPlayerRuntimeControls = hasActiveProject && (character || firstPerson || cameraRealtimeFollow);
 
     // if(isLowGpu===null) return null
     const zoomSelectedAsset = useCallback(() => {

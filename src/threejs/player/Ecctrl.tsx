@@ -531,6 +531,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     const setCharacterRef = useGame((state: any) => state.setCharacterRef)
     const floorHeight = useGame((state: any) => state.floorHeight)
     const playerViewAngle = useGame((state: any) => state.playerViewAngle)
+    const cameraRealtimeFollow = useGame((state: any) => state.cameraRealtimeFollow)
     const projectID = useGame((state: any) => state.projectID)
     const {clientId, dateTime} = client ? JSON.parse(client) : {clientId: "custom_person", dateTime: 'now'}
     const setCharacterIsInWater: any = useGame((state: any) => state.setCharacterIsInWater)
@@ -1344,7 +1345,9 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
             // followCam(state, delta, curAnimation)
         }
 
-        followCam(state, delta, curAnimation)
+        if (!cameraRealtimeFollow) {
+            followCam(state, delta, curAnimation)
+        }
 
 
 

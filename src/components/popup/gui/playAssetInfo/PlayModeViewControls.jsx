@@ -1,5 +1,5 @@
 import React, { useCallback } from "react";
-import { FaLocationArrow, FaVideo } from "react-icons/fa";
+import { FaEye, FaLocationArrow, FaVideo } from "react-icons/fa";
 import useGame from "../../../../hooks/useGame";
 import { publicAssetUrl } from "../../../../puzzleUi/publicAssetUrl";
 import VrViewButton from "./VrViewButton";
@@ -36,12 +36,15 @@ export default function PlayModeViewControls() {
     const setPlayerTrackReplay = useGame((state) => state.setPlayerTrackReplay);
     const cameraPathReplay = useGame((state) => state.cameraPathReplay);
     const setCameraPathReplay = useGame((state) => state.setCameraPathReplay);
+    const cameraRealtimeFollow = useGame((state) => state.cameraRealtimeFollow);
+    const setCameraRealtimeFollow = useGame((state) => state.setCameraRealtimeFollow);
 
     const activeView = firstPerson ? "firstPerson" : character ? "character" : "orbit";
 
     const setViewMode = useCallback(
         (mode) => {
             setCameraPathReplay(false);
+            setCameraRealtimeFollow(false);
 
             if (mode === "firstPerson") {
                 setButtonMode("Play mode");
@@ -61,7 +64,7 @@ export default function PlayModeViewControls() {
             setFirstPerson(false);
             setCharacter(false);
         },
-        [setButtonMode, setCameraPathReplay, setCharacter, setFirstPerson]
+        [setButtonMode, setCameraPathReplay, setCameraRealtimeFollow, setCharacter, setFirstPerson]
     );
 
     const toggleCameraPathReplay = useCallback(() => {
@@ -71,7 +74,20 @@ export default function PlayModeViewControls() {
         setFirstPerson(false);
         setCharacter(false);
         setCameraPathReplay(nextCameraPathReplay);
-    }, [cameraPathReplay, setButtonMode, setCameraPathReplay, setCharacter, setFirstPerson]);
+        if (nextCameraPathReplay) setCameraRealtimeFollow(false);
+    }, [cameraPathReplay, setButtonMode, setCameraPathReplay, setCameraRealtimeFollow, setCharacter, setFirstPerson]);
+
+    const toggleCameraRealtimeFollow = useCallback(() => {
+        const nextCameraRealtimeFollow = !cameraRealtimeFollow;
+
+        setButtonMode("Play mode");
+        if (nextCameraRealtimeFollow) {
+            setFirstPerson(false);
+            setCharacter(false);
+            setCameraPathReplay(false);
+        }
+        setCameraRealtimeFollow(nextCameraRealtimeFollow);
+    }, [cameraRealtimeFollow, setButtonMode, setCameraPathReplay, setCameraRealtimeFollow, setCharacter, setFirstPerson]);
 
     return (
         <div className="play-view-controls" role="toolbar" aria-label="Play mode view controls">
@@ -108,6 +124,17 @@ export default function PlayModeViewControls() {
                 onClick={toggleCameraPathReplay}
             >
                 <FaLocationArrow className="play-view-controls__svg-icon play-view-controls__svg-icon--cameraPath" aria-hidden="true" />
+            </button>
+
+            <button
+                type="button"
+                className={`play-view-controls__button play-view-controls__button--camera-realtime${cameraRealtimeFollow ? " is-active" : ""}`}
+                aria-label={cameraRealtimeFollow ? "Stop realtime camera follow" : "Follow walking camera"}
+                aria-pressed={cameraRealtimeFollow}
+                data-tooltip={cameraRealtimeFollow ? "Stop realtime camera follow" : "Follow walking camera"}
+                onClick={toggleCameraRealtimeFollow}
+            >
+                <FaEye className="play-view-controls__svg-icon play-view-controls__svg-icon--cameraRealtime" aria-hidden="true" />
             </button>
 
             <button

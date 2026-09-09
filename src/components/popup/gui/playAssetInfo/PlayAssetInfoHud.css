@@ -81,6 +81,11 @@
     height: 19px;
 }
 
+.play-view-controls__svg-icon--cameraRealtime {
+    width: 20px;
+    height: 20px;
+}
+
 .play-view-controls__button:hover {
     color: #ffffff;
 }

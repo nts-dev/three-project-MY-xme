@@ -12,6 +12,7 @@ export default function PlayerContent({ charUrl, projectID, client, orbitControl
     const model: any = useLoader(GLTFLoader,charUrl);
     const character = useGame((state: any) => state.character);
     const firstPerson = useGame((state: any) => state.firstPerson);
+    const cameraRealtimeFollow = useGame((state: any) => state.cameraRealtimeFollow);
     const center = useGame((state: any) => state.searchCenter);
     const [capsuleHalfHeight, setCapsuleHalfHeight] = useState(0.25);
     const [capsuleRadius, setCapsuleRadius] = useState(0.3);
@@ -51,7 +52,7 @@ export default function PlayerContent({ charUrl, projectID, client, orbitControl
             });
         }
    
-     model.scene?.scale.set(1.4,1.4,1.4)
+     model.scene?.scale.set(1.6,1.6,1.6)
         return model;
     }, [character, firstPerson, projectID,model, projectID]);
 
@@ -89,7 +90,7 @@ export default function PlayerContent({ charUrl, projectID, client, orbitControl
                 <CharacterModel charModel={charModel} />
             </Ecctrl> }
 
-            <RemotePlayerList playerObject={charModel} />
+            {!cameraRealtimeFollow && <RemotePlayerList playerObject={charModel} />}
 
       </>
     );

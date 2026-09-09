@@ -59,9 +59,12 @@ export default function RemotePlayer({ player, rPlayer, animations }: any) {
         if (player?.isTrackReplay) {
             setYOffset(-0.4)
             
-        }
+        } 
+        // else {
+        //     model.scale.multiplyScalar(1.7);
+        // }
    
-          model.scale.multiplyScalar(1.7);
+          model.scale.multiplyScalar(2);
         
             
         

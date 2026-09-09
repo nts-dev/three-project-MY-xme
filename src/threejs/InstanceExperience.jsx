@@ -44,6 +44,7 @@ import { applySceneGridVisibility } from "../utils/gridVisibility";
 import PathWalkingAvatar from "./player/PathWalkingAvatar";
 import RoutePathIndicator from "./player/RoutePathIndicator";
 import CameraPathReplay from "./player/CameraPathReplay";
+import CameraRealtimeFollow from "./player/CameraRealtimeFollow";
 
 const DSL_SCENE_COMMAND_APPLIED = "dsl-scene-command-applied";
 const MIN_REMOTE_SCENE_INDICATOR_MS = 450;
@@ -2128,6 +2129,7 @@ const configureOriginalMeshMaterial = (material, mesh) => {
             <Dots sceneObject={sceneObject.current} />
             <DevicePath sceneObject={sceneObject.current} />
             <CameraPathReplay />
+            <CameraRealtimeFollow />
             {showProject135PathAvatar && <Project135PathAvatar />}
             {bProjectId > 0 && (bProjectId != 147 && bProjectId != 148) && <Building bProjectId={bProjectId} />}
             {/* <DroneShowMorph morphs={sceneMorphs} categories={morphCategories} /> */}
