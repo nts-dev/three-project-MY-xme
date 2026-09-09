@@ -5,8 +5,7 @@ import useGame from "../../hooks/useGame";
 import { socket } from "../../socket";
 
 const CAMERA_FOLLOW_DISTANCE = 8.5;
-const CAMERA_FOLLOW_HEIGHT = 2.4;
-const PROJECT_126_CAMERA_HEIGHT_SCALE = -0.120;
+const CAMERA_FOLLOW_HEIGHT = 0;
 const MIN_CAMERA_ELEVATION = THREE.MathUtils.degToRad(-20);
 const MAX_CAMERA_ELEVATION = THREE.MathUtils.degToRad(66);
 const CAMERA_POSITION_SMOOTHING = 7;
@@ -29,17 +28,8 @@ function toScenePosition(player: any, target: THREE.Vector3) {
     return target;
 }
 
-function getProjectBaseId(projectID: any) {
-       
-    return String(projectID || "").replace(/_L\d+$/i, "");
-}
-
-function getCameraFollowHeight(projectID: any) {
+function getCameraFollowHeight(_projectID: any) {
     return CAMERA_FOLLOW_HEIGHT
-    
-    // getProjectBaseId(projectID) === "126"
-    //     ? CAMERA_FOLLOW_HEIGHT * PROJECT_126_CAMERA_HEIGHT_SCALE
-    //     : CAMERA_FOLLOW_HEIGHT;
 }
 
 function getClampedViewElevation(playerViewAngle: any) {
