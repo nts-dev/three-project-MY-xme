@@ -103,7 +103,6 @@ export default function CameraRealtimeFollow() {
         controls.enabled = false;
         camera.position.set(0, getCameraFollowHeight(projectID), 0);
         const originTargetY = getForwardTargetY(camera.position.y, getClampedViewElevation(playerViewAngle));
-        console.log(originTargetY)
         camera.lookAt(0, originTargetY, -CAMERA_FOLLOW_DISTANCE);
         controls.target.set(0, originTargetY, -CAMERA_FOLLOW_DISTANCE);
         controls.update?.();
@@ -112,7 +111,7 @@ export default function CameraRealtimeFollow() {
         return () => {
             controls.enabled = previousEnabled;
         };
-    }, [cameraRealtimeFollow, camera, orbitControlsRef, playerViewAngle]);
+    }, [cameraRealtimeFollow, camera, orbitControlsRef, projectID]);
 
     useFrame((_, delta) => {
         if (!cameraRealtimeFollow) return;
@@ -120,9 +119,8 @@ export default function CameraRealtimeFollow() {
         const hasFreshGpsUpdate = followedPlayerRef.current
             && performance.now() - lastGpsUpdateAtRef.current <= GPS_UPDATE_TIMEOUT_MS;
 
-        if (!hasFreshGpsUpdate) {
+        if (!hasFreshGpsUpdate && !hasPositionRef.current) {
             followedPlayerRef.current = null;
-            hasPositionRef.current = false;
             camera.position.set(0, getCameraFollowHeight(projectID), 0);
             const originTargetY = getForwardTargetY(camera.position.y, getClampedViewElevation(playerViewAngle));
             const controls = orbitControlsRef?.current;
@@ -136,7 +134,11 @@ export default function CameraRealtimeFollow() {
             return;
         }
 
-        toScenePosition(followedPlayerRef.current, currentPositionRef.current);
+        if (hasFreshGpsUpdate) {
+            toScenePosition(followedPlayerRef.current, currentPositionRef.current);
+        } else {
+            followedPlayerRef.current = null;
+        }
 
         if (!hasPositionRef.current) {
             hasPositionRef.current = true;
