@@ -5,7 +5,7 @@ import useGame from "../../hooks/useGame";
 import { socket } from "../../socket";
 
 const CAMERA_FOLLOW_DISTANCE = 8.5;
-const CAMERA_FOLLOW_HEIGHT = -6;
+const CAMERA_FOLLOW_HEIGHT = 0;
 const MIN_CAMERA_ELEVATION = THREE.MathUtils.degToRad(-20);
 const MAX_CAMERA_ELEVATION = THREE.MathUtils.degToRad(66);
 const CAMERA_POSITION_SMOOTHING = 7;
