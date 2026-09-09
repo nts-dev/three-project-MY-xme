@@ -111,8 +111,10 @@ export default function CameraRealtimeFollow() {
 
         if (!hasFreshGpsUpdate && !hasPositionRef.current) {
             followedPlayerRef.current = null;
+           
             camera.position.set(0, getCameraFollowHeight(projectID), 0);
-            const originTargetY = getForwardTargetY(camera.position.y, getClampedViewElevation(playerViewAngle));
+             const originTargetY = getForwardTargetY(camera.position.y, getClampedViewElevation(playerViewAngle));
+            console.log(originTargetY)
             const controls = orbitControlsRef?.current;
             if (controls?.target) {
                 controls.target.set(0, originTargetY, -CAMERA_FOLLOW_DISTANCE);
@@ -146,13 +148,13 @@ export default function CameraRealtimeFollow() {
             followDirectionRef.current.lerp(movementDirection.normalize(), 1 - Math.exp(-9 * delta)).normalize();
         }
 
-        const baseCameraHeight = getCameraFollowHeight(projectID);
+        // const baseCameraHeight = getCameraFollowHeight(projectID);
         const viewElevation = getClampedViewElevation(playerViewAngle);
 
         desiredCameraRef.current
             .copy(currentPositionRef.current)
             .addScaledVector(followDirectionRef.current, -CAMERA_FOLLOW_DISTANCE);
-        desiredCameraRef.current.y += baseCameraHeight;
+        desiredCameraRef.current.y -= 3;
 
         desiredTargetRef.current
             .copy(currentPositionRef.current)
