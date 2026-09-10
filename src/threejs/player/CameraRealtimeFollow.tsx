@@ -11,7 +11,7 @@ const MIN_CAMERA_ELEVATION = THREE.MathUtils.degToRad(-20);
 const MAX_CAMERA_ELEVATION = THREE.MathUtils.degToRad(66);
 const CAMERA_POSITION_SMOOTHING = 7;
 const CAMERA_TARGET_SMOOTHING = 8;
-const CAMERA_ROTATION_SMOOTHING = 0.8;
+const CAMERA_ROTATION_SMOOTHING = 5;
 const CAMERA_ROTATION_DEADZONE = THREE.MathUtils.degToRad(1);
 const CAMERA_STRAIGHT_PATH_DOT = Math.cos(CAMERA_ROTATION_DEADZONE);
 const MOVEMENT_DIRECTION_EPSILON = 0.00004;
@@ -247,7 +247,7 @@ export default function CameraRealtimeFollow() {
             const dot = THREE.MathUtils.clamp(followDirectionRef.current.dot(movementDirection), -1, 1);
             if (dot < CAMERA_STRAIGHT_PATH_DOT) {
                 followDirectionRef.current
-                    .copy(movementDirection)
+                    .lerp(movementDirection, 1 - Math.exp(-CAMERA_ROTATION_SMOOTHING * delta))
                     .normalize();
             }
         }
