@@ -247,7 +247,7 @@ export default function CameraRealtimeFollow() {
             const dot = THREE.MathUtils.clamp(followDirectionRef.current.dot(movementDirection), -1, 1);
             if (dot < CAMERA_STRAIGHT_PATH_DOT) {
                 followDirectionRef.current
-                    .lerp(movementDirection, 1 - Math.exp(-CAMERA_ROTATION_SMOOTHING * delta))
+                    .copy(movementDirection)
                     .normalize();
             }
         }
