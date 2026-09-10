@@ -149,6 +149,248 @@
     transform: translateX(-50%) translateY(0);
 }
 
+.camera-realtime-walk-tracker {
+    position: fixed;
+    left: 16px;
+    bottom: 16px;
+    z-index: 1000004;
+    width: 244px;
+    min-height: 136px;
+    box-sizing: border-box;
+    padding: 14px 14px 12px;
+    pointer-events: auto;
+    color: #f2fbff;
+    font-family: var(--game-play-hud-font, "New Science", "Roboto Mono", "Consolas", monospace);
+    background:
+        radial-gradient(ellipse at 50% 0%, rgba(21, 85, 74, 0.42), transparent 54%),
+        linear-gradient(180deg, rgba(2, 24, 20, 0.95), rgba(5, 18, 15, 0.94));
+    border: 1px solid rgba(35, 244, 248, 0.08);
+    border-radius: 12px;
+    box-shadow:
+        inset 0 0 18px rgba(35, 244, 248, 0.06),
+        0 16px 32px rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.camera-realtime-walk-tracker__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.camera-realtime-walk-tracker__title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #23f4f8;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.camera-realtime-walk-tracker__title svg {
+    width: 12px;
+    height: 12px;
+}
+
+.camera-realtime-walk-tracker__actions {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.camera-realtime-walk-tracker__rec,
+.camera-realtime-walk-tracker__reset {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 25px;
+    padding: 0 8px;
+    border: 1px solid rgba(255, 96, 84, 0.42);
+    border-radius: 999px;
+    background: rgba(14, 8, 8, 0.38);
+    color: #ff8b7f;
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.camera-realtime-walk-tracker__rec span {
+    width: 14px;
+    height: 14px;
+    border: 1px solid rgba(255, 96, 84, 0.85);
+    border-radius: 50%;
+    background: rgba(255, 96, 84, 0.28);
+    box-shadow: inset 0 0 0 2px rgba(255, 96, 84, 0.18);
+}
+
+.camera-realtime-walk-tracker__rec.is-live span {
+    background: rgba(255, 96, 84, 0.56);
+    box-shadow:
+        inset 0 0 0 2px rgba(255, 96, 84, 0.22),
+        0 0 8px rgba(255, 96, 84, 0.44);
+}
+
+.camera-realtime-walk-tracker__reset {
+    border-color: rgba(255, 96, 84, 0.28);
+    cursor: pointer;
+}
+
+.camera-realtime-walk-tracker__reset:hover {
+    color: #ffd5cf;
+    border-color: rgba(255, 96, 84, 0.62);
+    box-shadow: 0 0 10px rgba(255, 96, 84, 0.16);
+}
+
+.camera-realtime-walk-tracker__reset svg {
+    width: 7px;
+    height: 7px;
+}
+
+.camera-realtime-walk-tracker__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    padding-bottom: 13px;
+    border-bottom: 1px solid rgba(186, 227, 218, 0.1);
+}
+
+.camera-realtime-walk-tracker__grid div {
+    min-width: 0;
+    padding: 0 12px;
+    text-align: center;
+}
+
+.camera-realtime-walk-tracker__grid div:first-child {
+    padding-left: 0;
+}
+
+.camera-realtime-walk-tracker__grid div:last-child {
+    padding-right: 0;
+}
+
+.camera-realtime-walk-tracker__grid div + div {
+    border-left: 1px solid rgba(186, 227, 218, 0.1);
+}
+
+.camera-realtime-walk-tracker__grid span,
+.camera-realtime-walk-tracker__grid small {
+    display: block;
+    color: rgba(242, 251, 255, 0.34);
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1.1;
+}
+
+.camera-realtime-walk-tracker__grid strong {
+    display: block;
+    margin: 6px 0 3px;
+    color: #f2fbff;
+    font-size: 25px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.camera-realtime-walk-tracker__grid div:last-child strong {
+    color: #23f4f8;
+}
+
+.camera-realtime-walk-tracker__time {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 11px;
+    color: rgba(242, 251, 255, 0.32);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.camera-realtime-walk-tracker__time svg {
+    width: 10px;
+    height: 10px;
+    color: rgba(242, 251, 255, 0.26);
+}
+
+.camera-realtime-compass {
+    position: fixed;
+    top: 96px;
+    right: 86px;
+    z-index: 1000004;
+    display: grid;
+    place-items: center;
+    gap: 4px;
+    width: 62px;
+    pointer-events: none;
+    color: #23f4f8;
+    font-family: var(--game-play-hud-font, "New Science", "Roboto Mono", "Consolas", monospace);
+}
+
+.camera-realtime-compass__dial {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 54px;
+    height: 54px;
+    border: 1px solid rgba(35, 244, 248, 0.24);
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 50% 42%, rgba(35, 244, 248, 0.16), transparent 34%),
+        rgba(2, 20, 18, 0.88);
+    box-shadow:
+        inset 0 0 18px rgba(35, 244, 248, 0.08),
+        0 10px 26px rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.camera-realtime-compass__north {
+    position: absolute;
+    top: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(242, 251, 255, 0.72);
+    font-size: 8px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.camera-realtime-compass__needle {
+    width: 30px;
+    height: 30px;
+    color: #23f4f8;
+    transform-origin: 50% 50%;
+    transition: transform 220ms ease-out;
+    filter: drop-shadow(0 0 8px rgba(35, 244, 248, 0.72));
+}
+
+.camera-realtime-compass__degrees {
+    color: #23f4f8;
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1;
+    text-shadow: 0 0 8px rgba(35, 244, 248, 0.72);
+}
+
+@media (max-width: 900px) {
+    .camera-realtime-walk-tracker {
+        left: 14px;
+        bottom: 14px;
+    }
+
+    .camera-realtime-compass {
+        top: 92px;
+        right: 18px;
+    }
+}
+
 .play-category-popup {
     position: fixed;
     left: 20px;

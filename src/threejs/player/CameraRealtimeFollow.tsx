@@ -11,8 +11,13 @@ const MIN_CAMERA_ELEVATION = THREE.MathUtils.degToRad(-20);
 const MAX_CAMERA_ELEVATION = THREE.MathUtils.degToRad(66);
 const CAMERA_POSITION_SMOOTHING = 7;
 const CAMERA_TARGET_SMOOTHING = 8;
+const CAMERA_ROTATION_SMOOTHING = 2.8;
+const CAMERA_ROTATION_DEADZONE = THREE.MathUtils.degToRad(5);
+const CAMERA_STRAIGHT_PATH_DOT = Math.cos(CAMERA_ROTATION_DEADZONE);
 const MOVEMENT_DIRECTION_EPSILON = 0.00004;
 const GPS_UPDATE_TIMEOUT_MS = 3000;
+const TELEMETRY_EMIT_INTERVAL_MS = 160;
+const TELEMETRY_DISTANCE_EPSILON = 0.001;
 
 function toNumber(value: any, fallback = 0) {
     const numberValue = Number(value);
@@ -49,12 +54,31 @@ function getForwardTargetY(cameraY: number, viewElevation: number) {
     return cameraY - Math.tan(viewElevation) * CAMERA_FOLLOW_DISTANCE;
 }
 
+function normalizeHeading(degrees: number) {
+    return (degrees + 360) % 360;
+}
+
+function getHeadingFromDirection(direction: THREE.Vector3) {
+    return normalizeHeading(THREE.MathUtils.radToDeg(Math.atan2(direction.x, direction.z)));
+}
+
+function readPlayerNumber(player: any, keys: string[], fallback = Number.NaN) {
+    for (const key of keys) {
+        const rawValue = key.split(".").reduce((value, part) => value?.[part], player);
+        const value = Number(rawValue);
+        if (Number.isFinite(value)) return value;
+    }
+    return fallback;
+}
+
 export default function CameraRealtimeFollow() {
     const { camera } = useThree();
     const projectID = useGame((state: any) => state.projectID);
     const cameraRealtimeFollow = useGame((state: any) => state.cameraRealtimeFollow);
     const playerViewAngle = useGame((state: any) => state.playerViewAngle);
     const orbitControlsRef = useGame((state: any) => state.orbitControlsRef);
+    const cameraRealtimeTelemetryResetTick = useGame((state: any) => state.cameraRealtimeTelemetryResetTick);
+    const setCameraRealtimeTelemetry = useGame((state: any) => state.setCameraRealtimeTelemetry);
     const followedPlayerRef = useRef<any>(null);
     const lastGpsUpdateAtRef = useRef(0);
     const currentPositionRef = useRef(new THREE.Vector3());
@@ -65,12 +89,27 @@ export default function CameraRealtimeFollow() {
     const desiredTargetRef = useRef(new THREE.Vector3());
     const smoothedTargetRef = useRef(new THREE.Vector3());
     const hasPositionRef = useRef(false);
+    const telemetryPreviousPositionRef = useRef(new THREE.Vector3());
+    const hasTelemetryPositionRef = useRef(false);
+    const totalDistanceRef = useRef(0);
+    const speedSamplesRef = useRef<number[]>([]);
+    const lastTelemetryEmitAtRef = useRef(0);
 
     useEffect(() => {
         if (!cameraRealtimeFollow) {
             followedPlayerRef.current = null;
             lastGpsUpdateAtRef.current = 0;
             hasPositionRef.current = false;
+            hasTelemetryPositionRef.current = false;
+            totalDistanceRef.current = 0;
+            speedSamplesRef.current = [];
+            setCameraRealtimeTelemetry({
+                currentSpeed: 0,
+                averageSpeed: 0,
+                distance: 0,
+                heading: getHeadingFromDirection(followDirectionRef.current),
+                hasGpsUpdate: false,
+            });
             return undefined;
         }
 
@@ -88,7 +127,7 @@ export default function CameraRealtimeFollow() {
         return () => {
             socket.off("playersUpdate", handlePlayers);
         };
-    }, [cameraRealtimeFollow]);
+    }, [cameraRealtimeFollow, setCameraRealtimeTelemetry]);
 
     useEffect(() => {
         const controls = orbitControlsRef?.current;
@@ -102,24 +141,51 @@ export default function CameraRealtimeFollow() {
         controls.target.set(0, originTargetY, -CAMERA_FOLLOW_DISTANCE);
         controls.update?.();
         smoothedTargetRef.current.copy(controls.target);
+        setCameraRealtimeTelemetry({
+            currentSpeed: 0,
+            averageSpeed: 0,
+            distance: totalDistanceRef.current,
+            heading: getHeadingFromDirection(followDirectionRef.current),
+            hasGpsUpdate: false,
+        });
 
         return () => {
             controls.enabled = previousEnabled;
         };
-    }, [cameraRealtimeFollow, camera, orbitControlsRef, projectID]);
+    }, [cameraRealtimeFollow, camera, orbitControlsRef, projectID, setCameraRealtimeTelemetry]);
+
+    useEffect(() => {
+        if (!cameraRealtimeFollow) return;
+
+        totalDistanceRef.current = 0;
+        speedSamplesRef.current = [];
+        if (hasPositionRef.current) {
+            telemetryPreviousPositionRef.current.copy(currentPositionRef.current);
+            hasTelemetryPositionRef.current = true;
+        } else {
+            hasTelemetryPositionRef.current = false;
+        }
+        setCameraRealtimeTelemetry({
+            currentSpeed: 0,
+            averageSpeed: 0,
+            distance: 0,
+            heading: getHeadingFromDirection(followDirectionRef.current),
+        });
+    }, [cameraRealtimeFollow, cameraRealtimeTelemetryResetTick, setCameraRealtimeTelemetry]);
 
     useFrame((_, delta) => {
         if (!cameraRealtimeFollow) return;
 
+        const now = performance.now();
         const hasFreshGpsUpdate = followedPlayerRef.current
-            && performance.now() - lastGpsUpdateAtRef.current <= GPS_UPDATE_TIMEOUT_MS;
+            && now - lastGpsUpdateAtRef.current <= GPS_UPDATE_TIMEOUT_MS;
 
         if (!hasFreshGpsUpdate && !hasPositionRef.current) {
             followedPlayerRef.current = null;
-           
+
             camera.position.set(0, getCameraFollowHeight(projectID), 0);
-             const originTargetY = getForwardTargetY(camera.position.y, getClampedViewElevation(playerViewAngle));
-            
+            const originTargetY = getForwardTargetY(camera.position.y, getClampedViewElevation(playerViewAngle));
+
             const controls = orbitControlsRef?.current;
             if (controls?.target) {
                 controls.target.set(0, originTargetY, -CAMERA_FOLLOW_DISTANCE);
@@ -128,11 +194,22 @@ export default function CameraRealtimeFollow() {
                 camera.lookAt(0, originTargetY, -CAMERA_FOLLOW_DISTANCE);
             }
             camera.updateMatrixWorld();
+            if (now - lastTelemetryEmitAtRef.current >= TELEMETRY_EMIT_INTERVAL_MS) {
+                lastTelemetryEmitAtRef.current = now;
+                setCameraRealtimeTelemetry({
+                    currentSpeed: 0,
+                    averageSpeed: 0,
+                    distance: totalDistanceRef.current,
+                    heading: getHeadingFromDirection(followDirectionRef.current),
+                    hasGpsUpdate: false,
+                });
+            }
             return;
         }
 
+        const activePlayer = followedPlayerRef.current;
         if (hasFreshGpsUpdate) {
-            toScenePosition(followedPlayerRef.current, currentPositionRef.current);
+            toScenePosition(activePlayer, currentPositionRef.current);
         } else {
             followedPlayerRef.current = null;
         }
@@ -140,6 +217,8 @@ export default function CameraRealtimeFollow() {
         if (!hasPositionRef.current) {
             hasPositionRef.current = true;
             previousPositionRef.current.copy(currentPositionRef.current);
+            telemetryPreviousPositionRef.current.copy(currentPositionRef.current);
+            hasTelemetryPositionRef.current = true;
             smoothedTargetRef.current.copy(currentPositionRef.current);
             smoothedTargetRef.current.y += getCameraFollowHeight(projectID);
         }
@@ -148,12 +227,18 @@ export default function CameraRealtimeFollow() {
             .copy(currentPositionRef.current)
             .sub(previousPositionRef.current);
         movementDirection.y = 0;
+        const movementDistance = movementDirection.length();
 
-        if (movementDirection.lengthSq() > MOVEMENT_DIRECTION_EPSILON) {
-            followDirectionRef.current.lerp(movementDirection.normalize(), 1 - Math.exp(-9 * delta)).normalize();
+        if (movementDistance * movementDistance > MOVEMENT_DIRECTION_EPSILON) {
+            movementDirection.normalize();
+            const dot = THREE.MathUtils.clamp(followDirectionRef.current.dot(movementDirection), -1, 1);
+            if (dot < CAMERA_STRAIGHT_PATH_DOT) {
+                followDirectionRef.current
+                    .lerp(movementDirection, 1 - Math.exp(-CAMERA_ROTATION_SMOOTHING * delta))
+                    .normalize();
+            }
         }
 
-        const baseCameraHeight = getCameraFollowHeight(projectID);
         const viewElevation = getClampedViewElevation(playerViewAngle);
 
         desiredCameraRef.current
@@ -180,6 +265,91 @@ export default function CameraRealtimeFollow() {
         }
 
         camera.updateMatrixWorld();
+
+        if (hasFreshGpsUpdate && hasTelemetryPositionRef.current) {
+            const horizontalTelemetryDelta = remotePositionRef.current
+                .copy(currentPositionRef.current)
+                .sub(telemetryPreviousPositionRef.current);
+            horizontalTelemetryDelta.y = 0;
+            const distanceDelta = horizontalTelemetryDelta.length();
+            if (distanceDelta > TELEMETRY_DISTANCE_EPSILON) {
+                totalDistanceRef.current += distanceDelta;
+            }
+            telemetryPreviousPositionRef.current.copy(currentPositionRef.current);
+        }
+
+        if (now - lastTelemetryEmitAtRef.current >= TELEMETRY_EMIT_INTERVAL_MS) {
+            lastTelemetryEmitAtRef.current = now;
+            const computedSpeed = movementDistance / Math.max(delta, 0.001);
+            const currentSpeed = readPlayerNumber(
+                activePlayer,
+                [
+                    "current_speed",
+                    "currentSpeed",
+                    "speed",
+                    "playerSpeed",
+                    "walkTracker.currentSpeed",
+                    "tracker.currentSpeed",
+                    "telemetry.currentSpeed",
+                ],
+                computedSpeed
+            );
+            if (Number.isFinite(currentSpeed)) {
+                speedSamplesRef.current.push(currentSpeed);
+                if (speedSamplesRef.current.length > 40) {
+                    speedSamplesRef.current.shift();
+                }
+            }
+            const sampledAverage = speedSamplesRef.current.length
+                ? speedSamplesRef.current.reduce((sum, speed) => sum + speed, 0) / speedSamplesRef.current.length
+                : 0;
+            const averageSpeed = readPlayerNumber(
+                activePlayer,
+                [
+                    "average_speed",
+                    "averageSpeed",
+                    "avgSpeed",
+                    "avg_speed",
+                    "walkTracker.averageSpeed",
+                    "tracker.averageSpeed",
+                    "telemetry.averageSpeed",
+                ],
+                sampledAverage
+            );
+            const distance = readPlayerNumber(
+                activePlayer,
+                [
+                    "distance_covered",
+                    "distanceCovered",
+                    "distanceMoved",
+                    "distance_moved",
+                    "totalDistance",
+                    "total_distance",
+                    "distance",
+                    "walkTracker.distance",
+                    "tracker.distance",
+                    "telemetry.distance",
+                ],
+                totalDistanceRef.current
+            );
+            const playerHeading = readPlayerNumber(
+                activePlayer,
+                ["direction", "heading", "phone_sensor_direction", "location_direction"],
+                Number.NaN
+            );
+            const heading = Number.isFinite(playerHeading)
+                ? normalizeHeading(playerHeading)
+                : getHeadingFromDirection(followDirectionRef.current);
+
+            setCameraRealtimeTelemetry({
+                currentSpeed: Number.isFinite(currentSpeed) ? currentSpeed : 0,
+                averageSpeed: Number.isFinite(averageSpeed) ? averageSpeed : 0,
+                distance: Number.isFinite(distance) ? distance : totalDistanceRef.current,
+                heading,
+                hasGpsUpdate: Boolean(hasFreshGpsUpdate),
+            });
+        }
+
         previousPositionRef.current.copy(currentPositionRef.current);
     });
 

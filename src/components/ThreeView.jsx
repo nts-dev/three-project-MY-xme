@@ -69,6 +69,7 @@ import GameMenu from "./popup/gui/GameMenu.jsx";
 import AvatarSetupConfirm from "./popup/gui/AvatarSetupConfirm.jsx";
 import PlayAssetInfoHud from "./popup/gui/playAssetInfo/PlayAssetInfoHud.jsx";
 import PlayCategoryPopup from "./popup/gui/playAssetInfo/PlayCategoryPopup.jsx";
+import CameraRealtimeTelemetryHud from "./popup/gui/playAssetInfo/CameraRealtimeTelemetryHud.jsx";
 import PlayModeViewControls from "./popup/gui/playAssetInfo/PlayModeViewControls.jsx";
 import PuzzleAssetPlacementController from "./puzzle-game/PuzzleAssetPlacementController.jsx";
 import CategorySelectionDialog from "./popup/form/CategorySelectionDialog.jsx";
@@ -831,6 +832,7 @@ export default function ThreeView() {
             {!isXrPresenting && (editorShellNode ? createPortal(coordinateOverlay, editorShellNode) : coordinateOverlay)}
             {!isXrPresenting && isGameRuntime && <GameRuntimeChrome cameraRef={cameraRef} />}
             {!isXrPresenting && !isPuzzleGame && !isCadProject && (buttonMode === 'Play mode' || showUrlViewControls || showGoogleThreeViewControls) && <PlayModeViewControls />}
+            {!isXrPresenting && <CameraRealtimeTelemetryHud />}
             {/* {!isPuzzleGame && buttonMode === 'Play mode' && <PlayCategoryPopup />} */}
             {!isXrPresenting && (!isPuzzleGame || character || firstPerson) && <PlayAssetInfoHud cameraRef={cameraRef} sceneRef={sceneRef} />}
             {isGameRuntime && <AvatarSetupConfirm />}

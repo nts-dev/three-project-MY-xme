@@ -253,6 +253,14 @@ const useGame = create((set) => ({
     playerTrackReplay: false,
     cameraPathReplay: false,
     cameraRealtimeFollow: false,
+    cameraRealtimeTelemetry: {
+        currentSpeed: 0,
+        averageSpeed: 0,
+        distance: 0,
+        heading: 0,
+        hasGpsUpdate: false,
+    },
+    cameraRealtimeTelemetryResetTick: 0,
     confirmationObj: {},
     uName: '',
     gameStartTick: 0,
@@ -541,6 +549,25 @@ const useGame = create((set) => ({
         set((state: any) => ({
             ...state,
             cameraRealtimeFollow
+        })),
+    setCameraRealtimeTelemetry: (cameraRealtimeTelemetry: any) =>
+        set((state: any) => ({
+            ...state,
+            cameraRealtimeTelemetry: {
+                ...state.cameraRealtimeTelemetry,
+                ...cameraRealtimeTelemetry,
+            }
+        })),
+    resetCameraRealtimeTelemetry: () =>
+        set((state: any) => ({
+            ...state,
+            cameraRealtimeTelemetryResetTick: (Number(state.cameraRealtimeTelemetryResetTick) || 0) + 1,
+            cameraRealtimeTelemetry: {
+                ...state.cameraRealtimeTelemetry,
+                currentSpeed: 0,
+                averageSpeed: 0,
+                distance: 0,
+            }
         })),
     setActivatedTile: (activatedTile: number) =>
         set((state: any) => ({
