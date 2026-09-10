@@ -58,6 +58,16 @@ function TrackPathDots({ groups }: { groups: PlayerTrackPathGroup[] }) {
     );
 }
 
+function normalizePlayersPayload(players: any) {
+    if (Array.isArray(players)) return players;
+    if (players && typeof players === "object") return Object.values(players);
+    return [];
+}
+
+function hasGpsFix(player: any) {
+    return player?.gps !== null;
+}
+
 export default function RemotePlayerList({playerObject}: any) {
     const {scene, animations} = playerObject;
     const [players, setPlayers] = useState<any[]>([]);
@@ -80,11 +90,15 @@ export default function RemotePlayerList({playerObject}: any) {
     useEffect(() => {
 
         socket.on("disconnected", disconnect);
-        socket.on("playersUpdate", setPlayers);
+        const handlePlayersUpdate = (nextPlayers: any) => {
+            setPlayers(normalizePlayersPayload(nextPlayers).filter(hasGpsFix));
+        };
+
+        socket.on("playersUpdate", handlePlayersUpdate);
         socket.emit('getPlayers', '');
 
         return () => {
-            socket.off("playersUpdate", setPlayers);
+            socket.off("playersUpdate", handlePlayersUpdate);
             socket.off("disconnected", disconnect);
         };
     }, []);
@@ -92,12 +106,15 @@ export default function RemotePlayerList({playerObject}: any) {
     const handleAvailableRemotePlayers = (aPlayers: any)=>{
         setPlayerActionList(aPlayers)
 
-        setPlayers(aPlayers)
+        setPlayers(normalizePlayersPayload(aPlayers).filter(hasGpsFix))
     }
     useEffect(() => {
 
         socket.on("remotePlayers", handleAvailableRemotePlayers)
 
+        return () => {
+            socket.off("remotePlayers", handleAvailableRemotePlayers);
+        };
     }, []);
 
 
@@ -117,11 +134,12 @@ export default function RemotePlayerList({playerObject}: any) {
         const localClientIdValue = String(localClientId || "").trim();
         const socketClientIds = new Set(players.map((player: any) => player?.clientId).filter(Boolean));
         const mergedPlayers = [
-            ...players,
+            ...players.filter(hasGpsFix),
             ...trackPlayers.filter((player: any) => !socketClientIds.has(player?.clientId)),
         ];
 
         return mergedPlayers.filter((player: any) => {
+            if (!hasGpsFix(player)) return false;
             if (!player?.clientId) return false;
             return !localClientIdValue || localClientIdValue !== player.clientId;
         });

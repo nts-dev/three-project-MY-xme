@@ -11,7 +11,7 @@ const MIN_CAMERA_ELEVATION = THREE.MathUtils.degToRad(-20);
 const MAX_CAMERA_ELEVATION = THREE.MathUtils.degToRad(66);
 const CAMERA_POSITION_SMOOTHING = 7;
 const CAMERA_TARGET_SMOOTHING = 8;
-const CAMERA_ROTATION_SMOOTHING = 2.8;
+const CAMERA_ROTATION_SMOOTHING = 0.8;
 const CAMERA_ROTATION_DEADZONE = THREE.MathUtils.degToRad(5);
 const CAMERA_STRAIGHT_PATH_DOT = Math.cos(CAMERA_ROTATION_DEADZONE);
 const MOVEMENT_DIRECTION_EPSILON = 0.00004;
@@ -71,6 +71,20 @@ function readPlayerNumber(player: any, keys: string[], fallback = Number.NaN) {
     return fallback;
 }
 
+function hasGpsFix(player: any) {
+    return player?.gps !== null;
+}
+
+function hasPositionPayload(player: any) {
+    return player?.position || player?.posX !== undefined || player?.three_x !== undefined;
+}
+
+function normalizePlayersPayload(players: any) {
+    if (Array.isArray(players)) return players;
+    if (players && typeof players === "object") return Object.values(players);
+    return [];
+}
+
 export default function CameraRealtimeFollow() {
     const { camera } = useThree();
     const projectID = useGame((state: any) => state.projectID);
@@ -114,9 +128,8 @@ export default function CameraRealtimeFollow() {
         }
 
         const handlePlayers = (players: any[]) => {
-            const nextPlayer = Array.isArray(players)
-                ? players.find((player) => player?.position || player?.posX !== undefined || player?.three_x !== undefined)
-                : null;
+            const nextPlayer = normalizePlayersPayload(players)
+                .find((player: any) => hasGpsFix(player) && hasPositionPayload(player));
 
             followedPlayerRef.current = nextPlayer || null;
             lastGpsUpdateAtRef.current = nextPlayer ? performance.now() : 0;

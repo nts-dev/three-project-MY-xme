@@ -60,6 +60,10 @@ function isSameProject(record: any, projectID: any) {
     return recordProject === String(projectID) || recordProject === projectBaseId;
 }
 
+function hasGpsFix(record: any) {
+    return record?.gps !== null;
+}
+
 function toNumber(value: any, fallback = 0) {
     const numberValue = Number(value);
     return Number.isFinite(numberValue) ? numberValue : fallback;
@@ -167,7 +171,7 @@ async function fetchTrack(source: { id: string; url: string }, projectID: any) {
     if (!Array.isArray(records)) return [];
 
         return records
-        .filter((record) => isSameProject(record, projectID))
+        .filter((record) => hasGpsFix(record) && isSameProject(record, projectID))
         .sort(byDateTime)
         .slice(TRACK_START_FRAME)
         .map((record) => normalizeTrackRecord(record, source.id));
