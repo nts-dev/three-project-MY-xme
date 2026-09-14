@@ -196,7 +196,7 @@ export default function RemotePlayer({ player, rPlayer, animations }: any) {
         >
             {/* Capsule Collider to match player shape */}
             <CapsuleCollider args={[capsuleHalfHeight, capsuleRadius]} position={[0, 0, 0]} />
-            <PlayerLabel
+            {/* <PlayerLabel
                 key={clientId}
                 userName={userName}
                 playerSpeed={speed}
@@ -204,7 +204,7 @@ export default function RemotePlayer({ player, rPlayer, animations }: any) {
                 angle={direction}
                 isLocal={false}
                 remotePosition={position}
-            />
+            /> */}
 
             {/* Player model inside the rigid body */}
             <group ref={playerRef} name={userName}>

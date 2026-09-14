@@ -2520,7 +2520,7 @@
 }
 
 .play-asset-info--sidebar .play-asset-info__meta-item strong {
-    color: rgba(248, 251, 252, 0.9);
+    color: #B2BBB7;
     font-size: 12px;
     line-height: 1.45;
 }
@@ -3114,7 +3114,7 @@
 }
 
 .play-asset-info--sidebar .play-asset-info__meta-item strong {
-    color: rgba(246, 255, 252, 0.9) !important;
+    color: #B2BBB7 !important;
     font-size: 12px !important;
     font-weight: 500 !important;
     line-height: 1.45 !important;
@@ -3372,7 +3372,7 @@
 }
 
 .play-asset-info--sidebar .play-asset-info__meta-item strong {
-    color: rgba(246, 255, 252, 0.9) !important;
+    color: #B2BBB7 !important;
     font-size: 12px !important;
     font-weight: 500 !important;
     line-height: 1.45 !important;
@@ -3631,7 +3631,7 @@
 }
 
 .play-asset-info--sidebar .play-asset-info__meta-item strong {
-    color: rgba(246, 255, 252, 0.9) !important;
+    color: #B2BBB7 !important;
     font-size: 12px !important;
     font-weight: 500 !important;
     line-height: 1.45 !important;
@@ -3857,6 +3857,7 @@
         0 22px 46px rgba(0, 0, 0, 0.44),
         0 0 0 1px rgba(35, 244, 248, 0.08) inset;
     pointer-events: auto;
+    letter-spacing: 0;
 }
 
 .play-building-label-popup__head {
@@ -3894,8 +3895,10 @@
 .play-building-label-popup__status {
     display: block;
     color: rgba(190, 205, 201, 0.72);
-    font-size: 11px;
-    line-height: 1.4;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 22.1px;
+    letter-spacing: 0;
 }
 
 .play-building-label-popup__head button {
@@ -3933,8 +3936,12 @@
 .play-building-label-popup__rows dt,
 .play-building-label-popup__rows dd {
     margin: 0;
-    font-size: 12px;
-    line-height: 1.35;
+    font-family: "Plus Jakarta Sans", "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 22.1px;
+    letter-spacing: 0;
 }
 
 .play-building-label-popup__rows dt {
@@ -4208,9 +4215,12 @@
     min-width: 0;
     overflow: hidden;
     color: #cffff0;
-    font-size: 9px;
-    font-weight: 700;
-    line-height: 1.35;
+    font-family: "Plus Jakarta Sans", "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 13.1px;
+    letter-spacing: 0;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -4224,9 +4234,12 @@
     padding: 0;
     background: transparent;
     color: #cffff0;
-    font-size: 9px;
-    font-weight: 700;
-    line-height: 1.35;
+    font-family: "Plus Jakarta Sans", "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 13.1px;
+    letter-spacing: 0;
     text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -4247,8 +4260,12 @@
 .play-building-label-popup__card p {
     margin: 7px 0 0;
     color: rgba(208, 220, 216, 0.7);
-    font-size: 9px;
-    line-height: 1.35;
+    font-family: "Plus Jakarta Sans", "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 13.1px;
+    letter-spacing: 0;
 }
 
 .play-building-label-popup__photo {
@@ -4532,15 +4549,21 @@
 
 .play-asset-info--sidebar .play-asset-info__title-block p,
 .play-asset-info--sidebar .play-asset-info__meta-item strong {
-    font-size: 12px;
-    font-weight: 500;
-    line-height: 1.45;
+    font-family: "Plus Jakarta Sans", "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 400;
+    /* line-height: 22.1px; */
+    letter-spacing: 0;
 }
 
 .play-asset-info--sidebar .play-asset-info__meta-item span {
-    font-size: 10.8px;
+    font-family: "Plus Jakarta Sans", "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 13px;
+    font-style: normal;
     font-weight: 400;
-    line-height: 1.45;
+    line-height: 22.1px;
+    letter-spacing: 0;
 }
 
 .play-asset-info--sidebar .play-asset-info__text-section {
@@ -4574,8 +4597,12 @@
 .play-asset-info--sidebar .play-asset-info__text-section p {
     margin: 0;
     color: rgba(229, 242, 239, 0.76);
-    font-size: 12px;
-    line-height: 1.55;
+    font-family: "Plus Jakarta Sans", "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 22.1px;
+    letter-spacing: 0;
 }
 
 .play-asset-info--sidebar .play-asset-info__text-section--notes p {
@@ -4610,7 +4637,7 @@
 
 .play-asset-info--sidebar .play-asset-info__meta-item {
     min-height: 34px !important;
-    padding: 10px 0 !important;
+    padding: 5px 0 !important;
 }
 
 .play-asset-info--sidebar .play-asset-info__meta-item > svg {
@@ -4620,11 +4647,19 @@
 }
 
 .play-asset-info--sidebar .play-asset-info__meta-item strong {
-    font-size: 12.4px !important;
+    font-size: 13px !important;
+    font-style: normal;
+    font-weight: 400 !important;
+    /* line-height: 22.1px !important; */
+    letter-spacing: 0 !important;
 }
 
 .play-asset-info--sidebar .play-asset-info__meta-item span {
     font-size: 13px !important;
+    font-style: normal;
+    font-weight: 400 !important;
+    line-height: 22.1px !important;
+    letter-spacing: 0 !important;
 }
 
 .play-asset-info--sidebar .play-asset-info__hero {
@@ -4663,29 +4698,42 @@
     justify-content: flex-end !important;
     align-items: center;
     gap: 8px;
+    margin-top: -48px;
+    margin-bottom: 34px;
+    padding: 0 !important;
+    pointer-events: none;
 }
 
 .play-asset-info--sidebar .play-asset-info__add-photos {
+    display: none !important;
+}
+
+.play-asset-info--sidebar .play-asset-info__edit-button,
+.play-asset-info--sidebar .play-asset-info__systembuilder {
+    pointer-events: auto;
+}
+
+.play-asset-info--sidebar .play-asset-info__edit-button {
     position: static !important;
-    display: inline-flex;
+    display: inline-flex !important;
     align-items: center;
     justify-content: center;
     gap: 5px;
-    height: 22px;
-    padding: 0 10px;
+    height: 42px;
+    padding: 0 18px;
     border: 1px solid rgba(35, 244, 248, 0.44);
-    border-radius: 11px;
+    border-radius: 21px;
     background: rgba(2, 39, 30, 0.82);
     color: #25f4dd;
     font: inherit;
-    font-size: 9.6px !important;
-    font-weight: 800;
+    font-size: 13px !important;
+    font-weight: 400;
     cursor: pointer;
 }
 
-.play-asset-info--sidebar .play-asset-info__add-photos svg {
-    width: 9px;
-    height: 9px;
+.play-asset-info--sidebar .play-asset-info__edit-button svg {
+    width: 11px;
+    height: 11px;
 }
 
 .play-asset-info--sidebar .play-asset-info__gallery-count {

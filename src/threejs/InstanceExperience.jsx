@@ -2130,7 +2130,7 @@ const configureOriginalMeshMaterial = (material, mesh) => {
             <DevicePath sceneObject={sceneObject.current} />
             <CameraPathReplay />
             <CameraRealtimeFollow />
-            {showProject135PathAvatar && <Project135PathAvatar />}
+            {/* {showProject135PathAvatar && <Project135PathAvatar />} */}
             {bProjectId > 0 && (bProjectId != 147 && bProjectId != 148) && <Building bProjectId={bProjectId} />}
             {/* <DroneShowMorph morphs={sceneMorphs} categories={morphCategories} /> */}
             <DslMorphClouds morphs={sceneMorphs} categories={morphCategories} />

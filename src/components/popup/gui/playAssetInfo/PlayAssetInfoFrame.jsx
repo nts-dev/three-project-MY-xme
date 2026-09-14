@@ -1112,11 +1112,7 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                 <div className="play-asset-info__body-actions">
                     <button type="button" className="play-asset-info__edit-button" onClick={handleEditRequest}>
                         <FaEdit aria-hidden="true" />
-                        <span>{isEditing ? "Editing" : "Edit info"}</span>
-                    </button>
-                    <button type="button" className="play-asset-info__add-photos" onClick={handleAddPhotosRequest}>
-                        <FaCamera aria-hidden="true" />
-                        <span>Add Photos</span>
+                        <span>{isEditing ? "Editing" : "Edit"}</span>
                     </button>
                     {showSystemBuilder && (
                         <button

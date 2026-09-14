@@ -28,13 +28,16 @@ function formatElapsed(seconds) {
 
 export default function CameraRealtimeTelemetryHud() {
     const cameraRealtimeFollow = useGame((state) => state.cameraRealtimeFollow);
+    const character = useGame((state) => state.character);
+    const firstPerson = useGame((state) => state.firstPerson);
     const telemetry = useGame((state) => state.cameraRealtimeTelemetry);
     const resetCameraRealtimeTelemetry = useGame((state) => state.resetCameraRealtimeTelemetry);
     const elapsedStartRef = useRef(Date.now());
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const showTelemetryHud = cameraRealtimeFollow || character || firstPerson;
 
     useEffect(() => {
-        if (!cameraRealtimeFollow) return undefined;
+        if (!showTelemetryHud) return undefined;
 
         const startTime = Date.now();
         elapsedStartRef.current = startTime;
@@ -45,9 +48,9 @@ export default function CameraRealtimeTelemetryHud() {
         }, 1000);
 
         return () => window.clearInterval(intervalId);
-    }, [cameraRealtimeFollow]);
+    }, [showTelemetryHud]);
 
-    if (!cameraRealtimeFollow) return null;
+    if (!showTelemetryHud) return null;
 
     const heading = Number.isFinite(Number(telemetry?.heading)) ? Number(telemetry.heading) : 0;
     const distanceValue = Number(telemetry?.distance) || 0;

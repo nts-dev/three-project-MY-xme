@@ -37,6 +37,9 @@ const CAMERA_COLLISION_SPRING = 16;
 const AVATAR_COLLISION_SKIN = 0.04;
 const AVATAR_COLLISION_RAY_HEIGHTS = [0.2, 0.75, 1.25];
 const AVATAR_COLLISION_STOP_DISTANCE = 0.2;
+const AVATAR_TELEMETRY_EMIT_INTERVAL_MS = 160;
+const AVATAR_TELEMETRY_DISTANCE_EPSILON = 0.001;
+const AVATAR_TELEMETRY_MAX_SPEED_SAMPLES = 120;
 
 const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
                                                              children,
@@ -140,6 +143,11 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     const slopeSampleAccumulatorRef = useRef(0);
     const controllerIndexRef = useRef<number | null>(null);
     const gamepadKeysRef = useRef({forward: false, backward: false, leftward: false, rightward: false});
+    const avatarTelemetryPreviousPositionRef = useRef(new THREE.Vector3());
+    const avatarTelemetryHasPositionRef = useRef(false);
+    const avatarTelemetryDistanceRef = useRef(0);
+    const avatarTelemetrySpeedSamplesRef = useRef<number[]>([]);
+    const avatarTelemetryLastEmitAtRef = useRef(0);
     const speedRotMult = THREE.MathUtils.clamp(speedRot, 1, 100) / 100;
     const excludeSensorCollider = useMemo(() => (collider: any) => !collider.isSensor(), []);
     const playerSpeed = useGame((state: any) => state.playerSpeed)
@@ -518,6 +526,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     const avatarCollisionInstanceMatrix = useMemo(() => new THREE.Matrix4(), []);
     const avatarCollisionWorldMatrix = useMemo(() => new THREE.Matrix4(), []);
     const avatarCollisionRaycaster = useMemo(() => new THREE.Raycaster(), []);
+    const avatarTelemetryDeltaVec = useMemo(() => new THREE.Vector3(), []);
     const resetPositionVec = useMemo(() => new THREE.Vector3(), []);
     const turnGestureYawRef = useRef(0);
 
@@ -532,6 +541,8 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     const floorHeight = useGame((state: any) => state.floorHeight)
     const playerViewAngle = useGame((state: any) => state.playerViewAngle)
     const cameraRealtimeFollow = useGame((state: any) => state.cameraRealtimeFollow)
+    const cameraRealtimeTelemetryResetTick = useGame((state: any) => state.cameraRealtimeTelemetryResetTick)
+    const setCameraRealtimeTelemetry = useGame((state: any) => state.setCameraRealtimeTelemetry)
     const projectID = useGame((state: any) => state.projectID)
     const {clientId, dateTime} = client ? JSON.parse(client) : {clientId: "custom_person", dateTime: 'now'}
     const setCharacterIsInWater: any = useGame((state: any) => state.setCharacterIsInWater)
@@ -541,6 +552,25 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     const [climbing, setClimbing] = useState(false);
     const [hasJumpedOff, setHasJumpedOff] = useState(false)
     const setNotification: any = useGame((state: any) => state.setNotification);
+
+    const resetAvatarTelemetry = () => {
+        avatarTelemetryHasPositionRef.current = false;
+        avatarTelemetryDistanceRef.current = 0;
+        avatarTelemetrySpeedSamplesRef.current = [];
+        avatarTelemetryLastEmitAtRef.current = 0;
+    };
+
+    useEffect(() => {
+        resetAvatarTelemetry();
+        if ((character || firstPerson) && !cameraRealtimeFollow) {
+            setCameraRealtimeTelemetry({
+                currentSpeed: 0,
+                averageSpeed: 0,
+                distance: 0,
+                hasGpsUpdate: false,
+            });
+        }
+    }, [cameraRealtimeTelemetryResetTick, character, firstPerson, cameraRealtimeFollow, setCameraRealtimeTelemetry]);
 
     // const { pivot, followCam, cameraCollisionDetect, joystickCamMove } = useFollowCam();
 
@@ -1349,6 +1379,53 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
             followCam(state, delta, curAnimation)
         }
 
+        currentVel.copy(characterBody.linvel() as THREE.Vector3);
+        const shouldPublishAvatarTelemetry = (character || firstPerson) && !cameraRealtimeFollow;
+        if (shouldPublishAvatarTelemetry) {
+            if (!avatarTelemetryHasPositionRef.current) {
+                avatarTelemetryPreviousPositionRef.current.copy(currentPos);
+                avatarTelemetryHasPositionRef.current = true;
+            } else {
+                avatarTelemetryDeltaVec
+                    .copy(currentPos)
+                    .sub(avatarTelemetryPreviousPositionRef.current);
+                avatarTelemetryDeltaVec.y = 0;
+
+                const distanceDelta = avatarTelemetryDeltaVec.length();
+                if (distanceDelta > AVATAR_TELEMETRY_DISTANCE_EPSILON) {
+                    avatarTelemetryDistanceRef.current += distanceDelta;
+                }
+                avatarTelemetryPreviousPositionRef.current.copy(currentPos);
+            }
+
+            const now = performance.now();
+            if (now - avatarTelemetryLastEmitAtRef.current >= AVATAR_TELEMETRY_EMIT_INTERVAL_MS) {
+                avatarTelemetryLastEmitAtRef.current = now;
+                const currentSpeed = Math.sqrt(
+                    currentVel.x * currentVel.x +
+                    currentVel.z * currentVel.z
+                );
+                const speedSamples = avatarTelemetrySpeedSamplesRef.current;
+                speedSamples.push(currentSpeed);
+                if (speedSamples.length > AVATAR_TELEMETRY_MAX_SPEED_SAMPLES) {
+                    speedSamples.shift();
+                }
+                const averageSpeed = speedSamples.length
+                    ? speedSamples.reduce((sum, speed) => sum + speed, 0) / speedSamples.length
+                    : 0;
+
+                setCameraRealtimeTelemetry({
+                    currentSpeed,
+                    averageSpeed,
+                    distance: avatarTelemetryDistanceRef.current,
+                    heading: (THREE.MathUtils.radToDeg(modelEuler.y) + 360) % 360,
+                    hasGpsUpdate: true,
+                });
+            }
+        } else if (avatarTelemetryHasPositionRef.current) {
+            avatarTelemetryHasPositionRef.current = false;
+        }
+
 
 
 
@@ -1823,7 +1900,7 @@ if(!firstPerson && !character) return null
             position={[20,0, -60]}
             {...props}
         >
-            <PlayerLabel
+            {/* <PlayerLabel
                 key={clientId}
                 characterRef={characterRef}
                 userName={userData.fullname}
@@ -1832,7 +1909,7 @@ if(!firstPerson && !character) return null
                 angle={modelEuler.y}
                 isLocal={true}
                 remotePosition={center}
-            />
+            /> */}
             {/*<Trail*/}
             {/*    width={0.5}*/}
             {/*    color={'red'}*/}
