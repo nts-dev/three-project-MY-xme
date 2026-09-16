@@ -620,277 +620,277 @@ export default function Events() {
             };
         }
 
-        const onMouseHover = (event) => {
+        // const onMouseHover = (event) => {
 
-            if (isGizmoActive) {
-                return;
-            }
-            const { instanceId, isHidden } = hideAssetProps
-            const setCursor = (cursor) => {
-                gl.domElement.style.cursor = cursor;
-            };
+        //     if (isGizmoActive) {
+        //         return;
+        //     }
+        //     const { instanceId, isHidden } = hideAssetProps
+        //     const setCursor = (cursor) => {
+        //         gl.domElement.style.cursor = cursor;
+        //     };
 
-            const showPopup = (instanceId, objProps, obj) => {
-                const assetDescription = document.getElementById('assetDescription');
-                if (assetDescription) {
-                    assetDescription.remove();
-                    hover.current = false
-                }
-                const preObj = scene.getObjectByName('hover');
+        //     const showPopup = (instanceId, objProps, obj) => {
+        //         const assetDescription = document.getElementById('assetDescription');
+        //         if (assetDescription) {
+        //             assetDescription.remove();
+        //             hover.current = false
+        //         }
+        //         const preObj = scene.getObjectByName('hover');
 
-                if (preObj) {
-                    preObj.parent?.remove(preObj);
-                }
+        //         if (preObj) {
+        //             preObj.parent?.remove(preObj);
+        //         }
 
-                if (objProps == null && sceneAssets[instanceId] == null) {
-                    return;
-                }
-                // const mName = sceneAssets[instanceId]?.name
-                // console.log(instanceId)
-                const { object, position, angle, halfHeight, name, categoryIndex, statusFieldId, inUse } = objProps ?? sceneAssets[instanceId];
-
-
-                if (info) {
-                    const labelPosition = new THREE.Vector3(position.x, position.y + (halfHeight) / 100, position.z);
-                    labelPosition.project(camera);
-                    const left = (labelPosition.x * 0.5 + 0.5) * window.innerWidth;
-                    const top = -(labelPosition.y * 0.5 - 0.5) * window.innerHeight;
-
-                    const mousePosition = { x: left, y: top };
-                    AssetDescription(mousePosition, size, projectId, setEditAssetId, instanceId, true, name, setEditPopup, setEditable, setSelectedAssetId,
-                        setSelectedAsset, setPopupInfo, mouse, gl, categoryIndex, statusFieldId, inUse);
-                    setEditProps({ name, position, angle, obj })
-                }
+        //         if (objProps == null && sceneAssets[instanceId] == null) {
+        //             return;
+        //         }
+        //         // const mName = sceneAssets[instanceId]?.name
+        //         // console.log(instanceId)
+        //         const { object, position, angle, halfHeight, name, categoryIndex, statusFieldId, inUse } = objProps ?? sceneAssets[instanceId];
 
 
-                if (object == undefined)
-                    return;
+        //         if (info) {
+        //             const labelPosition = new THREE.Vector3(position.x, position.y + (halfHeight) / 100, position.z);
+        //             labelPosition.project(camera);
+        //             const left = (labelPosition.x * 0.5 + 0.5) * window.innerWidth;
+        //             const top = -(labelPosition.y * 0.5 - 0.5) * window.innerHeight;
 
-                object.name = 'hover';
-                object.position.copy(position);
-                object.rotation.y = THREE.MathUtils.degToRad(angle);
-                hover.current = true;
-
-                setMaterialColor(object, 'rgba(186,185,185,0.45)');
-                scene.add(object);
-                prevInstanceId.current = instanceId
-            }
-
-            if (curAnimation !== 'Idle' || isCameraMoving || isSearch) {
-                return;
-            }
-
-            event.preventDefault();
-            const rect = gl.domElement.getBoundingClientRect();
-            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-            // orbitControls.current?.addEventListener('change', regress)
-            raycaster?.setFromCamera(mouse, camera);
-
-            const intersectInstance = raycaster?.intersectObjects(scene.children, true);
-
-            let fileName = null;
-
-            if (intersectInstance.length > 0) {
-                let ObjectStructure = getFirstSceneHit(intersectInstance);
-                if (!ObjectStructure) {
-                    return;
-                }
-
-                if (isBuildingLabelHit(ObjectStructure)) {
-                    setCursor('pointer');
-                    return;
-                }
-
-                if (ObjectStructure.object.type === 'SkinnedMesh') {
-                    ObjectStructure = intersectInstance[1];
-
-                    if (!ObjectStructure) return;
-                }
-                const clickedInstance = ObjectStructure.instanceId || -1;
-
-                fileName = ObjectStructure.object.name;
-
-                const instancedMesh = instanceMesh[fileName];
-
-                const lInstanceId = ObjectStructure.object?.userData.instanceId
-
-                if (lInstanceId > 0) {
-
-                    setCursor('pointer');
-
-                    const position = new THREE.Vector3();
-                    ObjectStructure.object.getWorldPosition(position);
-
-                    const name = ObjectStructure.object?.userData.name
-                    const angle = THREE.MathUtils.radToDeg(ObjectStructure.object.rotation.y)
-                    const halfLength = getLength(ObjectStructure.object)
-                    const halfHeight = getHeight(ObjectStructure.object)
-                    const halfWidth = getWidth(ObjectStructure.object)
-
-                    // position.x-= halfWidth
-                    position.y += halfHeight
-                    // position.z-= halfLength
-                    const objProps = {
-                        position,
-                        angle,
-                        halfLength,
-                        halfHeight,
-                        halfWidth,
-                        name
-                    }
-
-                    showPopup(lInstanceId, objProps, ObjectStructure.object)
-                    return;
-                }
-
-                if (instancedMesh == undefined) {
-                    prevInstanceId.current = 0
-                    // setPrevInstanceId(0);
+        //             const mousePosition = { x: left, y: top };
+        //             AssetDescription(mousePosition, size, projectId, setEditAssetId, instanceId, true, name, setEditPopup, setEditable, setSelectedAssetId,
+        //                 setSelectedAsset, setPopupInfo, mouse, gl, categoryIndex, statusFieldId, inUse);
+        //             setEditProps({ name, position, angle, obj })
+        //         }
 
 
-                    // if (info) {
-                    const assetDescription = document.getElementById('assetDescription');
-                    if (assetDescription) {
-                        assetDescription.remove();
-                        // selectedObjects.current = [];
-                        hover.current = false
-                        // setHover(false)
-                    }
-                    // }
+        //         if (object == undefined)
+        //             return;
 
-                    const obj = scene.getObjectByName('hover');
-                    if (obj) {
-                        obj.parent?.remove(obj);
-                        // selectedObjects.current = [];
-                    }
-                    setPopupInfo({ visible: false })
-                    if (!clickedInstance)
-                        setCursor('default');
+        //         object.name = 'hover';
+        //         object.position.copy(position);
+        //         object.rotation.y = THREE.MathUtils.degToRad(angle);
+        //         hover.current = true;
 
-                    return;
-                }
+        //         setMaterialColor(object, 'rgba(186,185,185,0.45)');
+        //         scene.add(object);
+        //         prevInstanceId.current = instanceId
+        //     }
 
-                const instanceInfo = instancedMesh.userData.instances[clickedInstance];
+        //     if (curAnimation !== 'Idle' || isCameraMoving || isSearch) {
+        //         return;
+        //     }
 
-                if (!instanceInfo || instanceInfo.assetId === prevInstanceId) {
-                    if (!instanceInfo) {
-                        setCursor('default');
-                    }
-                    return;
-                }
+        //     event.preventDefault();
+        //     const rect = gl.domElement.getBoundingClientRect();
+        //     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        //     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        //     // orbitControls.current?.addEventListener('change', regress)
+        //     raycaster?.setFromCamera(mouse, camera);
 
-                if (parseInt(fileName) > 0) {
-                    prevInstanceId.current = 0
-                    // setPrevInstanceId(0);
-                    // if (info) {
-                    const assetDescription = document.getElementById('assetDescription');
-                    if (assetDescription) {
-                        assetDescription.remove();
-                        // selectedObjects.current = [];
-                        hover.current = false;
-                        // setHover(false)
-                    }
-                    // }
-                    const obj = scene.getObjectByName('hover');
-                    if (obj) {
-                        obj.parent?.remove(obj);
-                        // selectedObjects.current = [];
-                    }
-                    setPopupInfo({ visible: false })
-                    setCursor('default');
-                    return;
-                }
+        //     const intersectInstance = raycaster?.intersectObjects(scene.children, true);
 
-                if (fileName) {
-                    if (fileName === 'walls') {
-                        prevInstanceId.current = 0
-                        // if (info) {
-                        const assetDescription = document.getElementById('assetDescription');
-                        if (assetDescription) {
-                            assetDescription.remove();
-                            selectedObjects.current = [];
-                            hover.current = false
-                            // setHover(false)
-                        }
-                        // }
-                        const obj = scene.getObjectByName('hover');
-                        if (obj) {
-                            obj.parent?.remove(obj);
-                        }
-                        // selectedObjects.current = [];
-                        setCursor('default');
-                        setPopupInfo({ visible: false })
-                        return;
-                    }
+        //     let fileName = null;
 
-                    if (!instancedMesh) {
-                        // if (info) {
-                        const assetDescription = document.getElementById('assetDescription');
-                        if (assetDescription) {
-                            assetDescription.remove();
-                            // selectedObjects.current = [];
-                            setPopupInfo({ visible: false })
-                            hover.current = false
-                            // setHover(false)
-                        }
-                        // }
-                        const obj = scene.getObjectByName('hover');
-                        if (obj) {
-                            obj.parent?.remove(obj);
-                        }
-                        // selectedObjects.current = [];
-                        setCursor('default');
-                        setPopupInfo({ visible: false })
-                        return;
-                    }
+        //     if (intersectInstance.length > 0) {
+        //         let ObjectStructure = getFirstSceneHit(intersectInstance);
+        //         if (!ObjectStructure) {
+        //             return;
+        //         }
 
-                    setCursor('pointer');
+        //         if (isBuildingLabelHit(ObjectStructure)) {
+        //             setCursor('pointer');
+        //             return;
+        //         }
 
-                    if (!isHidden && instanceId != instanceInfo.assetId) {
-                        showPopup(instanceInfo.assetId, null, null)
-                    }
-                } else {
-                    // if (info) {
-                    const assetDescription = document.getElementById('assetDescription');
-                    if (assetDescription) {
-                        assetDescription.remove();
-                        // selectedObjects.current = [];
-                        hover.current = false
-                        // setHover(false)
-                    }
-                    prevInstanceId.current = 0
-                    setPopupInfo({ visible: false })
-                    //  }
-                    const obj = scene.getObjectByName('hover');
-                    if (obj) {
-                        obj.parent?.remove(obj);
-                    }
-                    setCursor('default');
-                    // selectedObjects.current = [];
-                    // outlinePass.current.selectedObjects = selectedObjects.current;
-                }
-            } else {
-                // if (info) {
-                const assetDescription = document.getElementById('assetDescription');
-                if (assetDescription) {
-                    assetDescription.remove();
-                    // selectedObjects.current = [];
-                    hover.current = false;
-                    // setHover(false)
-                    setPopupInfo({ visible: false })
-                }
-                const obj = scene.getObjectByName('hover');
-                if (obj) {
-                    obj.parent?.remove(obj);
-                }
-                setCursor('default');
-                // }
-                prevInstanceId.current = 0
-                // selectedObjects.current = [];
-                // outlinePass.current.selectedObjects = selectedObjects.current;
-            }
-        };
+        //         if (ObjectStructure.object.type === 'SkinnedMesh') {
+        //             ObjectStructure = intersectInstance[1];
+
+        //             if (!ObjectStructure) return;
+        //         }
+        //         const clickedInstance = ObjectStructure.instanceId || -1;
+
+        //         fileName = ObjectStructure.object.name;
+
+        //         const instancedMesh = instanceMesh[fileName];
+
+        //         const lInstanceId = ObjectStructure.object?.userData.instanceId
+
+        //         if (lInstanceId > 0) {
+
+        //             setCursor('pointer');
+
+        //             const position = new THREE.Vector3();
+        //             ObjectStructure.object.getWorldPosition(position);
+
+        //             const name = ObjectStructure.object?.userData.name
+        //             const angle = THREE.MathUtils.radToDeg(ObjectStructure.object.rotation.y)
+        //             const halfLength = getLength(ObjectStructure.object)
+        //             const halfHeight = getHeight(ObjectStructure.object)
+        //             const halfWidth = getWidth(ObjectStructure.object)
+
+        //             // position.x-= halfWidth
+        //             position.y += halfHeight
+        //             // position.z-= halfLength
+        //             const objProps = {
+        //                 position,
+        //                 angle,
+        //                 halfLength,
+        //                 halfHeight,
+        //                 halfWidth,
+        //                 name
+        //             }
+
+        //             showPopup(lInstanceId, objProps, ObjectStructure.object)
+        //             return;
+        //         }
+
+        //         if (instancedMesh == undefined) {
+        //             prevInstanceId.current = 0
+        //             // setPrevInstanceId(0);
+
+
+        //             // if (info) {
+        //             const assetDescription = document.getElementById('assetDescription');
+        //             if (assetDescription) {
+        //                 assetDescription.remove();
+        //                 // selectedObjects.current = [];
+        //                 hover.current = false
+        //                 // setHover(false)
+        //             }
+        //             // }
+
+        //             const obj = scene.getObjectByName('hover');
+        //             if (obj) {
+        //                 obj.parent?.remove(obj);
+        //                 // selectedObjects.current = [];
+        //             }
+        //             setPopupInfo({ visible: false })
+        //             if (!clickedInstance)
+        //                 setCursor('default');
+
+        //             return;
+        //         }
+
+        //         const instanceInfo = instancedMesh.userData.instances[clickedInstance];
+
+        //         if (!instanceInfo || instanceInfo.assetId === prevInstanceId) {
+        //             if (!instanceInfo) {
+        //                 setCursor('default');
+        //             }
+        //             return;
+        //         }
+
+        //         if (parseInt(fileName) > 0) {
+        //             prevInstanceId.current = 0
+        //             // setPrevInstanceId(0);
+        //             // if (info) {
+        //             const assetDescription = document.getElementById('assetDescription');
+        //             if (assetDescription) {
+        //                 assetDescription.remove();
+        //                 // selectedObjects.current = [];
+        //                 hover.current = false;
+        //                 // setHover(false)
+        //             }
+        //             // }
+        //             const obj = scene.getObjectByName('hover');
+        //             if (obj) {
+        //                 obj.parent?.remove(obj);
+        //                 // selectedObjects.current = [];
+        //             }
+        //             setPopupInfo({ visible: false })
+        //             setCursor('default');
+        //             return;
+        //         }
+
+        //         if (fileName) {
+        //             if (fileName === 'walls') {
+        //                 prevInstanceId.current = 0
+        //                 // if (info) {
+        //                 const assetDescription = document.getElementById('assetDescription');
+        //                 if (assetDescription) {
+        //                     assetDescription.remove();
+        //                     selectedObjects.current = [];
+        //                     hover.current = false
+        //                     // setHover(false)
+        //                 }
+        //                 // }
+        //                 const obj = scene.getObjectByName('hover');
+        //                 if (obj) {
+        //                     obj.parent?.remove(obj);
+        //                 }
+        //                 // selectedObjects.current = [];
+        //                 setCursor('default');
+        //                 setPopupInfo({ visible: false })
+        //                 return;
+        //             }
+
+        //             if (!instancedMesh) {
+        //                 // if (info) {
+        //                 const assetDescription = document.getElementById('assetDescription');
+        //                 if (assetDescription) {
+        //                     assetDescription.remove();
+        //                     // selectedObjects.current = [];
+        //                     setPopupInfo({ visible: false })
+        //                     hover.current = false
+        //                     // setHover(false)
+        //                 }
+        //                 // }
+        //                 const obj = scene.getObjectByName('hover');
+        //                 if (obj) {
+        //                     obj.parent?.remove(obj);
+        //                 }
+        //                 // selectedObjects.current = [];
+        //                 setCursor('default');
+        //                 setPopupInfo({ visible: false })
+        //                 return;
+        //             }
+
+        //             setCursor('pointer');
+
+        //             if (!isHidden && instanceId != instanceInfo.assetId) {
+        //                 showPopup(instanceInfo.assetId, null, null)
+        //             }
+        //         } else {
+        //             // if (info) {
+        //             const assetDescription = document.getElementById('assetDescription');
+        //             if (assetDescription) {
+        //                 assetDescription.remove();
+        //                 // selectedObjects.current = [];
+        //                 hover.current = false
+        //                 // setHover(false)
+        //             }
+        //             prevInstanceId.current = 0
+        //             setPopupInfo({ visible: false })
+        //             //  }
+        //             const obj = scene.getObjectByName('hover');
+        //             if (obj) {
+        //                 obj.parent?.remove(obj);
+        //             }
+        //             setCursor('default');
+        //             // selectedObjects.current = [];
+        //             // outlinePass.current.selectedObjects = selectedObjects.current;
+        //         }
+        //     } else {
+        //         // if (info) {
+        //         const assetDescription = document.getElementById('assetDescription');
+        //         if (assetDescription) {
+        //             assetDescription.remove();
+        //             // selectedObjects.current = [];
+        //             hover.current = false;
+        //             // setHover(false)
+        //             setPopupInfo({ visible: false })
+        //         }
+        //         const obj = scene.getObjectByName('hover');
+        //         if (obj) {
+        //             obj.parent?.remove(obj);
+        //         }
+        //         setCursor('default');
+        //         // }
+        //         prevInstanceId.current = 0
+        //         // selectedObjects.current = [];
+        //         // outlinePass.current.selectedObjects = selectedObjects.current;
+        //     }
+        // };
 
         const onMouseClick = (event, allowReadOnlyOpen = false) => {
           
@@ -1100,20 +1100,20 @@ export default function Events() {
         if (docs[0]) {
             docs[0].addEventListener("click", onMouseClick, true);
             docs[0].addEventListener("dblclick", onMouseDoubleClick);
-            docs[0].addEventListener("mousemove", onMouseHover);
+            // docs[0].addEventListener("mousemove", onMouseHover);
             // docs[0].addEventListener("mouseleave", onMouseLeave);
         }
-        gl.domElement.addEventListener('mousemove', onMouseHover);
+        // gl.domElement.addEventListener('mousemove', onMouseHover);
         // gl.domElement.addEventListener('dblclick', onMouseClick);
 
         return () => {
             if (docs[0]) {
                 docs[0].removeEventListener('click', onMouseClick, true);
                 docs[0].removeEventListener('dblclick', onMouseDoubleClick);
-                docs[0].removeEventListener('mousemove', onMouseHover);
+                // docs[0].removeEventListener('mousemove', onMouseHover);
                 // docs[0].removeEventListener('mouseleave', onMouseLeave);
             }
-            gl.domElement.removeEventListener('mousemove', onMouseHover);
+            // gl.domElement.removeEventListener('mousemove', onMouseHover);
             // gl.domElement.removeEventListener('dblclick', onMouseClick);
 
         };

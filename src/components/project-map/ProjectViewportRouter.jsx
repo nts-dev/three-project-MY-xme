@@ -1,7 +1,6 @@
-import React, { useEffect, useState, useSyncExternalStore } from "react";
+import React, { useEffect, useSyncExternalStore } from "react";
 import useGame from "../../hooks/useGame";
 import ThreeView from "../ThreeView.jsx";
-import ProjectGoogleMapsThreeScene from "./ProjectGoogleMapsThreeScene.jsx";
 import {
     getGoogleMapsViewportMode,
     isGoogleMapsWebGLProject,
@@ -17,14 +16,7 @@ export default function ProjectViewportRouter() {
         () => "three"
     );
     const isMapsProject = isGoogleMapsWebGLProject(projectId);
-    const [hasMountedGoogleViewport, setHasMountedGoogleViewport] = useState(false);
-    const isGoogleViewportActive = isMapsProject && viewportMode === "google";
-
-    useEffect(() => {
-        if (isGoogleViewportActive) {
-            setHasMountedGoogleViewport(true);
-        }
-    }, [isGoogleViewportActive]);
+    const isGoogleViewportActive = false;
 
     useEffect(() => {
         window.requestAnimationFrame(() => {
@@ -38,15 +30,9 @@ export default function ProjectViewportRouter() {
 
     return (
         <div className="project-google-webgl-viewport-switch">
-            <div className="project-google-webgl-viewport-switch__three">
-                <ThreeView />
-            </div>
-            {hasMountedGoogleViewport && (
-                <div
-                    className={`project-google-webgl-viewport-switch__google${isGoogleViewportActive ? " is-active" : ""}`}
-                    aria-hidden={!isGoogleViewportActive}
-                >
-                    <ProjectGoogleMapsThreeScene />
+            {!isGoogleViewportActive && (
+                <div className="project-google-webgl-viewport-switch__three">
+                    <ThreeView />
                 </div>
             )}
         </div>

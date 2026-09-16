@@ -141,6 +141,7 @@ export default async function InstancedPattern(
     category_index
 ) {
     const lowerName = String(name || "").toLowerCase();
+    const disableBuildingLabels = String(projectID) === "153_L1";
     const generatedAsset = isGeneratedAssetReference(fileName);
     const cleanKey = normalizeSceneAssetName(fileName || name || "")
     const assetCommandLines = [];
@@ -316,7 +317,7 @@ export default async function InstancedPattern(
     }
 
     const instancedMesh = new THREE.InstancedMesh(object.geometry, material, assets.length);
-    instancedMesh.frustumCulled = false;
+    instancedMesh.frustumCulled = true;
     instancedMesh.userData.instances = [];
     instancedMesh.userData.gameplayColliderHeight = pivotSize.y;
     instancedMesh.userData[GAMEPLAY_RAYCAST_COLLIDER_KEY] = shouldRegisterGameplayCollision(name) && hasVerticalCollisionSurface;
@@ -338,6 +339,11 @@ export default async function InstancedPattern(
         const asset = assets[i];
         
         const { fields, annotationText } = asset;
+          if (fields['Status']?.value === "In Use" && String(projectID).includes("153_L1")) {
+        //    console.log(projectID)
+           continue;
+
+        }
         const raw = asset._raw || asset;
         const instanceId = raw.instance_id || raw.instanceId
        
@@ -375,11 +381,7 @@ export default async function InstancedPattern(
         const height = Number(heightRaw) ? heightRaw : 0;
 
 
-         if (fields['Status']?.value === "Not in Use" && !String(projectID).includes("153_L1")) {
-        //    console.log(projectID)
-            continue;
-
-        }
+       
         const floorField = fields['Floor']?.value;
         const floor = parseFloorCode(
             floorField,
@@ -475,10 +477,10 @@ export default async function InstancedPattern(
  
         const info = fields['Info']?.value;
         // console.log(name,info);
-        if (lowerName === 'location' && info) {
-            loadLocation(position, l,w, fields, angle, instanceId, w,l);
-            continue;
-        }
+        // if (lowerName === 'location' && info) {
+        //     loadLocation(position, l,w, fields, angle, instanceId, w,l);
+        //     continue;
+        // }
 
         const textIndexList = [];
         let labelId = 0;
@@ -486,39 +488,39 @@ export default async function InstancedPattern(
         const labelText = fields['LabelText']?.value;
         
 
-        if (labelText) {
-            const sku = fields['SKU']?.value || 'No SKU Found';
-            textIndexList.push({ index: textIndexList.length, fieldIndex: fields['SKU']?.valueId });
+        // if (labelText) {
+        //     const sku = fields['SKU']?.value || 'No SKU Found';
+        //     textIndexList.push({ index: textIndexList.length, fieldIndex: fields['SKU']?.valueId });
 
-            const cname = fields['Name']?.value || 'No name Found';
-            const containerName = `[${instanceId}]${cname}`;
-            textIndexList.push({ index: textIndexList.length, fieldIndex: fields['Name']?.valueId });
-            textIndexList.push({ index: textIndexList.length, fieldIndex: fields['LabelText']?.valueId });
+        //     const cname = fields['Name']?.value || 'No name Found';
+        //     const containerName = `[${instanceId}]${cname}`;
+        //     textIndexList.push({ index: textIndexList.length, fieldIndex: fields['Name']?.valueId });
+        //     textIndexList.push({ index: textIndexList.length, fieldIndex: fields['LabelText']?.valueId });
 
-            if (content) {
-                const elements = makeElements(fields);
-                const compositeObj = Composite(composite.children[0], elements);
-                compositeObj.scale.multiplyScalar(0.01);
-                compositeObj.position.copy(position);
-                scene.add(compositeObj);
-            }
+        //     if (content) {
+        //         const elements = makeElements(fields);
+        //         const compositeObj = Composite(composite.children[0], elements);
+        //         compositeObj.scale.multiplyScalar(0.01);
+        //         compositeObj.position.copy(position);
+        //         scene.add(compositeObj);
+        //     }
 
-            const labelAngle = THREE.MathUtils.degToRad(parseFloat(angle) + 270);
-            const sizeAndFont = { width: 20, length: 8, font: 30 };
+        //     const labelAngle = THREE.MathUtils.degToRad(parseFloat(angle) + 270);
+        //     const sizeAndFont = { width: 20, length: 8, font: 30 };
 
-            labelId = AttachLabel(
-                projectID,
-                [sku, containerName, labelText],
-                scene,
-                position,
-                new Vector3(),
-                textIndexList,
-                new Vector3(0, 0, w + 1.5),
-                new Vector3(0, labelAngle, 0),
-                sizeAndFont,
-                false
-            );
-        }
+        //     labelId = AttachLabel(
+        //         projectID,
+        //         [sku, containerName, labelText],
+        //         scene,
+        //         position,
+        //         new Vector3(),
+        //         textIndexList,
+        //         new Vector3(0, 0, w + 1.5),
+        //         new Vector3(0, labelAngle, 0),
+        //         sizeAndFont,
+        //         false
+        //     );
+        // }
  
         const description = ''//JSON.parse(raw.description);
 
@@ -556,55 +558,55 @@ export default async function InstancedPattern(
         // }
 
          
-        if (lowerName.includes('filefolder')) {
-            const labelAngle = THREE.MathUtils.degToRad(parseFloat(angle));
-            const textList = [];
+        // if (lowerName.includes('filefolder')) {
+        //     const labelAngle = THREE.MathUtils.degToRad(parseFloat(angle));
+        //     const textList = [];
 
 
-            textList.push(branch);
-            textList.push(`(${fields['Map number']?.value || 'N/A'}) ${fields['Map name']?.value || 'N/A'}`);
-            textList.push(`Period: ${fields['Period']?.value || 'N/A'}`);
+        //     textList.push(branch);
+        //     textList.push(`(${fields['Map number']?.value || 'N/A'}) ${fields['Map name']?.value || 'N/A'}`);
+        //     textList.push(`Period: ${fields['Period']?.value || 'N/A'}`);
 
 
-            const sizeAndFont = { width: 30, length: 6, font: 30 };
+        //     const sizeAndFont = { width: 30, length: 6, font: 30 };
 
-            labelId = AttachLabel(
-                projectID,
-                textList,
-                scene,
-                position,
-                new Vector3(),
-                textIndexList,
-                new Vector3(halfHeight, 0, l + 1.5),
-                new Vector3(0, labelAngle, Math.PI / 2),
-                sizeAndFont,
-                false
-            );
+        //     labelId = AttachLabel(
+        //         projectID,
+        //         textList,
+        //         scene,
+        //         position,
+        //         new Vector3(),
+        //         textIndexList,
+        //         new Vector3(halfHeight, 0, l + 1.5),
+        //         new Vector3(0, labelAngle, Math.PI / 2),
+        //         sizeAndFont,
+        //         false
+        //     );
          
-        }
+        // }
 
-        if (lowerName.includes('dl')) {
-            const labelAngle = THREE.MathUtils.degToRad(parseFloat(angle));
-            const textList = [];
+        // if (lowerName.includes('dl')) {
+        //     const labelAngle = THREE.MathUtils.degToRad(parseFloat(angle));
+        //     const textList = [];
 
-            textList.push(`(${instanceId}) ${fields['Intern IP Address']?.value}/${fields['Model']?.value}`);
-            textList.push(`Usage: ${fields['Usage']?.value}-${fields['OS']?.value}`);
+        //     textList.push(`(${instanceId}) ${fields['Intern IP Address']?.value}/${fields['Model']?.value}`);
+        //     textList.push(`Usage: ${fields['Usage']?.value}-${fields['OS']?.value}`);
 
-            const sizeAndFont = { width: 50, length: 5, font: 30 };
+        //     const sizeAndFont = { width: 50, length: 5, font: 30 };
 
-            labelId = AttachLabel(
-                projectID,
-                textList,
-                scene,
-                position,
-                new Vector3(),
-                textIndexList,
-                new Vector3(0, halfHeight, l + 1.5),
-                new Vector3(0, labelAngle, 0),
-                sizeAndFont,
-                false
-            );
-        }
+        //     labelId = AttachLabel(
+        //         projectID,
+        //         textList,
+        //         scene,
+        //         position,
+        //         new Vector3(),
+        //         textIndexList,
+        //         new Vector3(0, halfHeight, l + 1.5),
+        //         new Vector3(0, labelAngle, 0),
+        //         sizeAndFont,
+        //         false
+        //     );
+        // }
 
         const initaialScale = absScale.clone();
 
@@ -662,7 +664,7 @@ export default async function InstancedPattern(
             commandLine: assetCommandLines[assetCommandLines.length - 1] || "",
         };
 
-        const buildingLabel = createBuildingLabelSprite({
+        const buildingLabel = !disableBuildingLabels && createBuildingLabelSprite({
             fields,
             fallbackName: name,
             position,
@@ -700,65 +702,67 @@ export default async function InstancedPattern(
 
     if (scene !== undefined && !lowerName.includes('location')) {
         instancedMesh.instanceMatrix.needsUpdate = true;
+        instancedMesh.computeBoundingBox?.();
+        instancedMesh.computeBoundingSphere?.();
         scene.add(instancedMesh);
     }
 
-    const dslAnimations = readDslAnimations(properties);
-    if (dslAnimations.length && index > 0) {
-        applyDslAnimations(
-            `${projectID}:${name}:office`,
-            dslAnimations,
-            () => ({
-                position: new THREE.Vector3(),
-                rotation: new THREE.Euler()
-            }),
-            (target) => {
-                const hasTargetScope = Array.isArray(target.targetInstanceIds);
-                const targetIds = hasTargetScope ? target.targetInstanceIds.map(String) : [];
-                instancedMesh.userData.instances.forEach((item, meshIndex) => {
-                    if (hasTargetScope && !targetIds.includes(String(item.assetId))) {
-                        return;
-                    }
-                    const asset = sceneAssets[item.assetId];
-                    if (!asset) return;
+    // const dslAnimations = readDslAnimations(properties);
+    // if (dslAnimations.length && index > 0) {
+    //     applyDslAnimations(
+    //         `${projectID}:${name}:office`,
+    //         dslAnimations,
+    //         () => ({
+    //             position: new THREE.Vector3(),
+    //             rotation: new THREE.Euler()
+    //         }),
+    //         (target) => {
+    //             const hasTargetScope = Array.isArray(target.targetInstanceIds);
+    //             const targetIds = hasTargetScope ? target.targetInstanceIds.map(String) : [];
+    //             instancedMesh.userData.instances.forEach((item, meshIndex) => {
+    //                 if (hasTargetScope && !targetIds.includes(String(item.assetId))) {
+    //                     return;
+    //                 }
+    //                 const asset = sceneAssets[item.assetId];
+    //                 if (!asset) return;
 
-                    if (!asset.baseAnimationPosition) {
-                        asset.baseAnimationPosition = asset.position.clone();
-                    }
-                    if (asset.baseAnimationAngle === undefined) {
-                        asset.baseAnimationAngle = asset.angle || 0;
-                    }
+    //                 if (!asset.baseAnimationPosition) {
+    //                     asset.baseAnimationPosition = asset.position.clone();
+    //                 }
+    //                 if (asset.baseAnimationAngle === undefined) {
+    //                     asset.baseAnimationAngle = asset.angle || 0;
+    //                 }
 
-                    const basePosition = asset.baseAnimationPosition;
-                    const nextPosition = new THREE.Vector3(
-                        target.__absolutePosition && target.x !== undefined ? target.x : basePosition.x + (target.x || 0),
-                        target.__absolutePosition && target.y !== undefined ? target.y : basePosition.y + (target.y || 0),
-                        target.__absolutePosition && target.z !== undefined ? target.z : basePosition.z + (target.z || 0)
-                    );
-                    animatedEuler.set(
-                        target.rx || 0,
-                        THREE.MathUtils.degToRad(asset.baseAnimationAngle || 0) + (target.ry || 0),
-                        target.rz || 0
-                    );
-                    animatedQuaternion.setFromEuler(animatedEuler);
-                    asset.position.copy(nextPosition);
-                    animatedDummy.position.copy(asset.position);
-                    animatedDummy.quaternion.copy(animatedQuaternion);
-                    animatedDummy.scale.copy(asset.scale);
-                    animatedDummy.updateMatrix();
-                    instancedMesh.setMatrixAt(meshIndex, animatedDummy.matrix);
-                    if (asset.quart?.copy) {
-                        asset.quart.copy(animatedQuaternion);
-                    } else {
-                        asset.quart = animatedQuaternion.clone();
-                    }
-                });
-                instancedMesh.instanceMatrix.needsUpdate = true;
-            }
-        );
-    } else {
-        clearDslAnimations(`${projectID}:${name}:office`);
-    }
+    //                 const basePosition = asset.baseAnimationPosition;
+    //                 const nextPosition = new THREE.Vector3(
+    //                     target.__absolutePosition && target.x !== undefined ? target.x : basePosition.x + (target.x || 0),
+    //                     target.__absolutePosition && target.y !== undefined ? target.y : basePosition.y + (target.y || 0),
+    //                     target.__absolutePosition && target.z !== undefined ? target.z : basePosition.z + (target.z || 0)
+    //                 );
+    //                 animatedEuler.set(
+    //                     target.rx || 0,
+    //                     THREE.MathUtils.degToRad(asset.baseAnimationAngle || 0) + (target.ry || 0),
+    //                     target.rz || 0
+    //                 );
+    //                 animatedQuaternion.setFromEuler(animatedEuler);
+    //                 asset.position.copy(nextPosition);
+    //                 animatedDummy.position.copy(asset.position);
+    //                 animatedDummy.quaternion.copy(animatedQuaternion);
+    //                 animatedDummy.scale.copy(asset.scale);
+    //                 animatedDummy.updateMatrix();
+    //                 instancedMesh.setMatrixAt(meshIndex, animatedDummy.matrix);
+    //                 if (asset.quart?.copy) {
+    //                     asset.quart.copy(animatedQuaternion);
+    //                 } else {
+    //                     asset.quart = animatedQuaternion.clone();
+    //                 }
+    //             });
+    //             instancedMesh.instanceMatrix.needsUpdate = true;
+    //         }
+    //     );
+    // } else {
+    //     clearDslAnimations(`${projectID}:${name}:office`);
+    // }
 
     return {
         floors,

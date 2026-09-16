@@ -17,8 +17,7 @@ const adapter = new LokiJSAdapter({
     schema,
     useWebWorker: false, // Recommended to be true, but can be false for simplicity
     extraLokiOptions: {
-        autosave: true,
-        autosaveInterval: 5000,
+        autosave: false,
     },
     useIncrementalIndexedDB: true,
     onQuotaExceededError: (error) => {

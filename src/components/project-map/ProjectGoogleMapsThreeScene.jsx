@@ -21,6 +21,8 @@ const GOOGLE_OVERLAY_HIDDEN_OBJECT_NAMES = new Set(["floor_cube"]);
 const PLAYER_CAMERA_FOV = 45;
 const PLAYER_CAMERA_NEAR = 0.05;
 const PLAYER_CAMERA_FAR = 100000000;
+const GOOGLE_OVERLAY_TARGET_FPS = 15;
+const GOOGLE_OVERLAY_FRAME_INTERVAL_MS = 1000 / GOOGLE_OVERLAY_TARGET_FPS;
 
 const keyboardMap = [
     { name: "forward", keys: ["ArrowUp", "KeyW"] },
@@ -42,13 +44,20 @@ function Project153L0SceneObjTransform({ hybridCameraState }) {
     const { scene } = useThree();
     const modelYaw = THREE.MathUtils.degToRad(PROJECT_153_L0_MODEL_ORIGIN.modelYawDegrees || 0);
     const modelOffset = PROJECT_153_L0_MODEL_ORIGIN.modelOffsetMeters || {};
+    const sceneObjRef = useRef(null);
+    const lastVirtualScaleRef = useRef(null);
 
     useFrame(() => {
-        const sceneObj = scene.getObjectByName("sceneObj");
+        const sceneObj = sceneObjRef.current || scene.getObjectByName("sceneObj");
         if (!sceneObj) return;
+        sceneObjRef.current = sceneObj;
 
         const virtualZoom = Math.max(0, Number(hybridCameraState?.virtualZoom) || 0);
         const virtualScale = 2 ** virtualZoom;
+        if (lastVirtualScaleRef.current === virtualScale) {
+            return;
+        }
+        lastVirtualScaleRef.current = virtualScale;
 
         sceneObj.position.set(
             Number(modelOffset.x) || 0,
@@ -86,14 +95,20 @@ function isLargeOverlayPlaneArtifact(object) {
 
 function Project153L0OverlayArtifactCleanup() {
     const { scene } = useThree();
+    const hasCleanedRef = useRef(false);
 
     useFrame(() => {
+        if (hasCleanedRef.current || !scene.getObjectByName("sceneObj")) {
+            return;
+        }
+
         scene.traverse((object) => {
             if (!isLargeOverlayPlaneArtifact(object)) return;
 
             object.visible = false;
             object.userData.__projectGoogleMapsHidden = true;
         });
+        hasCleanedRef.current = true;
     });
 
     return null;
@@ -179,6 +194,27 @@ function createGoogleMapsR3FOverlay({ maps, map, anchor, hybridCameraState }) {
     let renderer = null;
     let root = null;
     let store = null;
+    let redrawTimer = null;
+    let lastRedrawAt = 0;
+    let lastOverlayRenderAt = 0;
+
+    const requestThrottledRedraw = () => {
+        if (redrawTimer) return;
+
+        const now = performance.now();
+        const delay = Math.max(0, GOOGLE_OVERLAY_FRAME_INTERVAL_MS - (now - lastRedrawAt));
+        redrawTimer = window.setTimeout(() => {
+            redrawTimer = null;
+            lastRedrawAt = performance.now();
+            overlay.requestRedraw();
+        }, delay);
+    };
+
+    const clearRedrawTimer = () => {
+        if (!redrawTimer) return;
+        window.clearTimeout(redrawTimer);
+        redrawTimer = null;
+    };
 
     const overlay = new maps.WebGLOverlayView();
 
@@ -190,8 +226,8 @@ function createGoogleMapsR3FOverlay({ maps, map, anchor, hybridCameraState }) {
         });
         renderer.autoClear = false;
         renderer.autoClearDepth = false;
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.shadowMap.enabled = false;
+        renderer.shadowMap.autoUpdate = false;
         renderer.outputColorSpace = THREE.SRGBColorSpace;
 
         const width = gl.canvas.width;
@@ -221,6 +257,7 @@ function createGoogleMapsR3FOverlay({ maps, map, anchor, hybridCameraState }) {
     overlay.onDraw = ({ gl, transformer }) => {
         if (!renderer || !store) return;
 
+        const now = performance.now();
         const width = gl.canvas.width;
         const height = gl.canvas.height;
         renderer.setViewport(0, 0, width, height);
@@ -245,13 +282,25 @@ function createGoogleMapsR3FOverlay({ maps, map, anchor, hybridCameraState }) {
             camera.matrixWorldInverse.identity();
         }
 
+        if (now - lastOverlayRenderAt < GOOGLE_OVERLAY_FRAME_INTERVAL_MS) {
+            renderer.resetState();
+            if (isPlayerCameraActive) {
+                requestThrottledRedraw();
+            }
+            return;
+        }
+
+        lastOverlayRenderAt = now;
         gl.disable(gl.SCISSOR_TEST);
-        store.getState().advance(performance.now(), true);
+        store.getState().advance(now, true);
         renderer.resetState();
-        overlay.requestRedraw();
+        if (isPlayerCameraActive) {
+            requestThrottledRedraw();
+        }
     };
 
     overlay.onContextLost = () => {
+        clearRedrawTimer();
         root?.unmount();
         root = null;
         store = null;
@@ -260,6 +309,7 @@ function createGoogleMapsR3FOverlay({ maps, map, anchor, hybridCameraState }) {
     };
 
     overlay.onRemove = () => {
+        clearRedrawTimer();
         root?.unmount();
         root = null;
         store = null;
@@ -522,10 +572,11 @@ export default function ProjectGoogleMapsThreeScene() {
                     heading: PROJECT_153_L0_MODEL_ORIGIN.camera.heading,
                     tilt: PROJECT_153_L0_MODEL_ORIGIN.camera.tilt,
                     mapId: GOOGLE_MAP_ID,
-                    mapTypeId: maps.MapTypeId?.HYBRID || "hybrid",
+                    mapTypeId: maps.MapTypeId?.SATELLITE || "satellite",
                     renderingType: maps.RenderingType?.VECTOR,
                     isFractionalZoomEnabled: true,
-                    disableDefaultUI: false,
+                    clickableIcons: false,
+                    disableDefaultUI: true,
                     fullscreenControl: true,
                     gestureHandling: "greedy",
                     keyboardShortcuts: true,
