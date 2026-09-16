@@ -15,7 +15,7 @@ import {
 } from "./categorySelectionRequest";
 
 
-const SaveFromTemplate = async (templateProps, assetName, instanceId = null, setLazy, setSelectedAssetId, vAlignValue,setLazyMsg, setAssetSelected,setIsEditing) => {
+const SaveFromTemplate = async (templateProps, assetName, instanceId = null, setLazy, setSelectedAssetId, vAlignValue,setLazyMsg, setAssetSelected,setIsEditing, fieldOverrides = []) => {
 
     
     const showSaveLoader = () => {
@@ -105,6 +105,23 @@ const SaveFromTemplate = async (templateProps, assetName, instanceId = null, set
     const getStatusValue = () => {
         return getSceneKey()?.toLowerCase() === '153_l1' ? 'Not in Use' : 'In Use';
     };
+
+    const normalizeFieldKey = (value) => String(value || "").replace(/\s+/g, "").trim().toLowerCase();
+    const overrideList = Array.isArray(fieldOverrides) ? fieldOverrides : [];
+    const overrideByFieldId = new Map(
+        overrideList
+            .filter((field) => field?.fieldId !== undefined && field?.fieldId !== null)
+            .map((field) => [String(field.fieldId), field])
+    );
+    const overrideByName = new Map(
+        overrideList
+            .filter((field) => field?.name)
+            .map((field) => [normalizeFieldKey(field.name), field])
+    );
+    const getFieldOverride = (templateField) => (
+        overrideByFieldId.get(String(templateField?._raw?.field_id)) ||
+        overrideByName.get(normalizeFieldKey(templateField?._raw?.name))
+    );
 
     const fieldsArrayToMap = (fields = []) => Object.fromEntries(
         fields
@@ -280,13 +297,20 @@ const SaveFromTemplate = async (templateProps, assetName, instanceId = null, set
                     indexeDBDataUpdate.push({ fieldId: data._raw.field_id, value: color, name: data._raw.name, description: "" })
                     break;
                 default:
-                    // indexeDBDataUpdate.push({fieldId: data._raw.field_id, value: data._raw.value,name: fieldName})
+                    {
+                        const override = getFieldOverride(data);
+                        if (override) {
+                            const value = override.value ?? "";
+                            formData.append(`form_${data._raw.field_id}`, value);
+                            indexeDBDataUpdate.push({ fieldId: data._raw.field_id, value: value.toString(), name: data._raw.name, description: data._raw.description || "" })
+                        }
+                    }
                     break;
             }
         });
 
 
-
+          
         return updateDbData(
             formData,
             projectID,

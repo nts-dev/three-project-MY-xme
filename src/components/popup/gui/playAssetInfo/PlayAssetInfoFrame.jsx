@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import * as THREE from "three";
 import {
     FaArrowLeft,
     FaBuilding,
@@ -28,6 +29,7 @@ import database from "../../../../database";
 import useGame from "../../../../hooks/useGame";
 import { sceneAssets } from "../../../../threejs/player/puzzle/character/Constants.jsx";
 import { publicAssetCssUrl } from "../../../../puzzleUi/publicAssetUrl";
+import SaveFromTemplate from "../../form/SaveFromTemplate.jsx";
 
 const leftAnchorUrl = publicAssetCssUrl("left.svg");
 const rightAnchorUrl = publicAssetCssUrl("right.svg");
@@ -838,6 +840,69 @@ const buildMetaModel = (assetInfo, title) => {
     };
 };
 
+const applyDraftRowsToAssetInfo = (assetInfo, draftRows) => {
+    const overrideByFieldId = new Map(
+        draftRows
+            .filter((row) => row?.fieldId !== undefined && row?.fieldId !== null)
+            .map((row) => [String(row.fieldId), row.value])
+    );
+    const overrideByName = new Map(
+        draftRows
+            .filter((row) => row?.name)
+            .map((row) => [String(row.name).trim().toLowerCase(), row.value])
+    );
+
+    return {
+        ...assetInfo,
+        specGroups: (assetInfo?.specGroups || []).map((group) => ({
+            ...group,
+            children: (group.children || group.rows || []).map((field) => {
+                const nextValue = overrideByFieldId.has(String(field.fieldId || field.id))
+                    ? overrideByFieldId.get(String(field.fieldId || field.id))
+                    : overrideByName.get(String(field.name || field.label || "").trim().toLowerCase());
+
+                return nextValue === undefined
+                    ? field
+                    : { ...field, value: nextValue };
+            }),
+            rows: (group.rows || group.children || []).map((field) => {
+                const nextValue = overrideByFieldId.has(String(field.fieldId || field.id))
+                    ? overrideByFieldId.get(String(field.fieldId || field.id))
+                    : overrideByName.get(String(field.name || field.label || "").trim().toLowerCase());
+
+                return nextValue === undefined
+                    ? field
+                    : { ...field, value: nextValue };
+            }),
+        })),
+    };
+};
+
+const getVector3 = (value, fallback = [0, 0, 0]) => {
+    if (value?.isVector3) return value.clone();
+    if (value && typeof value === "object") {
+        return new THREE.Vector3(
+            Number.parseFloat(value.x) || 0,
+            Number.parseFloat(value.y) || 0,
+            Number.parseFloat(value.z) || 0
+        );
+    }
+    return new THREE.Vector3(...fallback);
+};
+
+const getEuler = (value) => {
+    if (value?.isEuler) return value.clone();
+    if (value && typeof value === "object") {
+        return new THREE.Euler(
+            Number.parseFloat(value.x) || 0,
+            Number.parseFloat(value.y) || 0,
+            Number.parseFloat(value.z) || 0,
+            value.order || "XYZ"
+        );
+    }
+    return new THREE.Euler(0, 0, 0);
+};
+
 const PlaySidebarGallery = ({ assetInfo }) => {
     const [images, setImages] = useState([]);
     const [activeIndex, setActiveIndex] = useState(0);
@@ -959,11 +1024,22 @@ const PlaySidebarGallery = ({ assetInfo }) => {
 
 export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilderOpen }) {
     const projectId = useGame((state) => state.projectID);
+    const setLazy = useGame((state) => state.setLazy);
+    const setLazyMsg = useGame((state) => state.setLazyMsg);
+    const setSelectedAssetId = useGame((state) => state.setSelectedAssetId);
+    const vAlignValue = useGame((state) => state.vAlignValue);
+    const setAssetSelected = useGame((state) => state.setAssetSelected);
+    const setGlobalIsEditing = useGame((state) => state.setIsEditing);
     const selectedAssetId = assetInfo?.instanceId;
     const title = useMemo(() => assetInfo?.title || `Asset ${selectedAssetId}`, [assetInfo?.title, selectedAssetId]);
     const showSystemBuilder = String(projectId ?? "").includes("137");
-    const meta = useMemo(() => buildMetaModel(assetInfo, title), [assetInfo, title]);
+    const [savedDraftRows, setSavedDraftRows] = useState(null);
+    const effectiveAssetInfo = useMemo(() => (
+        savedDraftRows ? applyDraftRowsToAssetInfo(assetInfo, savedDraftRows) : assetInfo
+    ), [assetInfo, savedDraftRows]);
+    const meta = useMemo(() => buildMetaModel(effectiveAssetInfo, title), [effectiveAssetInfo, title]);
     const [isEditing, setIsEditing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [draftRows, setDraftRows] = useState([]);
     const [googlePlace, setGooglePlace] = useState(null);
     const [googlePlaceStatus, setGooglePlaceStatus] = useState("idle");
@@ -1012,6 +1088,10 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
         setIsEditing(false);
     }, [meta.rows, selectedAssetId]);
 
+    useEffect(() => {
+        setSavedDraftRows(null);
+    }, [assetInfo, selectedAssetId]);
+
     const handleEditRequest = () => {
         setIsEditing(true);
         if (typeof window === "undefined") return;
@@ -1030,7 +1110,61 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
         )));
     };
 
-    const handleSaveRequest = () => {
+    const handleSaveRequest = async () => {
+        if (!selectedAssetId || isSaving) return;
+
+        const sceneAsset = sceneAssets?.[selectedAssetId] || {};
+        const liveObject = sceneAsset.object;
+        liveObject?.updateMatrixWorld?.(true);
+        const livePosition = new THREE.Vector3();
+        if (liveObject?.getWorldPosition) {
+            liveObject.getWorldPosition(livePosition);
+        }
+
+        const assetName =
+            sceneAsset.name ||
+            sceneAsset.cleanKey ||
+            sceneAsset.fbxName ||
+            sceneAsset.fileName ||
+            assetInfo?.title;
+        const templateProps = {
+            ...sceneAsset,
+            categoryIndex: assetInfo?.categoryIndex || sceneAsset.categoryIndex,
+            position: liveObject?.getWorldPosition ? livePosition : getVector3(sceneAsset.position),
+            rotation: getEuler(liveObject?.rotation || sceneAsset.rotation),
+            projectId,
+            textures: sceneAsset.textures,
+            color: sceneAsset.color,
+        };
+
+        setIsSaving(true);
+        try {
+            const result = await SaveFromTemplate(
+                templateProps,
+                assetName,
+                selectedAssetId,
+                setLazy,
+                setSelectedAssetId,
+                vAlignValue,
+                setLazyMsg,
+                setAssetSelected,
+                setGlobalIsEditing,
+                draftRows
+            );
+
+            if (!result) {
+                return;
+            }
+
+            specGroupsCache.delete(`${selectedAssetId}:${assetInfo?.categoryIndex || sceneAsset.categoryIndex}`);
+            setSavedDraftRows(draftRows);
+            setIsEditing(false);
+        } catch (error) {
+            console.error("Failed to save play asset info:", error);
+        } finally {
+            setIsSaving(false);
+        }
+
         if (typeof window !== "undefined") {
             window.dispatchEvent(new CustomEvent("play-asset-info-save-request", {
                 detail: {
@@ -1040,7 +1174,6 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                 },
             }));
         }
-        setIsEditing(false);
     };
 
     const handleAddPhotosRequest = () => {
@@ -1156,8 +1289,10 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                                 );
                             })}
                             <div className="play-asset-info__edit-actions">
-                                <button type="button" onClick={handleSaveRequest}>Save</button>
-                                <button type="button" onClick={() => setIsEditing(false)}>Cancel</button>
+                                <button type="button" onClick={handleSaveRequest} disabled={isSaving}>
+                                    {isSaving ? "Saving..." : "Save"}
+                                </button>
+                                <button type="button" onClick={() => setIsEditing(false)} disabled={isSaving}>Cancel</button>
                             </div>
                         </div>
                     ) : (
