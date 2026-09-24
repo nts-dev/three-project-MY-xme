@@ -1,5 +1,5 @@
 import React, { useCallback } from "react";
-import { FaEye, FaLocationArrow, FaVideo } from "react-icons/fa";
+import { FaEye, FaLocationArrow, FaTag, FaEllipsisH, FaVideo } from "react-icons/fa";
 import useGame from "../../../../hooks/useGame";
 import { publicAssetUrl } from "../../../../puzzleUi/publicAssetUrl";
 import VrViewButton from "./VrViewButton";
@@ -35,6 +35,10 @@ export default function PlayModeViewControls() {
     const playerTrackReplay = useGame((state) => state.playerTrackReplay);
     const setPlayerTrackReplay = useGame((state) => state.setPlayerTrackReplay);
     const cameraPathReplay = useGame((state) => state.cameraPathReplay);
+    const cameraPathSource = useGame((state) => state.cameraPathSource);
+    const setCameraPathSource = useGame((state) => state.setCameraPathSource);
+    const rtlsRouteDots = useGame((state) => state.rtlsRouteDots);
+    const setRtlsRouteDots = useGame((state) => state.setRtlsRouteDots);
     const setCameraPathReplay = useGame((state) => state.setCameraPathReplay);
     const cameraRealtimeFollow = useGame((state) => state.cameraRealtimeFollow);
     const setCameraRealtimeFollow = useGame((state) => state.setCameraRealtimeFollow);
@@ -67,15 +71,16 @@ export default function PlayModeViewControls() {
         [setButtonMode, setCameraPathReplay, setCameraRealtimeFollow, setCharacter, setFirstPerson]
     );
 
-    const toggleCameraPathReplay = useCallback(() => {
-        const nextCameraPathReplay = !cameraPathReplay;
+    const toggleCameraPathReplay = useCallback((source) => {
+        const nextCameraPathReplay = !cameraPathReplay || cameraPathSource !== source;
 
         setButtonMode("Play mode");
         setFirstPerson(false);
         setCharacter(false);
+        setCameraPathSource(source);
         setCameraPathReplay(nextCameraPathReplay);
         if (nextCameraPathReplay) setCameraRealtimeFollow(false);
-    }, [cameraPathReplay, setButtonMode, setCameraPathReplay, setCameraRealtimeFollow, setCharacter, setFirstPerson]);
+    }, [cameraPathReplay, cameraPathSource, setCameraPathSource, setButtonMode, setCameraPathReplay, setCameraRealtimeFollow, setCharacter, setFirstPerson]);
 
     const toggleCameraRealtimeFollow = useCallback(() => {
         const nextCameraRealtimeFollow = !cameraRealtimeFollow;
@@ -117,13 +122,35 @@ export default function PlayModeViewControls() {
 
             <button
                 type="button"
-                className={`play-view-controls__button play-view-controls__button--camera-path${cameraPathReplay ? " is-active" : ""}`}
-                aria-label={cameraPathReplay ? "Stop camera route" : "Play camera route"}
-                aria-pressed={cameraPathReplay}
-                data-tooltip={cameraPathReplay ? "Stop camera route" : "Play camera route"}
-                onClick={toggleCameraPathReplay}
+                className={`play-view-controls__button play-view-controls__button--camera-path${cameraPathReplay && cameraPathSource === "gps" ? " is-active" : ""}`}
+                aria-label={cameraPathReplay && cameraPathSource === "gps" ? "Stop GPS camera route" : "Play GPS camera route"}
+                aria-pressed={cameraPathReplay && cameraPathSource === "gps"}
+                data-tooltip={cameraPathReplay && cameraPathSource === "gps" ? "Stop GPS camera route" : "Play GPS camera route"}
+                onClick={() => toggleCameraPathReplay("gps")}
             >
                 <FaLocationArrow className="play-view-controls__svg-icon play-view-controls__svg-icon--cameraPath" aria-hidden="true" />
+            </button>
+
+            <button
+                type="button"
+                className={`play-view-controls__button${cameraPathReplay && cameraPathSource === "rtls" ? " is-active" : ""}`}
+                aria-label={cameraPathReplay && cameraPathSource === "rtls" ? "Stop RTLS tag camera route" : "Play RTLS tag camera route"}
+                aria-pressed={cameraPathReplay && cameraPathSource === "rtls"}
+                data-tooltip={cameraPathReplay && cameraPathSource === "rtls" ? "Stop RTLS tag camera route" : "Play RTLS tag camera route"}
+                onClick={() => toggleCameraPathReplay("rtls")}
+            >
+                <FaTag className="play-view-controls__svg-icon" aria-hidden="true" />
+            </button>
+
+            <button
+                type="button"
+                className={`play-view-controls__button${rtlsRouteDots ? " is-active" : ""}`}
+                aria-label={rtlsRouteDots ? "Hide RTLS route dots" : "Show RTLS route dots"}
+                aria-pressed={rtlsRouteDots}
+                data-tooltip={rtlsRouteDots ? "Hide RTLS route dots" : "Show RTLS route dots"}
+                onClick={() => setRtlsRouteDots(!rtlsRouteDots)}
+            >
+                <FaEllipsisH className="play-view-controls__svg-icon" aria-hidden="true" />
             </button>
 
             <button

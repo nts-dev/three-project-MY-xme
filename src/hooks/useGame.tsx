@@ -252,6 +252,8 @@ const useGame = create((set) => ({
     controlClose: false,
     playerTrackReplay: false,
     cameraPathReplay: false,
+    cameraPathSource: "gps",
+    rtlsRouteDots: false,
     cameraRealtimeFollow: false,
     cameraRealtimeTelemetry: {
         currentSpeed: 0,
@@ -545,6 +547,8 @@ const useGame = create((set) => ({
             ...state,
             cameraPathReplay
         })),
+    setCameraPathSource: (cameraPathSource: "gps" | "rtls") => set({ cameraPathSource }),
+    setRtlsRouteDots: (rtlsRouteDots: boolean) => set({ rtlsRouteDots }),
     setCameraRealtimeFollow: (cameraRealtimeFollow: boolean) =>
         set((state: any) => ({
             ...state,

@@ -325,7 +325,9 @@ export default function Building({ bProjectId }: { bProjectId: number }) {
     useEffect(() => {
         if (!bProjectId || bProjectId <= 0 || !fbxModel || !scene) return;
 
-        fbxModel.scale.set(0.01, 0.01, 0.01);
+        fbxModel.scale.set(0.0102, 0.01, 0.01);
+        fbxModel.position.set(-0.8,-0.48,-1.4)
+        fbxModel.rotation.y = -0.03
 
         let sceneObj = scene.getObjectByName("sceneObj") as THREE.Object3D;
         if (!sceneObj) {

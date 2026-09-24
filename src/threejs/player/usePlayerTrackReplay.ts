@@ -34,7 +34,10 @@ function getTrackPlayerIds() {
     return configuredIds.length > 0 ? configuredIds : DEFAULT_TRACK_PLAYER_IDS;
 }
 
-function getTrackSources(projectID: any) {
+function getTrackSources(projectID: any, sourceType: "gps" | "rtls") {
+    if (sourceType === "rtls") {
+        return [{ id: "GR100f", url: `${getApiBaseUrl()}/player/GR100f.json` }];
+    }
     const projectSources = PROJECT_TRACK_SOURCES[getProjectBaseId(projectID)];
     if (projectSources) return projectSources;
 
@@ -162,7 +165,7 @@ function byDateTime(firstRecord: any, secondRecord: any) {
     return firstDate - secondDate;
 }
 
-async function fetchTrack(source: { id: string; url: string }, projectID: any) {
+async function fetchTrack(source: { id: string; url: string }, projectID: any, sourceType: "gps" | "rtls") {
     const response = await fetch(source.url);
     if (!response.ok) throw new Error(`Unable to load player track ${source.id}`);
 
@@ -171,25 +174,25 @@ async function fetchTrack(source: { id: string; url: string }, projectID: any) {
     if (!Array.isArray(records)) return [];
 
         return records
-        .filter((record) => hasGpsFix(record) && isSameProject(record, projectID))
+        .filter((record) => (sourceType === "rtls" || hasGpsFix(record)) && isSameProject(record, projectID))
         .sort(byDateTime)
-        .slice(TRACK_START_FRAME)
+        .slice(sourceType === "rtls" ? 0 : TRACK_START_FRAME)
         .map((record) => normalizeTrackRecord(record, source.id));
 }
 
-export default function usePlayerTrackReplay(projectID: any, enabled: boolean) {
+export default function usePlayerTrackReplay(projectID: any, enabled: boolean, sourceType: "gps" | "rtls" = "gps") {
     const [tracks, setTracks] = useState<Record<string, { color: string; records: any[] }>>({});
     const [players, setPlayers] = useState<any[]>([]);
     const indexesRef = useRef<Record<string, number>>({});
-    const trackSources = useMemo(() => getTrackSources(projectID), [projectID]);
+    const trackSources = useMemo(() => getTrackSources(projectID, sourceType), [projectID, sourceType]);
 
     useEffect(() => {
         let cancelled = false;
+        setTracks({});
+        setPlayers([]);
+        indexesRef.current = {};
 
         if (!enabled) {
-            indexesRef.current = {};
-            setTracks({});
-            setPlayers([]);
             return () => {
                 cancelled = true;
             };
@@ -200,7 +203,7 @@ export default function usePlayerTrackReplay(projectID: any, enabled: boolean) {
                 source.id,
                 {
                     color: source.color || "#ff1f2f",
-                    records: await fetchTrack(source, projectID),
+                    records: await fetchTrack(source, projectID, sourceType),
                 },
             ] as const)
         )
@@ -217,7 +220,7 @@ export default function usePlayerTrackReplay(projectID: any, enabled: boolean) {
         return () => {
             cancelled = true;
         };
-    }, [projectID, trackSources, enabled]);
+    }, [projectID, trackSources, enabled, sourceType]);
 
     useEffect(() => {
         const trackEntries = Object.entries(tracks);

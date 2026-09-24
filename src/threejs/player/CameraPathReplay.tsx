@@ -7,10 +7,13 @@ import usePlayerTrackReplay from "./usePlayerTrackReplay";
 const CAMERA_ROUTE_HEIGHT = 1.7;
 const PROJECT_126_CAMERA_HEIGHT_SCALE = -0.21;
 const CAMERA_ROUTE_SPEED = 3.2;
+const RTLS_CAMERA_ROUTE_SPEED = CAMERA_ROUTE_SPEED / 2;
+const RTLS_ROTATION_SMOOTHING = 4;
 const CAMERA_ROUTE_LOOK_AHEAD = 7.5;
 const POSITION_SMOOTHING = 7;
 const TARGET_SMOOTHING = 4;
 const CAMERA_ROUTE_DOT_COLOR = "#ff1f2f";
+const CAMERA_ROUTE_DOT_SPACING = 0.25;
 
 type PathSegment = {
     from: THREE.Vector3;
@@ -94,8 +97,43 @@ function samplePath(segments: PathSegment[], distance: number, target: SampledPa
     return target;
 }
 
+function getRtlsRoutePositions(points: any[]): THREE.Vector3[] {
+    const positions: THREE.Vector3[] = [];
+
+    for (const point of points) {
+        const position = getPointPosition(point);
+        const previous = positions[positions.length - 1];
+        if (!previous || previous.distanceToSquared(position) > 0.000001) {
+            positions.push(position);
+        }
+    }
+
+    // Reduce small tracking jitters while preserving both route endpoints.
+    const smoothed = positions.map((position, index) => {
+        if (index === 0 || index === positions.length - 1) return position.clone();
+        return position.clone().multiplyScalar(0.5)
+            .addScaledVector(positions[index - 1], 0.25)
+            .addScaledVector(positions[index + 1], 0.25);
+    });
+
+    let dotPositions = smoothed;
+    if (smoothed.length >= 2) {
+        const curve = new THREE.CatmullRomCurve3(smoothed, false, "centripetal");
+        curve.arcLengthDivisions = Math.max(200, smoothed.length * 20);
+        const divisions = Math.max(1, Math.ceil(curve.getLength() / CAMERA_ROUTE_DOT_SPACING));
+        dotPositions = curve.getSpacedPoints(divisions);
+    }
+
+    return dotPositions.map((position) => {
+        position.x -= 0.8;
+        position.z -= 1.4;
+        position.y -= 1.3;
+        return position;
+    });
+}
+
 function CameraRouteDots({ points }: { points: any[] }) {
-    const geometry = useMemo(() => new THREE.SphereGeometry(0.44, 10, 8), []);
+    const geometry = useMemo(() => new THREE.SphereGeometry(0.088, 10, 8), []);
     const material = useMemo(() => new THREE.MeshBasicMaterial({
         color: CAMERA_ROUTE_DOT_COLOR,
         depthTest: false,
@@ -106,12 +144,7 @@ function CameraRouteDots({ points }: { points: any[] }) {
 
     const matrices = useMemo(() => {
         const matrix = new THREE.Matrix4();
-
-        return points.map((point) => {
-            const position = getPointPosition(point);
-            position.y += 0.08;
-            return matrix.clone().setPosition(position);
-        });
+        return getRtlsRoutePositions(points).map((position) => matrix.clone().setPosition(position));
     }, [points]);
 
     useEffect(() => {
@@ -136,13 +169,23 @@ function CameraRouteDots({ points }: { points: any[] }) {
     );
 }
 
+function RtlsRouteDots({ projectID }: { projectID: any }) {
+    const { pathGroups } = usePlayerTrackReplay(projectID, true, "rtls");
+
+    return <>{pathGroups.map((group) => (
+        <CameraRouteDots key={group.id} points={group.points} />
+    ))}</>;
+}
+
 export default function CameraPathReplay() {
     const { camera } = useThree();
     const projectID = useGame((state: any) => state.projectID);
     const cameraPathReplay = useGame((state: any) => state.cameraPathReplay);
+    const cameraPathSource = useGame((state: any) => state.cameraPathSource);
+    const rtlsRouteDots = useGame((state: any) => state.rtlsRouteDots);
     const setCameraPathReplay = useGame((state: any) => state.setCameraPathReplay);
     const orbitControlsRef = useGame((state: any) => state.orbitControlsRef);
-    const { pathGroups } = usePlayerTrackReplay(projectID, cameraPathReplay);
+    const { pathGroups } = usePlayerTrackReplay(projectID, cameraPathReplay, cameraPathSource);
     const distanceRef = useRef(0);
     const pointSampleRef = useRef<SampledPath>({
         point: new THREE.Vector3(),
@@ -155,16 +198,23 @@ export default function CameraPathReplay() {
     const desiredPositionRef = useRef(new THREE.Vector3());
     const desiredTargetRef = useRef(new THREE.Vector3());
     const controlTargetRef = useRef(new THREE.Vector3());
+    const rotationMatrixRef = useRef(new THREE.Matrix4());
+    const desiredRotationRef = useRef(new THREE.Quaternion());
 
     const activePoints = useMemo(() => {
         return pathGroups.find((group) => group.points.length > 1)?.points || [];
     }, [pathGroups]);
 
-    const route = useMemo(() => buildPathSegments(activePoints), [activePoints]);
+    const route = useMemo(() => {
+        const points = cameraPathSource === "rtls"
+            ? getRtlsRoutePositions(activePoints).map((position) => ({ position }))
+            : activePoints;
+        return buildPathSegments(points);
+    }, [activePoints, cameraPathSource]);
 
     useEffect(() => {
         distanceRef.current = 0;
-    }, [cameraPathReplay, route.totalLength]);
+    }, [cameraPathReplay, cameraPathSource, route]);
 
     useEffect(() => {
         const controls = orbitControlsRef?.current;
@@ -184,10 +234,30 @@ export default function CameraPathReplay() {
 
         distanceRef.current = Math.min(
             route.totalLength,
-            distanceRef.current + delta * CAMERA_ROUTE_SPEED
+            distanceRef.current + delta * (cameraPathSource === "rtls" ? RTLS_CAMERA_ROUTE_SPEED : CAMERA_ROUTE_SPEED)
         );
 
         const currentSample = samplePath(route.segments, distanceRef.current, pointSampleRef.current);
+        if (cameraPathSource === "rtls") {
+            // Stay directly above the dotted route and face its forward tangent.
+            const position = desiredPositionRef.current.copy(currentSample.point);
+            position.y += CAMERA_ROUTE_HEIGHT;
+            camera.position.copy(position);
+            const target = desiredTargetRef.current.copy(position)
+                .add(currentSample.direction);
+            rotationMatrixRef.current.lookAt(position, target, camera.up);
+            desiredRotationRef.current.setFromRotationMatrix(rotationMatrixRef.current);
+            camera.quaternion.slerp(desiredRotationRef.current, 1 - Math.exp(-RTLS_ROTATION_SMOOTHING * delta));
+            const controls = orbitControlsRef?.current;
+            if (controls?.target) {
+                // Keep manual controls aligned with the smoothed view when playback stops.
+                controls.target.set(0, 0, -1).applyQuaternion(camera.quaternion).add(position);
+            }
+            camera.updateMatrixWorld();
+            if (distanceRef.current >= route.totalLength) setCameraPathReplay(false);
+            return;
+        }
+
         const lookSample = samplePath(
             route.segments,
             Math.min(route.totalLength, distanceRef.current + CAMERA_ROUTE_LOOK_AHEAD),
@@ -223,8 +293,5 @@ export default function CameraPathReplay() {
             setCameraPathReplay(false);
         }
     });
-     return null;
-    // return cameraPathReplay && activePoints.length > 1
-    //     ? <CameraRouteDots points={activePoints} />
-    //     : null;
+    return rtlsRouteDots ? <RtlsRouteDots projectID={projectID} /> : null;
 }
