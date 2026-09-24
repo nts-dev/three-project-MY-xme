@@ -9,6 +9,9 @@ const PROJECT_126_CAMERA_HEIGHT_SCALE = -0.21;
 const CAMERA_ROUTE_SPEED = 3.2;
 const RTLS_CAMERA_ROUTE_SPEED = CAMERA_ROUTE_SPEED / 2;
 const RTLS_ROTATION_SMOOTHING = 4;
+const RTLS_MAX_ROTATION_SPEED = THREE.MathUtils.degToRad(45);
+const RTLS_STOP_TURN_ANGLE = THREE.MathUtils.degToRad(35);
+const RTLS_RESUME_TURN_ANGLE = THREE.MathUtils.degToRad(2);
 const CAMERA_ROUTE_LOOK_AHEAD = 7.5;
 const POSITION_SMOOTHING = 7;
 const TARGET_SMOOTHING = 4;
@@ -200,6 +203,8 @@ export default function CameraPathReplay() {
     const controlTargetRef = useRef(new THREE.Vector3());
     const rotationMatrixRef = useRef(new THREE.Matrix4());
     const desiredRotationRef = useRef(new THREE.Quaternion());
+    const turningInPlaceRef = useRef(false);
+    const turnRotationRef = useRef(new THREE.Quaternion());
 
     const activePoints = useMemo(() => {
         return pathGroups.find((group) => group.points.length > 1)?.points || [];
@@ -214,6 +219,7 @@ export default function CameraPathReplay() {
 
     useEffect(() => {
         distanceRef.current = 0;
+        turningInPlaceRef.current = false;
     }, [cameraPathReplay, cameraPathSource, route]);
 
     useEffect(() => {
@@ -232,32 +238,56 @@ export default function CameraPathReplay() {
     useFrame((_, delta) => {
         if (!cameraPathReplay || route.segments.length === 0 || route.totalLength <= 0) return;
 
-        distanceRef.current = Math.min(
+        const nextDistance = Math.min(
             route.totalLength,
             distanceRef.current + delta * (cameraPathSource === "rtls" ? RTLS_CAMERA_ROUTE_SPEED : CAMERA_ROUTE_SPEED)
         );
 
-        const currentSample = samplePath(route.segments, distanceRef.current, pointSampleRef.current);
+        const currentSample = samplePath(route.segments, nextDistance, pointSampleRef.current);
         if (cameraPathSource === "rtls") {
             // Stay directly above the dotted route and face its forward tangent.
             const position = desiredPositionRef.current.copy(currentSample.point);
             position.y += CAMERA_ROUTE_HEIGHT;
-            camera.position.copy(position);
             const target = desiredTargetRef.current.copy(position)
                 .add(currentSample.direction);
             rotationMatrixRef.current.lookAt(position, target, camera.up);
             desiredRotationRef.current.setFromRotationMatrix(rotationMatrixRef.current);
-            camera.quaternion.slerp(desiredRotationRef.current, 1 - Math.exp(-RTLS_ROTATION_SMOOTHING * delta));
+
+            if (!turningInPlaceRef.current && camera.quaternion.angleTo(desiredRotationRef.current) >= RTLS_STOP_TURN_ANGLE) {
+                turningInPlaceRef.current = true;
+                turnRotationRef.current.copy(desiredRotationRef.current);
+            }
+
+            if (turningInPlaceRef.current) {
+                // Freeze route progress and hold a fixed heading until the turn finishes.
+                samplePath(route.segments, distanceRef.current, pointSampleRef.current);
+                position.copy(pointSampleRef.current.point);
+                position.y += CAMERA_ROUTE_HEIGHT;
+                desiredRotationRef.current.copy(turnRotationRef.current);
+            } else {
+                distanceRef.current = nextDistance;
+            }
+            camera.position.copy(position);
+            const angle = camera.quaternion.angleTo(desiredRotationRef.current);
+            const rotationStep = Math.min(
+                RTLS_MAX_ROTATION_SPEED * delta,
+                angle * (1 - Math.exp(-RTLS_ROTATION_SMOOTHING * delta))
+            );
+            camera.quaternion.rotateTowards(desiredRotationRef.current, rotationStep);
+            if (turningInPlaceRef.current && camera.quaternion.angleTo(desiredRotationRef.current) <= RTLS_RESUME_TURN_ANGLE) {
+                turningInPlaceRef.current = false;
+            }
             const controls = orbitControlsRef?.current;
             if (controls?.target) {
                 // Keep manual controls aligned with the smoothed view when playback stops.
                 controls.target.set(0, 0, -1).applyQuaternion(camera.quaternion).add(position);
             }
             camera.updateMatrixWorld();
-            if (distanceRef.current >= route.totalLength) setCameraPathReplay(false);
+            if (distanceRef.current >= route.totalLength && !turningInPlaceRef.current) setCameraPathReplay(false);
             return;
         }
 
+        distanceRef.current = nextDistance;
         const lookSample = samplePath(
             route.segments,
             Math.min(route.totalLength, distanceRef.current + CAMERA_ROUTE_LOOK_AHEAD),
