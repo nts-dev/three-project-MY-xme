@@ -5,6 +5,7 @@ import { hasPlaySceneMetadata, loadPlayAssetInfo } from "./assetInfoData";
 export const usePlayAssetInfo = ({ active }) => {
     const [assetInfo, setAssetInfo] = useState(null);
     const playAssetInfoRequest = useGame((state) => state.playAssetInfoRequest);
+    const projectId = useGame((state) => state.projectID);
     const activeIdRef = useRef(null);
     const requestIdRef = useRef(0);
     const cacheRef = useRef(new Map());
@@ -22,7 +23,7 @@ export const usePlayAssetInfo = ({ active }) => {
             return;
         }
 
-        if (!hasPlaySceneMetadata(instanceId)) {
+        if (String(projectId) !== "153_L1" && !hasPlaySceneMetadata(instanceId)) {
             activeIdRef.current = null;
             setAssetInfo(null);
             return;
@@ -43,7 +44,8 @@ export const usePlayAssetInfo = ({ active }) => {
             isLoadingDetails: true,
         };
 
-        const cached = cacheRef.current.get(String(instanceId));
+        const cacheKey = `${projectId}:${instanceId}`;
+        const cached = cacheRef.current.get(cacheKey);
         if (cached) {
             setAssetInfo({
                 ...cached,
@@ -60,6 +62,7 @@ export const usePlayAssetInfo = ({ active }) => {
         requestIdRef.current = requestId;
 
         loadPlayAssetInfo({
+            projectId,
             instanceId,
             fallbackName: playAssetInfoRequest.name,
         }).then((nextInfo) => {
@@ -80,14 +83,14 @@ export const usePlayAssetInfo = ({ active }) => {
                 assetID: playAssetInfoRequest.assetID ?? nextInfo.assetID,
                 isLoadingDetails: false,
             };
-            cacheRef.current.set(String(instanceId), nextInfo);
+            cacheRef.current.set(cacheKey, nextInfo);
             setAssetInfo(infoWithRequest);
         }).catch((error) => {
             if (requestId === requestIdRef.current) {
                 console.warn("Play asset info load failed:", error);
             }
         });
-    }, [active, playAssetInfoRequest]);
+    }, [active, playAssetInfoRequest, projectId]);
 
     useEffect(() => {
         if (!active) {

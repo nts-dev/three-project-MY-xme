@@ -71,6 +71,16 @@ const findFieldValue = (fields, names) => {
 
 const normalizeFieldName = (name = "") => String(name || "").trim();
 
+const BUSINESS_FIELD_NAMES = new Set([
+    "street name", "company name", "building number", "kind of business",
+    "telephone no.", "website url", "email", "cordinate",
+    "business description", "opening hours", "comments",
+]);
+
+export const isBusinessMetadataField = (name) => BUSINESS_FIELD_NAMES.has(
+    normalizeFieldName(name).toLowerCase()
+);
+
 const isUsefulValue = (value) => (
     value !== undefined &&
     value !== null &&
@@ -217,11 +227,11 @@ const dedupeFields = (fields) => {
     return Array.from(deduped.values());
 };
 
-const buildSpecGroups = ({ instanceId, assetName, rawFields, apiFields, sceneFields }) => {
+const buildSpecGroups = ({ instanceId, assetName, rawFields, apiFields, sceneFields, keepEmptyBusinessFields = false }) => {
     const allFields = dedupeFields([
-        ...normalizeFields(sceneFields),
         ...normalizeFields(apiFields),
         ...normalizeFields(rawFields),
+        ...normalizeFields(sceneFields),
     ]);
     const fieldsById = new Map();
     allFields.forEach((field) => {
@@ -243,7 +253,8 @@ const buildSpecGroups = ({ instanceId, assetName, rawFields, apiFields, sceneFie
     allFields.forEach((field) => {
         const name = normalizeFieldName(field?.name);
         const value = field?.value;
-        if (!name || isHiddenMetaField(name) || !isUsefulValue(value)) {
+        const keepEmpty = keepEmptyBusinessFields && isBusinessMetadataField(name);
+        if (!name || isHiddenMetaField(name) || (!isUsefulValue(value) && !keepEmpty)) {
             return;
         }
 
@@ -258,8 +269,10 @@ const buildSpecGroups = ({ instanceId, assetName, rawFields, apiFields, sceneFie
         }
 
         getGroup(groupTitle === "Specifications" ? "Meta" : groupTitle).rows.push({
+            fieldId: getFieldId(field),
             label: name,
             value,
+            type: field.type,
         });
     });
 
@@ -327,7 +340,7 @@ export const hasPlaySceneMetadata = (instanceId) => {
     return groups.some((group) => group.rows?.length);
 };
 
-export const loadPlayAssetInfo = async ({ instanceId, fallbackName = "" }) => {
+export const loadPlayAssetInfo = async ({ instanceId, fallbackName = "", projectId }) => {
     if (!instanceId) {
         return null;
     }
@@ -339,7 +352,10 @@ export const loadPlayAssetInfo = async ({ instanceId, fallbackName = "" }) => {
         normalizeFieldName(field?.name) && isUsefulValue(field?.value)
     ));
     const assetData = await fetchAssetData(instanceId);
-    const rawFields = assetData?.extraFields || {};
+    const rawFields = [
+        ...normalizeFields(assetData?.rawFields),
+        ...normalizeFields(assetData?.extraFields),
+    ];
     const apiFields = assetData?.fields || {};
     const assetInfo = findFieldValue(sceneFields, ["AssetInfo", "Asset Info"]) ||
         findFieldValue(rawFields, ["AssetInfo", "Asset Info"]);
@@ -352,6 +368,7 @@ export const loadPlayAssetInfo = async ({ instanceId, fallbackName = "" }) => {
         "Not Defined";
     const imageItems = getImageItems(assetData);
     const specGroups = buildSpecGroups({
+        keepEmptyBusinessFields: String(projectId) === "153_L1",
         instanceId,
         assetName,
         rawFields,

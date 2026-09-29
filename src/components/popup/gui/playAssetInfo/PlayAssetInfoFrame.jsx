@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import {
     FaArrowLeft,
@@ -30,6 +30,8 @@ import useGame from "../../../../hooks/useGame";
 import { sceneAssets } from "../../../../threejs/player/puzzle/character/Constants.jsx";
 import { publicAssetCssUrl } from "../../../../puzzleUi/publicAssetUrl";
 import SaveFromTemplate from "../../form/SaveFromTemplate.jsx";
+import { isBusinessMetadataField } from "./assetInfoData";
+import SidebarImageUpload from "./SidebarImageUpload.jsx";
 
 const leftAnchorUrl = publicAssetCssUrl("left.svg");
 const rightAnchorUrl = publicAssetCssUrl("right.svg");
@@ -751,29 +753,26 @@ const isLongEditField = (name, value) => {
     return /description|comments|opening|hours|schedule/.test(text) || String(value || "").length > 70;
 };
 
-const buildMetaModel = (assetInfo, title) => {
+const buildMetaModel = (assetInfo, title, showEmptyBusinessFields = false) => {
     const groups = normalizeApiSpecGroups(assetInfo?.specGroups);
     const rows = groups.flatMap((group) => group.children || []).filter(shouldShowMetaRow);
     const companyName = findMetaValue(rows, ["Company Name", "AssetName"]) || title;
     const businessDescription = findMetaValue(rows, ["Business Description", "Description"]);
     const comments = findMetaValue(rows, ["Comments"]);
     const description = businessDescription || comments;
-    const businessType = findMetaValue(rows, ["Business Type", "Company Type", "Category", "Type"]);
+    const businessType = findMetaValue(rows, ["Kind of Business", "Business Type", "Company Type", "Category", "Type"]);
     const streetName = findMetaValue(rows, ["Street Name", "Street", "Address"]);
     const streetNumber = findMetaValue(rows, ["Street Number", "Street No.", "Street No", "No.", "No"]);
     const buildingNumber = findMetaValue(rows, ["Building Number", "Building No", "Unit"]);
     const formattedStreetNumber = streetNumber
         ? `No. ${String(streetNumber).replace(/^no\.?\s*/i, "").trim()}`
         : "";
-    const address = [formattedStreetNumber, streetName].filter(Boolean).join(", ") ||
-        [streetName, buildingNumber].filter(Boolean).join(", ") ||
-        streetName ||
-        buildingNumber;
+    const address = [formattedStreetNumber || buildingNumber, streetName].filter(Boolean).join(", ");
     const city = findMetaValue(rows, ["City", "Town", "State"]) || "Seri Kembangan, Selangor, Malaysia";
     const openingHours = findMetaValue(rows, ["Opening Hours", "Hours"]);
     const website = findMetaValue(rows, ["Website Url", "Website URL", "Website"]);
-    const telephone = findMetaValue(rows, ["Telephone", "Phone", "Contact"]);
-    const coordinates = findMetaValue(rows, ["Cordinates", "Coordinates"]);
+    const telephone = findMetaValue(rows, ["Telephone No.", "Telephone", "Phone", "Contact"]);
+    const coordinates = findMetaValue(rows, ["Cordinate", "Cordinates", "Coordinates"]);
     const rating = findMetaValue(rows, ["Rating", "Google Rating"]) || "4.5";
     const reviews = findMetaValue(rows, ["Reviews", "Review Count"]) || "127";
     const businessKind = getBusinessKind(businessType, companyName, description);
@@ -784,6 +783,7 @@ const buildMetaModel = (assetInfo, title) => {
         "description",
         "comments",
         "business type",
+        "kind of business",
         "company type",
         "category",
         "type",
@@ -806,8 +806,10 @@ const buildMetaModel = (assetInfo, title) => {
         "website url",
         "website",
         "telephone",
+        "telephone no.",
         "phone",
         "contact",
+        "cordinate",
         "cordinates",
         "coordinates",
         "rating",
@@ -817,7 +819,7 @@ const buildMetaModel = (assetInfo, title) => {
     ]);
     const extraRows = rows
         .filter((row) => !consumedNames.has(String(row?.name || "").trim().toLowerCase()))
-        .map((row) => ({ label: row.name, value: valueText(row.value) }))
+        .map((row) => ({ label: row.name, value: valueText(row.value) || (showEmptyBusinessFields && isBusinessMetadataField(row.name) ? "N/A" : "") }))
         .filter((row) => row.value);
 
     return {
@@ -904,6 +906,7 @@ const getEuler = (value) => {
 };
 
 const PlaySidebarGallery = ({ assetInfo }) => {
+    const imageRequestRef = useRef(0);
     const [images, setImages] = useState([]);
     const [activeIndex, setActiveIndex] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -921,9 +924,10 @@ const PlaySidebarGallery = ({ assetInfo }) => {
     ), [assetInfo?.images]);
 
     const fetchImages = useCallback(async ({ force = false } = {}) => {
+        const requestId = ++imageRequestRef.current;
         try {
             setLoading(true);
-            if (!force && apiImages.length) {
+            if (!force && apiImages.length && !mediaCache.has(cacheKey)) {
                 mediaCache.set(cacheKey, apiImages);
                 setImages(apiImages);
                 setActiveIndex(0);
@@ -948,16 +952,18 @@ const PlaySidebarGallery = ({ assetInfo }) => {
             });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const allImages = await response.json();
+            if (requestId !== imageRequestRef.current) return;
             const imageList = allImages?.images?.length ? allImages.images : allImages?.category_images;
             const nextImages = imageObject(imageList);
             mediaCache.set(cacheKey, nextImages);
             setImages(nextImages);
             setActiveIndex(0);
         } catch (error) {
+            if (requestId !== imageRequestRef.current) return;
             console.error("Failed to fetch play asset images:", error);
             setImages(imageObject([]));
         } finally {
-            setLoading(false);
+            if (requestId === imageRequestRef.current) setLoading(false);
         }
     }, [apiImages, assetID, cacheKey, selectedAssetId]);
 
@@ -968,12 +974,34 @@ const PlaySidebarGallery = ({ assetInfo }) => {
     useEffect(() => {
         const handleAddPhotosRequest = (event) => {
             if (event?.detail?.selectedAssetId && event.detail.selectedAssetId !== selectedAssetId) return;
+            const fileName = event?.detail?.uploadedImage?.name;
+            if (fileName) {
+                // An older image-list request must not replace this new upload.
+                imageRequestRef.current += 1;
+                const imageUrl = getAssetImageUrl(fileName);
+                const freshUrl = `${imageUrl}?v=${Date.now()}`;
+                const uploadedImage = {
+                    itemImageSrc: freshUrl,
+                    thumbnailImageSrc: freshUrl,
+                    alt: "Uploaded image",
+                };
+                const previousImages = mediaCache.get(cacheKey) || apiImages;
+                const nextImages = [uploadedImage, ...previousImages.filter((image) => {
+                    const url = String(image.itemImageSrc || "").split("?")[0];
+                    return url !== imageUrl && !/\/no_image\.png$/i.test(url);
+                })];
+                mediaCache.set(cacheKey, nextImages);
+                setImages(nextImages);
+                setActiveIndex(0);
+                setLoading(false);
+                return;
+            }
             fetchImages({ force: true });
         };
 
         window.addEventListener("play-asset-info-add-photos", handleAddPhotosRequest);
         return () => window.removeEventListener("play-asset-info-add-photos", handleAddPhotosRequest);
-    }, [fetchImages, selectedAssetId]);
+    }, [apiImages, cacheKey, fetchImages, selectedAssetId]);
 
     const activeImage = images[activeIndex] || images[0];
     const hasMultipleImages = images.length > 1;
@@ -1037,7 +1065,9 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
     const effectiveAssetInfo = useMemo(() => (
         savedDraftRows ? applyDraftRowsToAssetInfo(assetInfo, savedDraftRows) : assetInfo
     ), [assetInfo, savedDraftRows]);
-    const meta = useMemo(() => buildMetaModel(effectiveAssetInfo, title), [effectiveAssetInfo, title]);
+    const retainEmptyBusinessFields = String(projectId) === "153_L1";
+    const meta = useMemo(() => buildMetaModel(effectiveAssetInfo, title, retainEmptyBusinessFields), [effectiveAssetInfo, title, retainEmptyBusinessFields]);
+    const showEmptyBusinessFields = String(projectId) === "153_L1" && meta.rows.some((row) => isBusinessMetadataField(row.name));
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [draftRows, setDraftRows] = useState([]);
@@ -1176,10 +1206,10 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
         }
     };
 
-    const handleAddPhotosRequest = () => {
+    const handleAddPhotosRequest = (uploadedImage) => {
         if (typeof window === "undefined") return;
         window.dispatchEvent(new CustomEvent("play-asset-info-add-photos", {
-            detail: { selectedAssetId },
+            detail: { selectedAssetId, uploadedImage },
         }));
     };
 
@@ -1216,6 +1246,7 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
             </div>
 
             <div className="play-asset-info__body">
+                <SidebarImageUpload key={selectedAssetId} instanceId={selectedAssetId} onUploaded={handleAddPhotosRequest} />
                 <div className="play-asset-info__title-block">
                     <h2>{displayTitle}</h2>
                     {meta.city && <span className="play-asset-info__subtitle">{meta.city.split(",")[0]}</span>}
@@ -1297,36 +1328,36 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                         </div>
                     ) : (
                         <div className="play-asset-info__meta-list">
-                        {displayAddress && (
+                        {(displayAddress || showEmptyBusinessFields) && (
                             <div className="play-asset-info__meta-item">
                                 <FaMapMarkerAlt aria-hidden="true" />
                                 <div>
-                                    <strong>{displayAddress}</strong>
+                                    <strong>{displayAddress || "N/A"}</strong>
                                     {!googlePlace?.address && meta.city && <span>{meta.city}</span>}
                                 </div>
                             </div>
                         )}
-                        {meta.openingHours && (
+                        {(meta.openingHours || showEmptyBusinessFields) && (
                             <div className="play-asset-info__meta-item">
                                 <FaRegClock aria-hidden="true" />
                                 <div>
-                                    <strong>{meta.openingHours}</strong>
+                                    <strong>{meta.openingHours || "N/A"}</strong>
                                 </div>
                             </div>
                         )}
-                        {meta.website && (
-                            <a className="play-asset-info__meta-item" href={linkWithProtocol(meta.website)} target="_blank" rel="noreferrer">
+                        {(meta.website || showEmptyBusinessFields) && (
+                            <a className="play-asset-info__meta-item" href={meta.website ? linkWithProtocol(meta.website) : undefined} target="_blank" rel="noreferrer">
                                 <FaGlobe aria-hidden="true" />
                                 <div>
-                                    <strong>{meta.website}</strong>
+                                    <strong>{meta.website || "N/A"}</strong>
                                 </div>
                             </a>
                         )}
-                        {meta.telephone && (
-                            <a className="play-asset-info__meta-item" href={`tel:${meta.telephone.replace(/[^\d+]/g, "")}`}>
+                        {(meta.telephone || showEmptyBusinessFields) && (
+                            <a className="play-asset-info__meta-item" href={meta.telephone ? `tel:${meta.telephone.replace(/[^\d+]/g, "")}` : undefined}>
                                 <FaPhoneAlt aria-hidden="true" />
                                 <div>
-                                    <strong>{meta.telephone}</strong>
+                                    <strong>{meta.telephone || "N/A"}</strong>
                                 </div>
                             </a>
                         )}
@@ -1336,7 +1367,7 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                                 <strong>Send to your phone</strong>
                             </div>
                         </button>
-                        {meta.extraRows.slice(0, 6).map((row) => (
+                        {meta.extraRows.map((row) => (
                             <div className="play-asset-info__meta-item play-asset-info__meta-item--plain" key={row.label}>
                                 <BusinessIcon aria-hidden="true" />
                                 <div>
@@ -1345,22 +1376,22 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                                 </div>
                             </div>
                         ))}
-                        {!displayAddress && !meta.openingHours && !meta.website && !meta.telephone && !meta.extraRows.length && (
+                        {!showEmptyBusinessFields && !displayAddress && !meta.openingHours && !meta.website && !meta.telephone && !meta.extraRows.length && (
                             <div className="play-asset-info__empty">No metadata available</div>
                         )}
                         </div>
                     )}
                 </section>
-                {meta.businessDescription && (
+                {(meta.businessDescription || showEmptyBusinessFields) && (
                     <section className="play-asset-info__text-section" aria-label="About">
                         <h3>About</h3>
-                        <p>{meta.businessDescription}</p>
+                        <p>{meta.businessDescription || "N/A"}</p>
                     </section>
                 )}
-                {meta.comments && (
+                {(meta.comments || showEmptyBusinessFields) && (
                     <section className="play-asset-info__text-section play-asset-info__text-section--notes" aria-label="Notes">
                         <h3>Notes</h3>
-                        <p>{meta.comments}</p>
+                        <p>{meta.comments || "N/A"}</p>
                     </section>
                 )}
             </div>

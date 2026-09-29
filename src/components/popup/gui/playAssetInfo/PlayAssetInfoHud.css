@@ -4842,3 +4842,52 @@
 .play-asset-info--sidebar .play-asset-info__panel-kicker {
     margin-top: 10px;
 }
+
+/* Keep upload controls in the body, outside the fixed-height photo area. */
+.play-asset-info--sidebar .play-asset-info__image-upload {
+    display: block;
+    flex-shrink: 0;
+    margin: 0 0 14px;
+    color: #b9cec9;
+    font-size: 12px;
+}
+
+.play-asset-info--sidebar .play-asset-info__upload-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.play-asset-info--sidebar .play-asset-info__upload-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 32px;
+    padding: 6px 12px;
+    border: 1px solid rgba(35, 244, 248, 0.44);
+    border-radius: 16px;
+    background: rgba(2, 39, 30, 0.82);
+    color: #25f4dd;
+    font: inherit;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.play-asset-info--sidebar .play-asset-info__upload-actions button:disabled {
+    opacity: 0.5;
+    cursor: wait;
+}
+
+.play-asset-info--sidebar .play-asset-info__upload-actions button:focus-visible {
+    outline: 2px solid #25f4dd;
+    outline-offset: 3px;
+}
+
+.play-asset-info--sidebar .play-asset-info__image-upload p {
+    margin: 8px 0;
+}
+
+.play-asset-info--sidebar .play-asset-info__image-upload [role="alert"] {
+    color: #ffb4ab;
+}
