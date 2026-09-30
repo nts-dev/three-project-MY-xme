@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import * as THREE from "three";
 import {
     FaArrowLeft,
     FaBuilding,
@@ -880,31 +879,6 @@ const applyDraftRowsToAssetInfo = (assetInfo, draftRows) => {
     };
 };
 
-const getVector3 = (value, fallback = [0, 0, 0]) => {
-    if (value?.isVector3) return value.clone();
-    if (value && typeof value === "object") {
-        return new THREE.Vector3(
-            Number.parseFloat(value.x) || 0,
-            Number.parseFloat(value.y) || 0,
-            Number.parseFloat(value.z) || 0
-        );
-    }
-    return new THREE.Vector3(...fallback);
-};
-
-const getEuler = (value) => {
-    if (value?.isEuler) return value.clone();
-    if (value && typeof value === "object") {
-        return new THREE.Euler(
-            Number.parseFloat(value.x) || 0,
-            Number.parseFloat(value.y) || 0,
-            Number.parseFloat(value.z) || 0,
-            value.order || "XYZ"
-        );
-    }
-    return new THREE.Euler(0, 0, 0);
-};
-
 const PlaySidebarGallery = ({ assetInfo }) => {
     const imageRequestRef = useRef(0);
     const [images, setImages] = useState([]);
@@ -1144,13 +1118,6 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
         if (!selectedAssetId || isSaving) return;
 
         const sceneAsset = sceneAssets?.[selectedAssetId] || {};
-        const liveObject = sceneAsset.object;
-        liveObject?.updateMatrixWorld?.(true);
-        const livePosition = new THREE.Vector3();
-        if (liveObject?.getWorldPosition) {
-            liveObject.getWorldPosition(livePosition);
-        }
-
         const assetName =
             sceneAsset.name ||
             sceneAsset.cleanKey ||
@@ -1160,8 +1127,6 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
         const templateProps = {
             ...sceneAsset,
             categoryIndex: assetInfo?.categoryIndex || sceneAsset.categoryIndex,
-            position: liveObject?.getWorldPosition ? livePosition : getVector3(sceneAsset.position),
-            rotation: getEuler(liveObject?.rotation || sceneAsset.rotation),
             projectId,
             textures: sceneAsset.textures,
             color: sceneAsset.color,
@@ -1179,7 +1144,8 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                 setLazyMsg,
                 setAssetSelected,
                 setGlobalIsEditing,
-                draftRows
+                draftRows,
+                { fieldsOnly: true }
             );
 
             if (!result) {
