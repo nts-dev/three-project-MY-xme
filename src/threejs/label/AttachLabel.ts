@@ -19,6 +19,7 @@ export default function AttachLabel(projectId: number,textList: Array<string>, s
     const pLable = AddLabel(projectId,sizeAndFont.width, sizeAndFont.length, textList,offsetPosition , sizeAndFont.font, 'label',labelRotation,updateIndices,isLod,isAnnotation);
     const pivotObject = new THREE.Group()
     if(pLable){
+        //console.log(pLable)
         pivotObject.add(pLable)
     }
     const labePosition = position.clone()

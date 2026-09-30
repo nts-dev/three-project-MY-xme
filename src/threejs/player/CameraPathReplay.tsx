@@ -100,7 +100,7 @@ function samplePath(segments: PathSegment[], distance: number, target: SampledPa
     return target;
 }
 
-function getRtlsRoutePositions(points: any[]): THREE.Vector3[] {
+function getRtlsRoutePositions(points: any[], projectID: any): THREE.Vector3[] {
     const positions: THREE.Vector3[] = [];
 
     for (const point of points) {
@@ -128,14 +128,20 @@ function getRtlsRoutePositions(points: any[]): THREE.Vector3[] {
     }
 
     return dotPositions.map((position) => {
-        position.x -= 0.8;
-        position.z -= 1.4;
-        position.y -= 1.3;
+        // Apply project-specific frontend calibration offsets.
+        if (String(projectID) === "33_L0" || String(projectID) === "33") {
+            position.x -= 0.8;
+            position.z -= 1.4;
+            position.y -= 1.3;
+        }
+        if (String(projectID) === "153_L1") {
+            position.z += -2;
+        }
         return position;
     });
 }
 
-function CameraRouteDots({ points }: { points: any[] }) {
+function CameraRouteDots({ points, projectID }: { points: any[]; projectID: any }) {
     const geometry = useMemo(() => new THREE.SphereGeometry(0.088, 10, 8), []);
     const material = useMemo(() => new THREE.MeshBasicMaterial({
         color: CAMERA_ROUTE_DOT_COLOR,
@@ -147,8 +153,8 @@ function CameraRouteDots({ points }: { points: any[] }) {
 
     const matrices = useMemo(() => {
         const matrix = new THREE.Matrix4();
-        return getRtlsRoutePositions(points).map((position) => matrix.clone().setPosition(position));
-    }, [points]);
+        return getRtlsRoutePositions(points, projectID).map((position) => matrix.clone().setPosition(position));
+    }, [points, projectID]);
 
     useEffect(() => {
         return () => {
@@ -176,7 +182,7 @@ function RtlsRouteDots({ projectID }: { projectID: any }) {
     const { pathGroups } = usePlayerTrackReplay(projectID, true, "rtls");
 
     return <>{pathGroups.map((group) => (
-        <CameraRouteDots key={group.id} points={group.points} />
+        <CameraRouteDots key={group.id} points={group.points} projectID={projectID} />
     ))}</>;
 }
 
@@ -212,10 +218,10 @@ export default function CameraPathReplay() {
 
     const route = useMemo(() => {
         const points = cameraPathSource === "rtls"
-            ? getRtlsRoutePositions(activePoints).map((position) => ({ position }))
+            ? getRtlsRoutePositions(activePoints, projectID).map((position) => ({ position }))
             : activePoints;
         return buildPathSegments(points);
-    }, [activePoints, cameraPathSource]);
+    }, [activePoints, cameraPathSource, projectID]);
 
     useEffect(() => {
         distanceRef.current = 0;

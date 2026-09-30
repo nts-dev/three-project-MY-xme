@@ -172,7 +172,8 @@ export function AddLabel(
         }
     };
     const showSceneLabels = Boolean((useGame.getState() as any).label);
-    const initialLayerMask = labelName === 'label' ? (showSceneLabels ? 1 : 0) : 1;
+
+    const initialLayerMask = 1 //labelName === 'label' ? (showSceneLabels ? 1 : 0) : 1;
     labelObj.layers.mask = initialLayerMask;
     labelObj.children[0].layers.mask = initialLayerMask;
     labelObj.children[0].userData.textList = textList;

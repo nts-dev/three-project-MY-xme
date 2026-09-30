@@ -585,28 +585,53 @@ export default async function InstancedPattern(
          
         // }
 
-        // if (lowerName.includes('dl')) {
-        //     const labelAngle = THREE.MathUtils.degToRad(parseFloat(angle));
-        //     const textList = [];
+      
+        if (lowerName.includes('buildings')) {
+            const labelAngle = THREE.MathUtils.degToRad(Number(angle) || 0);
+            // Measure the rendered geometry in the label's rotated frame, in world units.
+            // This also handles imported meshes whose origin is not at their centre.
+            object.geometry.computeBoundingBox();
+            const labelFrameRotation = new THREE.Quaternion().setFromAxisAngle(
+                new Vector3(0, 1, 0), labelAngle
+            );
+            const buildingInLabelFrame = labelFrameRotation.clone().invert().multiply(finalQuaternion);
+            const frontBounds = object.geometry.boundingBox.clone().applyMatrix4(
+                new THREE.Matrix4().compose(new Vector3(), buildingInLabelFrame, absScale)
+            );
+            const sizeAndFont = { width: 20, length: 30, font: 120 };
+            const frontOffset = frontBounds.getCenter(new Vector3());
+            // Align the plane's left edge with the front face's left edge.
+            const labelHalfWidth = (sizeAndFont.width - 5) * 0.01 / 2;
+            frontOffset.x = frontBounds.min.x + (labelHalfWidth*15);
+            frontOffset.y *= 0.4;
+            frontOffset.z = frontBounds.max.z + 0.02;
+            // AttachLabel scales offsets by 0.01; AddLabel moves its plane back by 1.
+            frontOffset.multiplyScalar(100);
+            frontOffset.z += 1;
+            const textList = [];
 
-        //     textList.push(`(${instanceId}) ${fields['Intern IP Address']?.value}/${fields['Model']?.value}`);
-        //     textList.push(`Usage: ${fields['Usage']?.value}-${fields['OS']?.value}`);
+            textList.push(`96`);
+            //textList.push(`Usage: ${fields['Usage']?.value}-${fields['OS']?.value}`);
 
-        //     const sizeAndFont = { width: 50, length: 5, font: 30 };
-
-        //     labelId = AttachLabel(
-        //         projectID,
-        //         textList,
-        //         scene,
-        //         position,
-        //         new Vector3(),
-        //         textIndexList,
-        //         new Vector3(0, halfHeight, l + 1.5),
-        //         new Vector3(0, labelAngle, 0),
-        //         sizeAndFont,
-        //         false
-        //     );
-        // }
+            labelId = AttachLabel(
+                projectID,
+                textList,
+                scene,
+                position,
+                new Vector3(),
+                textIndexList,
+                frontOffset,
+                new Vector3(0, labelAngle, 0),
+                sizeAndFont,
+                false
+            );
+            const frontLabel = scene.getObjectById(labelId);
+            if (frontLabel?.isLOD) {
+                frontLabel.userData.isBuildingFrontLabel = true;
+                // Keep the front sign visible beyond the helper's default 25-unit cutoff.
+                frontLabel.levels[1].distance = Infinity;
+            }
+        }
 
         const initaialScale = absScale.clone();
 

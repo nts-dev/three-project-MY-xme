@@ -753,7 +753,7 @@ const isLongEditField = (name, value) => {
     return /description|comments|opening|hours|schedule/.test(text) || String(value || "").length > 70;
 };
 
-const buildMetaModel = (assetInfo, title, showEmptyBusinessFields = false) => {
+const buildMetaModel = (assetInfo, title, showEmptyBusinessFields = false, projectId) => {
     const groups = normalizeApiSpecGroups(assetInfo?.specGroups);
     const rows = groups.flatMap((group) => group.children || []).filter(shouldShowMetaRow);
     const companyName = findMetaValue(rows, ["Company Name", "AssetName"]) || title;
@@ -768,7 +768,9 @@ const buildMetaModel = (assetInfo, title, showEmptyBusinessFields = false) => {
         ? `No. ${String(streetNumber).replace(/^no\.?\s*/i, "").trim()}`
         : "";
     const address = [formattedStreetNumber || buildingNumber, streetName].filter(Boolean).join(", ");
-    const city = findMetaValue(rows, ["City", "Town", "State"]) || "Seri Kembangan, Selangor, Malaysia";
+    const city = String(projectId) === "153_L1"
+        ? "XME Business Park, Nilai Impian, 71800 Nilai, Negeri Sembilan, Malaysia"
+        : findMetaValue(rows, ["City", "Town", "State"]) || "Seri Kembangan, Selangor, Malaysia";
     const openingHours = findMetaValue(rows, ["Opening Hours", "Hours"]);
     const website = findMetaValue(rows, ["Website Url", "Website URL", "Website"]);
     const telephone = findMetaValue(rows, ["Telephone No.", "Telephone", "Phone", "Contact"]);
@@ -1066,7 +1068,7 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
         savedDraftRows ? applyDraftRowsToAssetInfo(assetInfo, savedDraftRows) : assetInfo
     ), [assetInfo, savedDraftRows]);
     const retainEmptyBusinessFields = String(projectId) === "153_L1";
-    const meta = useMemo(() => buildMetaModel(effectiveAssetInfo, title, retainEmptyBusinessFields), [effectiveAssetInfo, title, retainEmptyBusinessFields]);
+    const meta = useMemo(() => buildMetaModel(effectiveAssetInfo, title, retainEmptyBusinessFields, projectId), [effectiveAssetInfo, title, retainEmptyBusinessFields, projectId]);
     const showEmptyBusinessFields = String(projectId) === "153_L1" && meta.rows.some((row) => isBusinessMetadataField(row.name));
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);

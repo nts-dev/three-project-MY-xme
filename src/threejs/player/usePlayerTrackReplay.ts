@@ -36,7 +36,8 @@ function getTrackPlayerIds() {
 
 function getTrackSources(projectID: any, sourceType: "gps" | "rtls") {
     if (sourceType === "rtls") {
-        return [{ id: "GR100f", url: `${getApiBaseUrl()}/player/GR100f.json` }];
+        const id = String(projectID) === "153_L1" ? "GR2eb1" : "GR100f";
+        return [{ id, url: `${getApiBaseUrl()}/player/${id}.json` }];
     }
     const projectSources = PROJECT_TRACK_SOURCES[getProjectBaseId(projectID)];
     if (projectSources) return projectSources;
@@ -57,8 +58,13 @@ function getProjectBaseId(projectID: any) {
 }
 
 function isSameProject(record: any, projectID: any) {
-    if (record?.project === undefined || record?.project === null) return true;
-    const recordProject = String(record.project);
+    const recordId = record?.projectID ?? record?.projectId ?? record?.project;
+    // Old RTLS tracks were labelled 32 (or had no project) under the 33_L0 calibration.
+    if (record?.rtls && (recordId == null || String(recordId) === "32")) {
+        return String(projectID) === "33_L0" || String(projectID) === "33";
+    }
+    if (recordId == null) return true;
+    const recordProject = String(recordId);
     const projectBaseId = getProjectBaseId(projectID);
     return recordProject === String(projectID) || recordProject === projectBaseId;
 }
@@ -89,6 +95,10 @@ function getPlayerUnitPosition(record: any) {
 function normalizeTrackRecord(record: any, fallbackClientId: string) {
     const clientId = String(record?.clientId || fallbackClientId);
     const playerPosition = getPlayerUnitPosition(record);
+    // Calibrated RTLS positions are already in scene units; posX/posZ are rounded.
+    // Preserve the legacy height used by the 33_L0 replay.
+    const rtlsProject = String(record?.projectID ?? record?.projectId ?? record?.project ?? "");
+    const useRtlsPosition = record?.rtls && rtlsProject === "153_L1";
 
     return {
         ...record,
@@ -97,9 +107,9 @@ function normalizeTrackRecord(record: any, fallbackClientId: string) {
         posY: playerPosition.y,
         posZ: playerPosition.z,
         position: {
-            x: playerPosition.x / 100,
-            y: playerPosition.y / 100,
-            z: playerPosition.z / 100,
+            x: useRtlsPosition ? toNumber(record?.position?.x, playerPosition.x / 100) : playerPosition.x / 100,
+            y: useRtlsPosition ? toNumber(record?.position?.y, playerPosition.y / 100) : playerPosition.y / 100,
+            z: useRtlsPosition ? toNumber(record?.position?.z, playerPosition.z / 100) : playerPosition.z / 100,
         },
         speed: toNumber(record?.speed ?? record?.cSpeed, 10),
         currentAnimation: record?.currentAnimation || "Idle",
@@ -174,7 +184,7 @@ async function fetchTrack(source: { id: string; url: string }, projectID: any, s
     if (!Array.isArray(records)) return [];
 
         return records
-        .filter((record) => (sourceType === "rtls" || hasGpsFix(record)) && isSameProject(record, projectID))
+        .filter((record) => (sourceType === "rtls" ? Boolean(record?.rtls) : hasGpsFix(record)) && isSameProject(record, projectID))
         .sort(byDateTime)
         .slice(sourceType === "rtls" ? 0 : TRACK_START_FRAME)
         .map((record) => normalizeTrackRecord(record, source.id));

@@ -213,7 +213,7 @@ const fetchWhatsAppMessagesForNumber = async (phoneNumber) => {
     return [];
 };
 
-const buildSpritePopupInfo = (instanceId) => {
+const buildSpritePopupInfo = (instanceId, projectId) => {
     const sceneAsset = sceneAssets?.[instanceId];
     const fields = sceneAsset?.instanceData?.assetObject?.fields;
     const fieldList = normalizeSpriteFields(fields);
@@ -224,7 +224,9 @@ const buildSpritePopupInfo = (instanceId) => {
     const streetNumber = getSpriteFieldValue(fields, ["Street Number", "Street No.", "Building Number", "Building No"], "N/A");
     const floors = getSpriteFieldValue(fields, ["Floors", "Floor", "Level"], sceneAsset?.floor || "N/A");
     const status = getSpriteFieldValue(fields, ["Status"], sceneAsset?.inUse ? "Active" : "Active");
-    const area = getSpriteFieldValue(fields, ["City", "Area", "Location"], "Seri Kembangan, Selangor, Malaysia");
+    const area = String(projectId) === "153_L1"
+        ? "XME Business Park, Nilai Impian, 71800 Nilai, Negeri Sembilan, Malaysia"
+        : getSpriteFieldValue(fields, ["City", "Area", "Location"], "Seri Kembangan, Selangor, Malaysia");
     const coordinates = getSpriteFieldValue(fields, ["Cordinates", "Coordinates"], "");
     const assetID = sceneAsset?.assetID || getSpriteFieldValue(fields, ["AssetID", "Asset Id"], instanceId);
     const address = getSpriteFieldValue(fields, ["Address", "Street Address"], area);
@@ -706,6 +708,7 @@ function PlayMapDashboardChrome({ assetInfo }) {
 }
 
 export default function PlayAssetInfoHud({ cameraRef, sceneRef }) {
+    const projectId = useGame((state) => state.projectID);
  
     const isPuzzleGame = useGame((state) => state.isPuzzleGame);
     const character = useGame((state) => state.character);
@@ -725,7 +728,7 @@ export default function PlayAssetInfoHud({ cameraRef, sceneRef }) {
     useEffect(() => {
         const handleBuildingLabelClick = (event) => {
             const instanceId = event.detail?.instanceId;
-            const info = buildSpritePopupInfo(instanceId);
+            const info = buildSpritePopupInfo(instanceId, projectId);
 
             if (!info) {
                 setLabelPopup(null);
@@ -748,7 +751,7 @@ export default function PlayAssetInfoHud({ cameraRef, sceneRef }) {
         return () => {
             window.removeEventListener("play-building-label-click", handleBuildingLabelClick);
         };
-    }, [assetInfo?.instanceId, assetInfo?.requestKey]);
+    }, [assetInfo?.instanceId, assetInfo?.requestKey, projectId]);
 
     useEffect(() => {
   
