@@ -6,14 +6,14 @@ import {objects, sceneAssets} from "../../player/puzzle/character/Constants.jsx"
 
 const dbWriteQueue = new PQueue({ concurrency: 1 }); // Serialize all DB calls
 
-export default function DB(projectID, textures, fields, description, images, categoryImages, index, assetName, instanceId, assetIDs, assetNameN = null,setLazy=null) {
+export default function DB(projectID, textures, fields, description, images, categoryImages, index, assetName, instanceId, assetIDs, assetNameN = null,setLazy=null, { fieldsOnly = false } = {}) {
     // Add DB task to the queue
     return dbWriteQueue.add(() =>
-        internalDB(projectID, textures, fields, description, images, categoryImages, index, assetName, instanceId, assetIDs, assetName,setLazy)
+        internalDB(projectID, textures, fields, description, images, categoryImages, index, assetName, instanceId, assetIDs, assetName,setLazy, fieldsOnly)
     );
 }
 
-async function internalDB(projectID, textures, fields, description, images, categoryImages, index, assetName, instanceId, assetIDs, assetNameN = null,setLazy=null) {
+async function internalDB(projectID, textures, fields, description, images, categoryImages, index, assetName, instanceId, assetIDs, assetNameN = null,setLazy=null, fieldsOnly = false) {
     let fbxName = 'composite';
     let name = null;
 
@@ -29,8 +29,8 @@ async function internalDB(projectID, textures, fields, description, images, cate
         name = assetName;
     }
 
-    if(fbxName===undefined) return
-    const idFileName = fbxName.replace(/\.fbx$/i, '').toLowerCase();
+    if(fbxName===undefined && !fieldsOnly) return
+    const idFileName = (fbxName || '').replace(/\.fbx$/i, '').toLowerCase();
 
     const bulkInsertCategories = async () => {
         const categoriesCollection = database.collections.get('categories');
@@ -163,6 +163,10 @@ async function internalDB(projectID, textures, fields, description, images, cate
                     const existingField = existingFields[0];
 
                     const update = existingField.prepareUpdate(record => {
+                        if (fieldsOnly) {
+                            record.value = field.value;
+                            return;
+                        }
                         record.fieldId = Number(field.fieldId);
                         record.name = field.name;
                         record.description = field.description;
@@ -202,8 +206,10 @@ async function internalDB(projectID, textures, fields, description, images, cate
 
     try {
 
-        await bulkInsertCategories();
-        await bulkInsertAssets();
+        if (!fieldsOnly) {
+            await bulkInsertCategories();
+            await bulkInsertAssets();
+        }
         await bulkInsertFields();
         if(setLazy != null){
 

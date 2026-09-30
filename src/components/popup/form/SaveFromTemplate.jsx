@@ -15,9 +15,18 @@ import {
 } from "./categorySelectionRequest";
 
 
-const SaveFromTemplate = async (templateProps, assetName, instanceId = null, setLazy, setSelectedAssetId, vAlignValue,setLazyMsg, setAssetSelected,setIsEditing, fieldOverrides = []) => {
+const SaveFromTemplate = async (templateProps, assetName, instanceId = null, setLazy, setSelectedAssetId, vAlignValue,setLazyMsg, setAssetSelected,setIsEditing, fieldOverrides = [], options = {}) => {
+
+    // Editing existing form values defaults to a metadata-only save.
+    // Existing-asset API updates never include spatial fields or transform data.
+    const fieldsOnly = options.fieldsOnly ?? (
+        instanceId != null && Array.isArray(fieldOverrides) && fieldOverrides.length > 0
+    );
 
     
+    const skipTransformPosting = instanceId != null || fieldsOnly;
+    const spatialFields = new Set(["x-pos", "y-pos", "z-pos", "angle", "position", "rotation", "scale", "v-align"]);
+
     const showSaveLoader = () => {
         setLazyMsg?.("Saving asset please wait...");
         setLazy?.(true);
@@ -138,7 +147,7 @@ const SaveFromTemplate = async (templateProps, assetName, instanceId = null, set
         const objectData = objects[assetName] || sceneAssets[id] || sceneAssets[instanceId] || {};
         const fileName = objectData.fileName || objectData.fbxName || assetName;
         const fieldMap = fieldsArrayToMap(fields);
-        fieldMap.Angle = JSON.stringify(normalRotation);
+        if (!skipTransformPosting) fieldMap.Angle = JSON.stringify(normalRotation);
 
 
 
@@ -147,6 +156,7 @@ const SaveFromTemplate = async (templateProps, assetName, instanceId = null, set
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 fields: fieldMap,
+                ...(!skipTransformPosting ? {
                 transform: {
                     position: {
                         x: cPosition.x,
@@ -187,6 +197,7 @@ const SaveFromTemplate = async (templateProps, assetName, instanceId = null, set
                     projectId,
                 },
                 upsert: true,
+                } : {}),
             }),
         });
 
@@ -226,10 +237,10 @@ const SaveFromTemplate = async (templateProps, assetName, instanceId = null, set
         const branchData = branches[0]?._raw;
 
 
-        const cPosition = position.clone().multiplyScalar(100).sub(new Vector3(halfWidth, 0, halfLength));
+        const cPosition = skipTransformPosting ? null : position.clone().multiplyScalar(100).sub(new Vector3(halfWidth, 0, halfLength));
           
 
-        const normalRotation = new THREE.Vector3(
+        const normalRotation = skipTransformPosting ? null : new THREE.Vector3(
             0,
             THREE.MathUtils.radToDeg(rotation.y),
             0
@@ -248,6 +259,16 @@ const SaveFromTemplate = async (templateProps, assetName, instanceId = null, set
         templates.forEach((data) => {
             const fieldName = data._raw.name.replace(/\s+/g, "").trim().toLowerCase();
               
+            if (skipTransformPosting && spatialFields.has(fieldName)) return;
+            if (fieldsOnly) {
+                const override = getFieldOverride(data);
+                if (override) {
+                    const value = String(override.value ?? "");
+                    formData.append(`form_${data._raw.field_id}`, value);
+                    indexeDBDataUpdate.push({ fieldId: data._raw.field_id, value, name: data._raw.name, description: data._raw.description || "" });
+                }
+                return;
+            }
             switch (fieldName) {
 
                 case "branch":
@@ -350,8 +371,8 @@ const SaveFromTemplate = async (templateProps, assetName, instanceId = null, set
                   
                     setAssetSelected(false)
                     setIsEditing(false)
-                    useGame.getState?.()?.setHasUnsavedTransformUpdate?.(false)
-                    await DB(projectID, textures, indexeDBDataUpdate, descriptionList, [], [], categoryIndex, assetName, id, assetID, assetNameD, null)
+                    if (!skipTransformPosting) useGame.getState?.()?.setHasUnsavedTransformUpdate?.(false)
+                    await DB(projectID, textures, indexeDBDataUpdate, descriptionList, [], [], categoryIndex, assetName, id, assetID, assetNameD, null, { fieldsOnly })
                     
                     await saveProjectSceneInstance({
                         id,

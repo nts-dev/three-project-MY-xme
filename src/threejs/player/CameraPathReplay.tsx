@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import useGame from "../../hooks/useGame";
 import usePlayerTrackReplay from "./usePlayerTrackReplay";
+import { RTLS_ROUTE_OFFSET } from "./rtlsLiveMotion";
 
 const CAMERA_ROUTE_HEIGHT = 1.7;
 const PROJECT_126_CAMERA_HEIGHT_SCALE = -0.21;
@@ -128,15 +129,8 @@ function getRtlsRoutePositions(points: any[], projectID: any): THREE.Vector3[] {
     }
 
     return dotPositions.map((position) => {
-        // Apply project-specific frontend calibration offsets.
-        if (String(projectID) === "33_L0" || String(projectID) === "33") {
-            position.x -= 0.8;
-            position.z -= 1.4;
-            position.y -= 1.3;
-        }
-        if (String(projectID) === "153_L1") {
-            position.z += -2;
-        }
+        position.add(RTLS_ROUTE_OFFSET);
+        position.z += 0.3;
         return position;
     });
 }
