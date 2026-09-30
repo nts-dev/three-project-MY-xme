@@ -128,7 +128,6 @@ export default function InstanceExperience() {
     const materialsMap = useMemo(() => new Map(), []);
     const { scene, camera } = useThree()
     const sceneObject = useRef(null)
-    const pendingLabelFocusRef = useRef(null);
     const setPackageControl = useGame((state) => state.setPackageControl);
     const showBdims = useGame((state) => state.showBdims);
     const showFdims = useGame((state) => state.showFdims);
@@ -1843,7 +1842,6 @@ const configureOriginalMeshMaterial = (material, mesh) => {
         resetUIStates();
 
         const token = ++loadTokenRef.current;
-        pendingLabelFocusRef.current = null;
         const selectedLevelKey = getSelectedLevelKey(selectedLevel);
 
         const finishCurrentLoad = () => {
@@ -1852,7 +1850,7 @@ const configureOriginalMeshMaterial = (material, mesh) => {
             scene.traverse((child) => {
                 if (!firstLabel && child.userData.isBuildingFrontLabel) firstLabel = child;
             });
-            pendingLabelFocusRef.current = firstLabel;
+            if (firstLabel) setLabel(true);
             loadStateRef.current = {
                 hasLoadedProject: projectId > 0,
                 projectId,
@@ -2095,31 +2093,6 @@ const configureOriginalMeshMaterial = (material, mesh) => {
     }, [anims]);
 
     useFrame(({ camera }, delta) => {
-        const frontLabel = pendingLabelFocusRef.current;
-        const controls = useGame.getState().orbitControlsRef?.current;
-        if (frontLabel && controls) {
-            const plane = frontLabel.levels[0].object.children[0];
-            plane.updateWorldMatrix(true, false);
-            const target = plane.getWorldPosition(new Vector3());
-            const normal = new Vector3(0, 0, 1).transformDirection(plane.matrixWorld);
-            const distance = Math.max(1, controls.minDistance || 0, camera.near * 4);
-            setLabel(true);
-            frontLabel.traverse((child) => {
-                child.layers.enable(0);
-            });
-            camera.layers.enable(0);
-            controls.target.copy(target);
-            // Respect the orbit controls' elevation limits while looking at the sign.
-            const polar = THREE.MathUtils.clamp(
-                Math.PI / 2, controls.minPolarAngle, controls.maxPolarAngle
-            );
-            camera.position.copy(target).addScaledVector(normal, distance * Math.sin(polar));
-            camera.position.y += distance * Math.cos(polar);
-            camera.lookAt(target);
-            camera.updateMatrixWorld();
-            controls.update();
-            pendingLabelFocusRef.current = null;
-        }
         if (anims && animations?.length) {
             for (const mixerObj of animations) {
                 if (mixerObj.name === "Ceiling Fan Animated.FBX") {
