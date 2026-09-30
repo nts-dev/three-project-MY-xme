@@ -31,7 +31,7 @@ function lerpAngle(from: number, to: number, alpha: number) {
     return from + delta * alpha;
 }
 
-export default function RemotePlayer({ player, rPlayer, animations }: any) {
+export default function RemotePlayer({ player, rPlayer, animations, rtlsMotions }: any) {
     const playerRef = useRef<THREE.Group>(null);
     const rigidBodyRef = useRef<any>(null);
     const targetPositionRef = useRef(new THREE.Vector3());
@@ -45,6 +45,9 @@ export default function RemotePlayer({ player, rPlayer, animations }: any) {
     const [capsuleHalfHeight, setCapsuleHalfHeight] = useState(0.25);
     const [capsuleRadius, setCapsuleRadius] = useState(0.3);
     const [autoWalking, setAutoWalking] = useState(false);
+    const liveRtls = Boolean(player?.rtls && !player?.isTrackReplay);
+    const rtlsRotation = useRef(new THREE.Quaternion());
+    const rtlsEuler = useRef(new THREE.Euler());
 
     const {
         clientId, posX, posY, posZ, speed, currentAnimation,
@@ -72,16 +75,19 @@ export default function RemotePlayer({ player, rPlayer, animations }: any) {
     }, [rPlayer, player?.isTrackReplay]);
     const { actions } = useAnimations(animations, playerRef);
     const shouldUseGpsWalk = !currentAnimation || IDLE_ANIMATIONS.has(currentAnimation);
-    const desiredAnimation = shouldUseGpsWalk && autoWalking
+    const desiredAnimation = liveRtls
+        ? findAnimationName(actions, autoWalking ? WALK_ANIMATION_CANDIDATES : IDLE_ANIMATION_CANDIDATES)
+        : shouldUseGpsWalk && autoWalking
         ? findAnimationName(actions, WALK_ANIMATION_CANDIDATES) || "Walk"
         : currentAnimation || findAnimationName(actions, IDLE_ANIMATION_CANDIDATES) || "Idle";
+    const animationSpeed = liveRtls ? 1 : 1 + (speed / 100) * 5;
 
     useEffect(() => {
         const animationName = resolveAnimationName(actions, desiredAnimation, autoWalking);
 
         if (!clonedModel || !playerRef.current || !animationName) return;
 
-        const pSpeed = 1 + (speed / 100) * 5;
+        const pSpeed = animationSpeed;
         const action: any = actions[animationName];
 
         if (!action) return;
@@ -118,10 +124,27 @@ export default function RemotePlayer({ player, rPlayer, animations }: any) {
         return () => {
             action.fadeOut(0.2);
         };
-    }, [desiredAnimation, autoWalking, projectID, actions, rPlayer, clonedModel, speed]);
+    }, [desiredAnimation, autoWalking, projectID, actions, rPlayer, clonedModel, animationSpeed]);
 
     useFrame((_, delta) => {
         if (!rigidBodyRef.current) return;
+
+        if (liveRtls) {
+            const motion = rtlsMotions?.get(String(clientId));
+            const walking = Boolean(motion?.ready && motion.speed > 0.01);
+            if (autoWalkingRef.current !== walking) {
+                autoWalkingRef.current = walking;
+                setAutoWalking(walking);
+            }
+            if (!motion?.ready) return;
+            // The model's existing yOffset places its feet below the rigid-body origin.
+            newPositionRef.current.copy(motion.position);
+            newPositionRef.current.y -= yOffset;
+            rigidBodyRef.current.setTranslation(newPositionRef.current, true);
+            rtlsRotation.current.setFromEuler(rtlsEuler.current.set(0, motion.heading, 0));
+            rigidBodyRef.current.setRotation(rtlsRotation.current, true);
+            return;
+        }
 
         // Move rigid body smoothly to target position
         const currentPosition = rigidBodyRef.current.translation();

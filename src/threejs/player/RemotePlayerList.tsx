@@ -6,6 +6,7 @@ import RemotePlayer from "./RemotePlayer";
 import useGame from "../../hooks/useGame";
 import usePlayerTrackReplay from "./usePlayerTrackReplay";
 import type { PlayerTrackPathGroup } from "./usePlayerTrackReplay";
+import useLiveRtlsMotion from "./useLiveRtlsMotion";
 
 function TrackPathDotGroup({ points, color = "#ff1f2f" }: { points: any[]; color?: string }) {
     const geometry = useMemo(
@@ -65,7 +66,7 @@ function normalizePlayersPayload(players: any) {
 }
 
 function hasGpsFix(player: any) {
-    return player?.gps !== null;
+    return Boolean(player?.rtls) || player?.gps !== null;
 }
 
 export default function RemotePlayerList({playerObject}: any) {
@@ -73,6 +74,7 @@ export default function RemotePlayerList({playerObject}: any) {
     const [players, setPlayers] = useState<any[]>([]);
     const localClientId = useGame((state: any) => state.clientId);
     const projectID = useGame((state: any) => state.projectID);
+    const rtlsMotions = useLiveRtlsMotion(projectID);
     const playerTrackReplay = useGame((state: any) => state.playerTrackReplay);
     const { players: trackPlayers, pathGroups: trackPathGroups } = usePlayerTrackReplay(projectID, playerTrackReplay);
     const setPlayerActionList = useGame((state: any) => state.setPlayerActions);
@@ -139,11 +141,16 @@ export default function RemotePlayerList({playerObject}: any) {
         ];
 
         return mergedPlayers.filter((player: any) => {
+            if (player?.rtls) {
+                const base = (value: any) => String(value ?? "").replace(/_L\d+$/i, "");
+                const playerProject = player.projectID ?? player.project;
+                if (playerProject != null && base(playerProject) !== base(projectID)) return false;
+            }
             if (!hasGpsFix(player)) return false;
             if (!player?.clientId) return false;
             return !localClientIdValue || localClientIdValue !== player.clientId;
         });
-    }, [players, trackPlayers, localClientId]);
+    }, [players, trackPlayers, localClientId, projectID]);
 
     return (
         <>
@@ -155,6 +162,7 @@ export default function RemotePlayerList({playerObject}: any) {
                             player={player}
                             rPlayer={clonedScene}
                             animations={animations}
+                            rtlsMotions={rtlsMotions}
                         />
                     )
                 }

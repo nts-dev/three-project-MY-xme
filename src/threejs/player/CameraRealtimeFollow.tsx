@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import useGame from "../../hooks/useGame";
 import { socket } from "../../socket";
+import useLiveRtlsMotion from "./useLiveRtlsMotion";
 
 const CAMERA_FOLLOW_DISTANCE = 8.5;
 const CAMERA_FOLLOW_HEIGHT = 0;
@@ -89,6 +90,9 @@ export default function CameraRealtimeFollow() {
     const { camera } = useThree();
     const projectID = useGame((state: any) => state.projectID);
     const cameraRealtimeFollow = useGame((state: any) => state.cameraRealtimeFollow);
+    const rtlsMotions = useLiveRtlsMotion(projectID, cameraRealtimeFollow);
+    const rtlsIdRef = useRef<string | null>(null);
+    const rtlsDistanceOriginRef = useRef(0);
     const playerViewAngle = useGame((state: any) => state.playerViewAngle);
     const orbitControlsRef = useGame((state: any) => state.orbitControlsRef);
     const cameraRealtimeTelemetryResetTick = useGame((state: any) => state.cameraRealtimeTelemetryResetTick);
@@ -111,6 +115,7 @@ export default function CameraRealtimeFollow() {
 
     useEffect(() => {
         if (!cameraRealtimeFollow) {
+            rtlsIdRef.current = null;
             followedPlayerRef.current = null;
             lastGpsUpdateAtRef.current = 0;
             hasPositionRef.current = false;
@@ -129,7 +134,7 @@ export default function CameraRealtimeFollow() {
 
         const handlePlayers = (players: any[]) => {
             const nextPlayer = normalizePlayersPayload(players)
-                .find((player: any) => hasGpsFix(player) && hasPositionPayload(player));
+                .find((player: any) => !player?.rtls && hasGpsFix(player) && hasPositionPayload(player));
 
             followedPlayerRef.current = nextPlayer || null;
             lastGpsUpdateAtRef.current = nextPlayer ? performance.now() : 0;
@@ -171,6 +176,7 @@ export default function CameraRealtimeFollow() {
         if (!cameraRealtimeFollow) return;
 
         totalDistanceRef.current = 0;
+        rtlsDistanceOriginRef.current = rtlsMotions.get(rtlsIdRef.current || "")?.distance || 0;
         speedSamplesRef.current = [];
         if (hasPositionRef.current) {
             telemetryPreviousPositionRef.current.copy(currentPositionRef.current);
@@ -190,8 +196,50 @@ export default function CameraRealtimeFollow() {
         if (!cameraRealtimeFollow) return;
 
         const now = performance.now();
+        // Prefer the recorded-route tag, then retain the selected RTLS tag while available.
+        const rtlsId = rtlsIdRef.current && rtlsMotions.has(rtlsIdRef.current)
+            ? rtlsIdRef.current
+            : rtlsMotions.has("GR100f") ? "GR100f" : rtlsMotions.keys().next().value;
+        const rtls = rtlsId ? rtlsMotions.get(rtlsId) : null;
+        if (rtls?.ready) {
+            if (rtlsIdRef.current !== rtlsId) {
+                rtlsIdRef.current = rtlsId;
+                rtlsDistanceOriginRef.current = rtls.distance;
+                speedSamplesRef.current = [];
+            }
+            camera.position.copy(rtls.position);
+            camera.position.y += 1.7;
+            followDirectionRef.current.set(Math.sin(rtls.heading), 0, Math.cos(rtls.heading));
+            desiredTargetRef.current.copy(camera.position).add(followDirectionRef.current);
+            camera.lookAt(desiredTargetRef.current);
+            const controls = orbitControlsRef?.current;
+            if (controls?.target) controls.target.copy(desiredTargetRef.current);
+            camera.updateMatrixWorld();
+            if (now - lastTelemetryEmitAtRef.current >= TELEMETRY_EMIT_INTERVAL_MS) {
+                lastTelemetryEmitAtRef.current = now;
+                speedSamplesRef.current.push(rtls.speed);
+                if (speedSamplesRef.current.length > 40) speedSamplesRef.current.shift();
+                setCameraRealtimeTelemetry({
+                    currentSpeed: rtls.speed,
+                    averageSpeed: speedSamplesRef.current.reduce((sum, value) => sum + value, 0) / speedSamplesRef.current.length,
+                    distance: rtls.distance - rtlsDistanceOriginRef.current,
+                    heading: getHeadingFromDirection(followDirectionRef.current),
+                    hasGpsUpdate: now - rtls.lastReceived <= GPS_UPDATE_TIMEOUT_MS,
+                });
+            }
+            return;
+        }
         const hasFreshGpsUpdate = followedPlayerRef.current
             && now - lastGpsUpdateAtRef.current <= GPS_UPDATE_TIMEOUT_MS;
+
+        if (rtlsIdRef.current && !hasFreshGpsUpdate) {
+            // Hold the last view when the selected live tag disconnects.
+            if (now - lastTelemetryEmitAtRef.current >= TELEMETRY_EMIT_INTERVAL_MS) {
+                lastTelemetryEmitAtRef.current = now;
+                setCameraRealtimeTelemetry({ currentSpeed: 0, hasGpsUpdate: false });
+            }
+            return;
+        }
 
         if (!hasFreshGpsUpdate && !hasPositionRef.current) {
             followedPlayerRef.current = null;
