@@ -898,12 +898,12 @@ export default function ThreeView() {
                     onToggleHud={() => setIsHudMinimized((prev) => !prev)}
                 />
             )}
-            {!isXrPresenting && showPlayerRuntimeControls &&
-                <PlayerViewAngleSlider />}
-            {(!isXrPresenting && showPlayerRuntimeControls && !isPuzzleGame) &&
-                <>
-                    <PlayerHeightSlider direction='vertical' classIndenfier='height-meter' height='10rem' />
-                </>}
+            {!isXrPresenting && showPlayerRuntimeControls && (
+                <div className="player-slider-stack">
+                    {!isPuzzleGame && <PlayerHeightSlider direction='vertical' classIndenfier='height-meter' height='10rem' />}
+                    <PlayerViewAngleSlider />
+                </div>
+            )}
             {!isXrPresenting && <Projects scene={sceneRef.current} camera={cameraRef.current} orbitControls={orbitControls} />}
             {!isXrPresenting && packageControl && <PackageControls />}
         </>

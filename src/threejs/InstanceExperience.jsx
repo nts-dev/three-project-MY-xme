@@ -86,27 +86,7 @@ const parseFloorCode = (value, fallback = 0) => {
     return fallback;
 };
 
-function Project135PathAvatar() {
-    const charModel = useGLTF(`${import.meta.env.VITE_FILE_URL}/Nathan_man.glb`);
-    const [routeProgress, setRouteProgress] = useState({ segmentIndex: 0, directionSign: 1 });
-    
-    return (
-        <>
-            <RoutePathIndicator
-                points={PROJECT_135_ROUTE_POINTS}
-                coordinateScale={PROJECT_135_ROUTE_COORDINATE_SCALE}
-                activeSegmentIndex={routeProgress.segmentIndex}
-                directionSign={routeProgress.directionSign}
-            />
-            <PathWalkingAvatar
-                charModel={charModel}
-                points={PROJECT_135_ROUTE_POINTS}
-                coordinateScale={PROJECT_135_ROUTE_COORDINATE_SCALE}
-                onRouteProgress={setRouteProgress}
-            />
-        </>
-    );
-}
+
 
 export default function InstanceExperience() {
 
@@ -201,8 +181,7 @@ export default function InstanceExperience() {
     const [boxHeight, setBoxHeight] = useState(0)
 
     const bProjectId = useMemo(() => parseInt(String(projectId || "").split("_")[0], 10), [projectId]);
-    const showProject135PathAvatar = String(projectId).includes("135");
-    const getSceneProjectBaseId = (sceneProjectId = projectId) => String(sceneProjectId ?? '').trim().replace(/_L\d+$/i, '');
+
 
     const getSelectedLevelKey = (level = selectedLevel) =>
         String(level?.code ?? level?.id ?? level?.name ?? level ?? "");
@@ -1265,6 +1244,7 @@ const configureOriginalMeshMaterial = (material, mesh) => {
             }
 
             const data = await response.json();
+            
             if (data) {
                 setProjectSceneData(data, requestKey);
                 applySceneGridVisibility(data, setGrid);
@@ -1318,6 +1298,7 @@ const configureOriginalMeshMaterial = (material, mesh) => {
 
     const syncCategoriesToScene = async (categories, { forceReload = false, debugLabel = "", pruneMissing = true } = {}) => {
 
+      
         const sceneObj = ensureSceneObject();
         const nextCategoryKeys = new Set();
         const nextFloorsMap = new Map();
@@ -1430,83 +1411,8 @@ const configureOriginalMeshMaterial = (material, mesh) => {
 
             const arrayOfObjects = assets.map((value, index) => ({ key: String(getAssetInstanceId(value) || index), ...value }));
 
-            if (fbx.includes("Racks Horizontal")) {
-                const [wPallet, boxModel] = await Promise.all([
-                    loadModelClone("Wood palette.FBX"),
-                    loadModelClone("Carton Box 1.FBX"),
-                ]);
+        
 
-                setBox(boxModel);
-                setBoxWidth(getWidth(boxModel));
-                setBoxHeight(getHeight(boxModel));
-                if (boxModel.children[0]) {
-                    boxModel.children[0].material = Materials("Cardboard.jpg");
-                }
-
-                const rackColliders = arrayOfObjects.map((obj) =>
-                    Rack(categoryGroup, obj, wPallet, getLength(wPallet), getWidth(wPallet), projectId)
-                );
-                categoryCollidersRef.current.set(categoryKey, rackColliders.flat());
-                categoryCommandMapRef.current.set(categoryKey, "");
-                categoryAssetsRef.current.set(categoryKey, assetIds);
-                categorySignatureRef.current.set(categoryKey, nextSignature);
-                continue;
-            }
-
-            if (name === "composite" && fbx.length > 0) {
-                const cFbx = JSON.parse(fbx);
-                const [wPallet, model] = await Promise.all([
-                    loadModelClone(cFbx.composite[0].fbx),
-                    loadModelClone(cFbx.compositetop[0].fbx),
-                ]);
-
-                const halfLength =  getLength(model)
-                const halfWidth =  getWidth(model)
-                const halfHeight =  getLength(model)
-
-                wPallet.scale.multiplyScalar(0.01);
-
-                arrayOfObjects.forEach((asset) => {
-                    makeComposite(
-                        asset,
-                        model,
-                        wPallet,
-                        halfLength,
-                        halfWidth,
-                        halfHeight,
-                        getLength(wPallet),
-                        getWidth(wPallet),
-                        getHeight(wPallet),
-                        categoryGroup,
-                        camera,
-                        scene
-                    );
-                });
-
-                categoryCommandMapRef.current.set(categoryKey, "");
-                categoryAssetsRef.current.set(categoryKey, assetIds);
-                categoryCollidersRef.current.set(categoryKey, []);
-                categorySignatureRef.current.set(categoryKey, nextSignature);
-                continue;
-            }
-
-            if (
-                [
-                    "Racks Horizontal",
-                    "Coffee Machine",
-                    "Server Cabinet",
-                    "Aloe",
-                    "TradeStar",
-                    "Bed",
-                    "Small Fridge Door Animated",
-                ].some((item) => fbx.includes(item))
-            ) {
-                categoryCommandMapRef.current.set(categoryKey, "");
-                categoryAssetsRef.current.set(categoryKey, assetIds);
-                categoryCollidersRef.current.set(categoryKey, []);
-                categorySignatureRef.current.set(categoryKey, nextSignature);
-                continue;
-            }
 
             try {
                 const bagModel = await loadBagModel();
@@ -1527,16 +1433,6 @@ const configureOriginalMeshMaterial = (material, mesh) => {
                     assets: assets.length,
                     assetIds,
                 });
-
-                //    const rawCategory = getCategoryRaw(category);
-            const cleanKey = (rawCategory?.fbx || "").replace(/\s+/g, "").replace(/\.fbx$/i, "");
-
-
-
-           
-
-
-         
 
 
             } catch (error) {
@@ -1860,7 +1756,7 @@ const configureOriginalMeshMaterial = (material, mesh) => {
             };
         };
 
-                
+              
         if (projectId) {
             const loadScene = async () => {
                 const sceneObj = ensureSceneObject();
@@ -1873,16 +1769,16 @@ const configureOriginalMeshMaterial = (material, mesh) => {
                 setMorphCategories([]);
 
                 const dslScene = await loadProjectSceneData(projectId);
-             
+         
 
                 if (token !== loadTokenRef.current) {
                     return;
                 }
 
                 const nextMorphs = Array.isArray(dslScene?.dslMorphs) ? dslScene.dslMorphs : [];
-                const dslCategories = Array.isArray(dslScene?.categories) ? dslScene.categories : [];
+                const dslCategories = Array.isArray(dslScene?.categories) ? dslScene?.data || dslScene.categories  : [];
                 // const dbCategories = await loadDbData();
-   
+       
               
                 if (dslCategories.length) {
                     const nextData = dslCategories// mergeDbAndDslCategories(dbCategories, dslCategories);

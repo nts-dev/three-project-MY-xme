@@ -14,6 +14,7 @@ import type {Vector} from "@dimforge/rapier3d-compat";
 import {emitSocketEvent} from "../../socket";
 import useInterface from "../../hooks/stores/useInterface";
 import PlayerLabel from "./PlayerLabel";
+import {createGameplayRaycast} from "./gameplayRaycast";
 // import {useFollowCam} from "../../hooks/useFollowCam";
 
 const PROJECT_153_L1_RUN_SPEED_MULTIPLIER = 3;
@@ -526,6 +527,11 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     const avatarCollisionInstanceMatrix = useMemo(() => new THREE.Matrix4(), []);
     const avatarCollisionWorldMatrix = useMemo(() => new THREE.Matrix4(), []);
     const avatarCollisionRaycaster = useMemo(() => new THREE.Raycaster(), []);
+    const gameplayRaycast = useMemo(() => createGameplayRaycast(), []);
+    const gameplayTargets = useMemo(() => [] as THREE.InstancedMesh[], []);
+    const gameplayTargetsFrameRef = useRef(-1);
+    const gameplayFrameRef = useRef(0);
+    const avatarCollisionSideOffsets = useMemo(() => [0, (capsuleRadius + AVATAR_COLLISION_SKIN) * 0.85, -(capsuleRadius + AVATAR_COLLISION_SKIN) * 0.85], [capsuleRadius]);
     const avatarTelemetryDeltaVec = useMemo(() => new THREE.Vector3(), []);
     const resetPositionVec = useMemo(() => new THREE.Vector3(), []);
     const turnGestureYawRef = useRef(0);
@@ -544,6 +550,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     const cameraRealtimeTelemetryResetTick = useGame((state: any) => state.cameraRealtimeTelemetryResetTick)
     const setCameraRealtimeTelemetry = useGame((state: any) => state.setCameraRealtimeTelemetry)
     const projectID = useGame((state: any) => state.projectID)
+    const disableSceneCollision = String(projectID) === "153_L1";
     const {clientId, dateTime} = client ? JSON.parse(client) : {clientId: "custom_person", dateTime: 'now'}
     const setCharacterIsInWater: any = useGame((state: any) => state.setCharacterIsInWater)
     const characterIsInWater: boolean = useGame((state: any) => state.characterIsInWater)
@@ -1061,7 +1068,10 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     };
 
     const getGameplayRaycastTargets = () => {
-        const targets: any[] = [];
+        if (gameplayTargetsFrameRef.current === gameplayFrameRef.current) return gameplayTargets;
+        gameplayTargetsFrameRef.current = gameplayFrameRef.current;
+        const targets = gameplayTargets;
+        targets.length = 0;
         scene?.traverse?.((object: any) => {
             if (
                 object?.isInstancedMesh &&
@@ -1077,7 +1087,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     };
 
     const resolveCameraCollision = (desiredCameraPosition: THREE.Vector3, targetPosition: THREE.Vector3) => {
-        if (!camCollision) {
+        if (!camCollision || disableSceneCollision) {
             return desiredCameraPosition;
         }
 
@@ -1093,7 +1103,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
         cameraCollisionRaycaster.near = 0.05;
         cameraCollisionRaycaster.far = desiredDistance;
 
-        const hit = cameraCollisionRaycaster.intersectObjects(getGameplayRaycastTargets(), false)[0];
+        const hit = gameplayRaycast(cameraCollisionRaycaster, getGameplayRaycastTargets());
         if (hit) {
             desiredCameraPosition
                 .copy(cameraCollisionOriginVec)
@@ -1111,7 +1121,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
         const bodyPosition = characterBody.translation();
         currentPos.set(bodyPosition.x, bodyPosition.y, bodyPosition.z);
 
-        if (travelDistance <= 0.001) {
+        if (disableSceneCollision || travelDistance <= 0.001) {
             return collisionResolvedVelocityVec;
         }
 
@@ -1124,10 +1134,9 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
         avatarCollisionSideVec.set(-avatarCollisionDirectionVec.z, 0, avatarCollisionDirectionVec.x).normalize();
         let nearestDistance = travelDistance + playerRadius + AVATAR_COLLISION_STOP_DISTANCE;
         let nearestHit: THREE.Intersection | null = null;
-        const sideOffsets = [0, playerRadius * 0.85, -playerRadius * 0.85];
 
         for (const heightOffset of AVATAR_COLLISION_RAY_HEIGHTS) {
-            for (const sideOffset of sideOffsets) {
+            for (const sideOffset of avatarCollisionSideOffsets) {
                 avatarCollisionOriginVec
                     .copy(currentPos)
                     .addScaledVector(avatarCollisionSideVec, sideOffset);
@@ -1137,7 +1146,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
                 avatarCollisionRaycaster.near = 0;
                 avatarCollisionRaycaster.far = travelDistance + playerRadius + AVATAR_COLLISION_STOP_DISTANCE;
 
-                const hit = avatarCollisionRaycaster.intersectObjects(targets, false)[0];
+                const hit = gameplayRaycast(avatarCollisionRaycaster, targets);
                 if (hit && hit.distance < nearestDistance) {
                     nearestDistance = hit.distance;
                     nearestHit = hit;
@@ -1272,6 +1281,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     };
 
     useFrame((state, delta) => {
+        gameplayFrameRef.current++;
 
         /**
          * Getting all the useful keys from useKeyboardControls

@@ -42,11 +42,11 @@ export default function Floor() {
 
         if (rigidBodyRef.current) {
             const currentPosition = rigidBodyRef.current.translation();
-            rigidBodyRef.current.setTranslation({ x: currentPosition.x, y: floorHeight, z: currentPosition.z }, true);
+            rigidBodyRef.current.setTranslation({ x: currentPosition.x, y: String(projectId).includes("153_L1") ? floorHeight + 0.4 : floorHeight , z: currentPosition.z }, true);
         }
         if (characterRef) {
             const currentPosition = characterRef.translation();
-            characterRef.setTranslation({ x: currentPosition.x, y: floorHeight, z: currentPosition.z }, true);
+            characterRef.setTranslation({ x: currentPosition.x, y: String(projectId).includes("153_L1") ? floorHeight + 0.4 : floorHeight, z: currentPosition.z }, true);
         }
     }, [floorHeight]);
 

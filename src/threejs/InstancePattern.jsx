@@ -147,84 +147,8 @@ export default async function InstancedPattern(
     const assetCommandLines = [];
 
    
-    const loadLocation = (position, l,w, fields, angle, instancId, width, length) => {
-        const fObject = fbx.clone();
-        const baseChild = fObject.children[0];
-
-        baseChild.layers.mask = 0;
-
-        const mixer = new THREE.AnimationMixer(baseChild);
-        const action = mixer.clipAction(fObject.animations[0]);
-        action.enabled = true;
-        action.play();
-
-        fObject.rotation.y = THREE.MathUtils.degToRad(angle);
-        fObject.position.copy(position);
-        fObject.scale.set(0.01, 0.01, 0.01);
-        scene.add(fObject);
-
-        const info = fields['Info']?.value;
-        const key = fields['Info']?.instance_id;
-        const floor = parseFloorCode(fields['Floor']?.value, 0);
-      
-
-        const text3D = new PointText3D(info, FONT_URL, 0.2, 0xff0000, 0);
-        text3D.setPosition(position.x - 0.50, position.y + 0.50, position.z);
-        const threedText = text3D.getObject();
-
-        scene.add(threedText);
-        locationData.push({ text: threedText, mixer, pin: fObject });
 
 
-        if (!locationPoints[floor]) {
-            locationPoints[floor] = {
-                key: floor,
-                label: `Floor ${floor}`,
-                data: '',
-                icon: 'pi pi-fw pi-inbox',
-                children: [{
-                    key,
-                    label: info,
-                    data: instancId,
-                    floor,
-                    icon: 'pi pi-map-marker',
-                }]
-            };
-        } else {
-            locationPoints[floor].children.push({
-                key,
-                label: info,
-                data: instancId,
-                floor,
-                icon: 'pi pi-map-marker',
-            });
-        }
-
-        sceneAssets[instancId] = {
-            position,
-            halfHeight,
-            halfWidth: width ? width / 20 :  halfWidth,
-            halfLength: length ? length / 20 : halfLength,
-            length: l,
-            width: w,
-            cleanKey,
-        };
-
-
-    };
-
-    const makeElements = (fields) => {
-        const qty = Number(fields['qtyHeight']?.value) || 0;
-        const elements = new Array(qty);
-        for (let i = 0; i < qty; i++) {
-            elements[i] = {
-                position: new Vector3(0, i / 10, 0),
-                rotation: new Vector3(THREE.MathUtils.degToRad(90), 0, 0),
-                scale: new Vector3(0.5, 1, 1)
-            };
-        }
-        return elements;
-    };
 
     const extractAngle = (angle) => {
         try {
@@ -334,16 +258,16 @@ export default async function InstancedPattern(
 
     let index = 0;
 
-
+  
     for (let i = 0; i < assets.length; i++) {
         const asset = assets[i];
         
         const { fields, annotationText } = asset;
-          if (fields['Status']?.value === "In Use" && String(projectID).includes("153_L1")) {
-        //    console.log(projectID)
-           continue;
+        //   if (fields['Status']?.value === "In Use" && String(projectID).includes("153_L1")) {
+        // //    console.log(projectID)
+        //    continue;
 
-        }
+        // }
         const raw = asset._raw || asset;
         const instanceId = raw.instance_id || raw.instanceId
        

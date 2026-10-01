@@ -47,13 +47,32 @@ export default function PlayerHeightSlider({classIndenfier, direction, height}: 
         getProjectsFloorDetails();
     }, [projectId]);
 
-    const handleZoomChange = (event: Event, newValue: number | number[]) => {
+    const handleZoomChange = (event: Event | null, newValue: number | number[]) => {
         const newHeightValue = newValue as number;
         const heightDifference = newHeightValue - previousHeightValue.current;
 
         setFloorHeight((floorHeight+heightDifference))
         previousHeightValue.current = newHeightValue;
     };
+
+    if (direction === 'vertical') {
+        return (
+            <div className="player-view-angle-meter player-height-meter" aria-label="Floor height meter">
+                <span className="player-view-angle-meter__label">Height</span>
+                <input
+                    aria-label="Floor Height"
+                    type="range"
+                    min={min}
+                    max={max}
+                    step={0.1}
+                    value={floorHeight}
+                    onChange={(event) => handleZoomChange(null, Number(event.target.value))}
+                />
+                <span className="player-view-angle-meter__mark player-view-angle-meter__mark--top">+</span>
+                <span className="player-view-angle-meter__mark player-view-angle-meter__mark--bottom">-</span>
+            </div>
+        );
+    }
 
     return (
         <Stack sx={{ height: height, color: '#8c8c8c' }} spacing={1} direction='row' className={classIndenfier}>

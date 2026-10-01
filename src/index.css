@@ -3424,6 +3424,33 @@ body.is-package-project-fullscreen .r3f-stats {
     pointer-events: auto;
 }
 
+.player-slider-stack {
+    --player-slider-height: clamp(6rem, calc((100dvh - 16rem) / 2), 17.5rem);
+    position: fixed;
+    right: 1.45rem;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1000002;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+}
+
+.player-slider-stack .player-view-angle-meter {
+    position: relative;
+    right: auto;
+    top: auto;
+    transform: none;
+    box-sizing: border-box;
+    height: var(--player-slider-height);
+}
+
+.player-slider-stack .player-view-angle-meter input[type="range"] {
+    flex-shrink: 0;
+    width: calc(var(--player-slider-height) - 3.3rem);
+}
+
 .player-view-angle-meter::before {
     position: absolute;
     inset: 1.6rem auto;
@@ -3510,6 +3537,15 @@ body.is-package-project-fullscreen .r3f-stats {
 }
 
 @media screen and (max-width: 575px) {
+    .player-slider-stack {
+        --player-slider-height: clamp(6rem, calc((100dvh - 16rem) / 2), 14rem);
+        right: 0.95rem;
+    }
+
+    .player-slider-stack .player-view-angle-meter input[type="range"] {
+        width: calc(var(--player-slider-height) - 3rem);
+    }
+
     .player-view-angle-meter {
         right: 0.95rem;
         width: 2.35rem;
