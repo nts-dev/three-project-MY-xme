@@ -1335,8 +1335,8 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                                 <strong>Send to your phone</strong>
                             </div>
                         </button>
-                        {meta.extraRows.map((row) => (
-                            <div className="play-asset-info__meta-item play-asset-info__meta-item--plain" key={row.label}>
+                        {meta.extraRows.map((row, index) => (
+                            <div className="play-asset-info__meta-item play-asset-info__meta-item--plain" key={`${row.label}-${index}`}>
                                 <BusinessIcon aria-hidden="true" />
                                 <div>
                                     <span>{row.label}</span>
