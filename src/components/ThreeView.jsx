@@ -598,7 +598,7 @@ export default function ThreeView() {
     const isGameRuntime = isPuzzleGame && buttonMode === 'Play mode';
     const projectBaseId = String(projectId).replace(/_L\d+$/i, "");
     const isCadProject = projectBaseId === "151";
-    const disableAntialiasing = isLowGpu || String(projectId) === "153_L1";
+    const disableAntialiasing = isLowGpu 
     const canvasBackground = isCadProject ? '#4a4a4a' : (isGameRuntime ? '#000' : '#fff');
     const showUrlViewControls = isUrlLevelProjectLaunch() && !isCadProject && !isPuzzleGame;
     const googleMapsViewportMode = useSyncExternalStore(
@@ -762,39 +762,22 @@ export default function ThreeView() {
                                                 {/* <AIChaserDebug enabled={character || firstPerson} /> */}
                                                 <Floor />
 
-                                                {String(projectId).includes('151') && <SingleEdgesDrawing orbitControls={orbitControls} />}
-
-                                                { !String(projectId).includes('151') &&
-                                                <InstanceExperience key={`instanceexperience-${projectId}`} />
-                                                }
-                                                <directionalLight ref={directionalLightRef} position={[5, 10, 5]} intensity={String(projectId).includes('137') ? 6.5 : 4.5} />
+                                    
+                                                 <InstanceExperience key={`instanceexperience-${projectId}`} />
+                                                
+                                                <directionalLight ref={directionalLightRef} position={[5, 10, 5]} intensity={String(projectId).includes('137') ? 6.5 : 1} />
                                                 <AvatarEyeDirectionalLight
                                                     lightRef={directionalLightRef}
                                                     enabled={false}
                                                 />
                                                 <Ground />
-                                                <ambientLight intensity={String(projectId).includes('137') ? 3 : 1.5} />
+                                                <ambientLight intensity={String(projectId).includes('137') ? 3 : 4} />
                                                 </>
                                             )}
                                             
-                                            {isPuzzleGame  && projectId!==0 && !String(projectId).includes('151') &&
+                                       
 
-                                            <>
-                                                <directionalLight position={[5, 10, 5]} intensity={0.8} />
-                                                <ambientLight intensity={0.6} />
-                                             <GameExperience key={`gameexperience-${projectId}`} orbitControls={orbitControls} client={client} />
-                                             <AIChaserDebug enabled={character || firstPerson} />
-                                             </>
-                                             }
-
-                                            {packageControl &&
-                                                <>
-                                                    <directionalLight position={[4, 8, 6]} intensity={3.2} />
-                                                    <directionalLight position={[-4, 5, -5]} intensity={1.6} />
-                                                    <ambientLight intensity={1.4} />
-                                                    <PackageRuntimeBridge />
-                                                </>
-                                            }
+                                           
 
                                             
 
@@ -890,14 +873,14 @@ export default function ThreeView() {
             {!isMobile && isPuzzleGame && (character || firstPerson) && <InventoryUi />}
             {((character || firstPerson) && isPuzzleGame && !isMobile) && <NavigationPad />}
             {/* {((((character || firstPerson) && isGame) ) || puzzleChar) && <Interface/>} */}
-            {((character || firstPerson || hasDied) && isGame && !isMobile && String(uName || "").trim()) && <PlayersRanking />}
+            {/* {((character || firstPerson || hasDied) && isGame && !isMobile && String(uName || "").trim()) && <PlayersRanking />}
             {((character || firstPerson || hasDied) && isGame && !isMobile && String(uName || "").trim()) && <TopScoreboard />}
             {((character || firstPerson || hasDied) && isPuzzleGame && !isMobile) && (
                 <Chat
                     isMinimized={false}
                     onToggleHud={() => setIsHudMinimized((prev) => !prev)}
                 />
-            )}
+            )} */}
             {!isXrPresenting && showPlayerRuntimeControls && (
                 <div className="player-slider-stack">
                     {!isPuzzleGame && <PlayerHeightSlider direction='vertical' classIndenfier='height-meter' height='10rem' />}
