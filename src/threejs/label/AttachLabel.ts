@@ -11,12 +11,13 @@ interface SizeAndFont{
     length: number,
     width: number,
     font: number
+    centeredBold?: boolean
 }
 
 const AnnotationData: any = []
 
 export default function AttachLabel(projectId: number,textList: Array<string>, scene: any,position: Vector3,labelRotation: Vector3, updateIndices: Array<TextIndex>,offsetPosition: Vector3, offsetRotation: Vector3, sizeAndFont: SizeAndFont, isAnnotation: boolean,isLod=false){
-    const pLable = AddLabel(projectId,sizeAndFont.width, sizeAndFont.length, textList,offsetPosition , sizeAndFont.font, 'label',labelRotation,updateIndices,isLod,isAnnotation);
+    const pLable = AddLabel(projectId,sizeAndFont.width, sizeAndFont.length, textList,offsetPosition , sizeAndFont.font, 'label',labelRotation,updateIndices,isLod,isAnnotation,undefined,sizeAndFont.centeredBold);
     const pivotObject = new THREE.Group()
     if(pLable){
         //console.log(pLable)

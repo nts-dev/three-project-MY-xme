@@ -363,7 +363,9 @@ const drawBuildingLabelCanvas = (canvas, {
     context.font = `800 28px ${LABEL_FONT}`;
     const hasLogo = Boolean(logoImage);
     const textX = hasLogo ? 178 : 160;
-    const textMaxWidth = hasLogo ? 224 : 250;
+    const cardWidth = canvas.width - 162;
+    const pointerX = 70 + cardWidth / 2;
+    const textMaxWidth = 70 + cardWidth - textX - 10;
     const labelText = truncateText(context, title, textMaxWidth);
     const building = getFieldValue(fields, ["Building Number", "Building No", "Unit"]);
     const floor = getFieldValue(fields, ["Floor", "Level"]);
@@ -376,7 +378,7 @@ const drawBuildingLabelCanvas = (canvas, {
     context.fillStyle = "#253630";
     context.strokeStyle = "rgba(75, 255, 226, 0.16)";
     context.lineWidth = 1;
-    roundRect(context, 70, 20, 350, 96, 14);
+    roundRect(context, 70, 20, cardWidth, 96, 14);
     context.fill();
     context.stroke();
 
@@ -406,8 +408,8 @@ const drawBuildingLabelCanvas = (canvas, {
     context.strokeStyle = "rgba(35, 244, 248, 0.38)";
     context.lineWidth = 3;
     context.beginPath();
-    context.moveTo(245, 118);
-    context.lineTo(245, 150);
+    context.moveTo(pointerX, 118);
+    context.lineTo(pointerX, 150);
     context.stroke();
 
     context.shadowColor = "#23f4f8";
@@ -416,7 +418,7 @@ const drawBuildingLabelCanvas = (canvas, {
     context.strokeStyle = "rgba(35, 244, 248, 0.46)";
     context.lineWidth = 2;
     context.beginPath();
-    context.arc(245, 158, 9, 0, Math.PI * 2);
+    context.arc(pointerX, 158, 9, 0, Math.PI * 2);
     context.fill();
     context.stroke();
     context.restore();
@@ -467,7 +469,7 @@ export const createBuildingLabelSprite = ({
     }
 
     const canvas = document.createElement("canvas");
-    canvas.width = 512;
+    canvas.width = 768;
     canvas.height = 188;
     const kind = detectCategory(fields, title);
 
@@ -490,7 +492,7 @@ export const createBuildingLabelSprite = ({
         polygonOffsetUnits: -2,
     });
 
-    const sprite = new THREE.Mesh(new THREE.PlaneGeometry(9.3, 3.42), material);
+    const sprite = new THREE.Mesh(new THREE.PlaneGeometry(9.3 * 1.4 * 1.5, 3.42 * 1.4), material);
 
     const heightTop =  position.y + (Number(halfHeight)*2)/100 + 1;
     const labelAngle = THREE.MathUtils.degToRad(Number(angle) || 0);

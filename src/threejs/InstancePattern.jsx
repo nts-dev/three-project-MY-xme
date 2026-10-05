@@ -524,7 +524,7 @@ export default async function InstancedPattern(
             const frontBounds = object.geometry.boundingBox.clone().applyMatrix4(
                 new THREE.Matrix4().compose(new Vector3(), buildingInLabelFrame, absScale)
             );
-            const sizeAndFont = { width: 20, length: 30, font: 120 };
+            const sizeAndFont = { width: 20, length: 30, font: 120, centeredBold: true };
             const frontOffset = frontBounds.getCenter(new Vector3());
             // Align the plane's left edge with the front face's left edge.
             const labelHalfWidth = (sizeAndFont.width - 5) * 0.01 / 2;
@@ -552,6 +552,10 @@ export default async function InstancedPattern(
                 false
             );
             const frontLabel = scene.getObjectById(labelId);
+            if (frontLabel) {
+                frontLabel.scale.x *= 1.4 * 1.49;
+                frontLabel.scale.y *= 1.4;
+            }
             if (frontLabel?.isLOD) {
                 frontLabel.userData.isBuildingFrontLabel = true;
                 // Keep the front sign visible beyond the helper's default 25-unit cutoff.

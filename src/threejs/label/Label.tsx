@@ -27,7 +27,8 @@ export function AddLabel(
     updateIndices: Array<TextIndex> = [],
     isLod: boolean,
     isAnnotation: boolean,
-    lodDistances: { near: number; far: number } = { near: 0.01, far: 2 }
+    lodDistances: { near: number; far: number } = { near: 0.01, far: 2 },
+    centeredBold: boolean = false
 ) {
     // Helper function for text label
     const createTextLabel = () => {
@@ -69,6 +70,13 @@ export function AddLabel(
         context.textAlign = 'left'; // Left-align for text and bullet point
         context.textBaseline = 'middle'; // Center vertically
         context.fillStyle = isAnnotation ? color : 'rgb(10, 7, 7)'; // Text color
+
+        if (centeredBold && !isAnnotation) {
+            context.font = `bold ${fontSize - 12}px Arial`;
+            context.textAlign = 'center';
+            context.fillText(textList.join(' '), canvas.width / 2, canvas.height / 2);
+            return;
+        }
 
         // Define padding, line height, and bullet point offset
         const padding = 20; // Padding from edges
