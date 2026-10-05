@@ -33,14 +33,18 @@ const LABEL_TOP_OFFSET = 0.3;
 const labelLogoCache = new Map();
 
 const getFieldValue = (fields, names) => {
+   
     if (!fields) {
         return "";
     }
 
     for (const name of names) {
         const direct = fields[name];
+         
         const directValue = direct?.value ?? direct;
+        
         if (directValue !== undefined && directValue !== null && String(directValue).trim()) {
+            
             return String(directValue).trim();
         }
     }
@@ -448,8 +452,12 @@ export const createBuildingLabelSprite = ({
     halfLength = 0,
     topY,
     instanceId,
+    name,
+    projectID
 }) => {
-    if (typeof document === "undefined" || !position || !hasBusinessMetadata(fields)) {
+    const hasdata = hasBusinessMetadata(fields)
+    
+    if (typeof document === "undefined" || !position || !hasdata) {
         return null;
     }
 
@@ -486,12 +494,15 @@ export const createBuildingLabelSprite = ({
 
     const heightTop =  position.y + (Number(halfHeight)*2)/100 + 1;
     const labelAngle = THREE.MathUtils.degToRad(Number(angle) || 0);
-    const lengthTop =   position.z - (Number(halfLength))/100;
-    const anchorPosition = new THREE.Vector3(
-        position.x ,
-        heightTop ,
-        lengthTop 
-    );
+    const xOffset = (Number(halfHeight) * 2) / 200;
+    const localXOffset = String(projectID).includes('153')
+        ? (String(name || '').includes('ShortLeft') ? -xOffset : xOffset)
+        : 0;
+    const rotatedOffset = new THREE.Vector3(localXOffset, 0, 0)
+        .applyAxisAngle(new THREE.Vector3(0, 1, 0), labelAngle);
+
+    const anchorPosition = new THREE.Vector3(position.x, heightTop, position.z)
+        .add(rotatedOffset);
     sprite.position.copy(anchorPosition);
     sprite.rotation.set(0, labelAngle, 0);
     sprite.onBeforeRender = (_renderer, _scene, camera) => {

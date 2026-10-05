@@ -74,6 +74,8 @@ const normalizeFieldName = (name = "") => String(name || "").trim();
 const BUSINESS_FIELD_NAMES = new Set([
     "street name", "company name", "building number", "kind of business",
     "telephone no.", "website url", "email", "cordinate",
+    "telephone", "telephone no", "phone", "phone number", "contact", "contact number",
+    "cordinates", "coordinate", "coordinates",
     "business description", "opening hours", "comments",
 ]);
 
@@ -253,7 +255,8 @@ const buildSpecGroups = ({ instanceId, assetName, rawFields, apiFields, sceneFie
     allFields.forEach((field) => {
         const name = normalizeFieldName(field?.name);
         const value = field?.value;
-        const keepEmpty = keepEmptyBusinessFields && isBusinessMetadataField(name);
+        const keepEmpty = (keepEmptyBusinessFields && isBusinessMetadataField(name)) ||
+            /^(telephone(?: no\.?)?|phone(?: number)?|contact(?: number)?|cordinates?|coordinates?)$/i.test(name);
         if (!name || isHiddenMetaField(name) || (!isUsefulValue(value) && !keepEmpty)) {
             return;
         }
@@ -361,9 +364,9 @@ export const loadPlayAssetInfo = async ({ instanceId, fallbackName = "", project
         findFieldValue(rawFields, ["AssetInfo", "Asset Info"]);
     const assetDescription = findFieldValue(sceneFields, ["Asset Description", "AssetDescription", "Business Description"]) ||
         findFieldValue(rawFields, ["Asset Description", "AssetDescription"]);
-    const assetName = findFieldValue(sceneFields, ["Company Name", "AssetName", "Asset Name"]) ||
-        findFieldValue(apiFields, ["AssetName", "Asset Name"]) ||
-        findFieldValue(rawFields, ["AssetName", "Asset Name"]) ||
+    const assetName = findFieldValue(apiFields, ["Company Name", "AssetName", "Asset Name"]) ||
+        findFieldValue(rawFields, ["Company Name", "AssetName", "Asset Name"]) ||
+        findFieldValue(sceneFields, ["Company Name", "AssetName", "Asset Name"]) ||
         fallbackName ||
         "Not Defined";
     const imageItems = getImageItems(assetData);

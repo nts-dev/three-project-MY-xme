@@ -130,20 +130,21 @@ function getRtlsRoutePositions(points: any[], projectID: any): THREE.Vector3[] {
 
     return dotPositions.map((position) => {
         position.add(RTLS_ROUTE_OFFSET);
-        position.z += 0.3;
+        position.x -= 1;
+        position.z += 3;
         return position;
     });
 }
 
-function CameraRouteDots({ points, projectID }: { points: any[]; projectID: any }) {
+function CameraRouteDots({ points, projectID, color = CAMERA_ROUTE_DOT_COLOR }: { points: any[]; projectID: any; color?: string }) {
     const geometry = useMemo(() => new THREE.SphereGeometry(0.088, 10, 8), []);
     const material = useMemo(() => new THREE.MeshBasicMaterial({
-        color: CAMERA_ROUTE_DOT_COLOR,
+        color,
         depthTest: false,
         depthWrite: false,
         transparent: true,
         opacity: 0.9,
-    }), []);
+    }), [color]);
 
     const matrices = useMemo(() => {
         const matrix = new THREE.Matrix4();
@@ -176,7 +177,7 @@ function RtlsRouteDots({ projectID }: { projectID: any }) {
     const { pathGroups } = usePlayerTrackReplay(projectID, true, "rtls");
 
     return <>{pathGroups.map((group) => (
-        <CameraRouteDots key={group.id} points={group.points} projectID={projectID} />
+        <CameraRouteDots key={group.id} points={group.points} projectID={projectID} color={group.color} />
     ))}</>;
 }
 

@@ -688,27 +688,6 @@ const getRatingStars = (rating) => {
     ];
 };
 
-const fetchGooglePlaceDetails = async ({ companyName, coordinates, fallbackAddress, fallbackRating, fallbackReviews }) => {
-    if (!companyName || !coordinates) return null;
-
-    try {
-        const url = `${getApiBaseUrl()}/search-places?cordinates=${encodeURIComponent(coordinates)}&companyName=${encodeURIComponent(companyName)}`;
-        const response = await fetch(url);
-        if (!response.ok) return null;
-
-        const place = await response.json();
-        return {
-            title: place.name || place.title || companyName,
-            address: place.address || place.formatted_address || place.vicinity || fallbackAddress,
-            rating: String(place.rating ?? place.googleRating ?? fallbackRating),
-            reviews: String(place.reviewCount ?? place.user_ratings_total ?? place.reviews ?? fallbackReviews),
-        };
-    } catch (error) {
-        console.warn("Places lookup failed", error);
-        return null;
-    }
-};
-
 const getBusinessKind = (businessType, title, description) => {
     const text = `${businessType || ""} ${title || ""} ${description || ""}`.toLowerCase();
 
@@ -737,9 +716,33 @@ const linkWithProtocol = (url) => {
     return /^https?:\/\//i.test(text) ? text : `https://${text}`;
 };
 
+const formatLocationAddress = (address) => valueText(address)
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(", ");
+
+const getPlaceAddressDetails = (place) => {
+    const components = place?.address_components || place?.addressComponents;
+    if (Array.isArray(components)) {
+        const detailTypes = new Set(["neighborhood", "sublocality", "sublocality_level_1", "locality", "postal_town", "administrative_area_level_1", "postal_code", "country"]);
+        const details = components
+            .filter((component) => component.types?.some((type) => detailTypes.has(type)))
+            .map((component) => component.long_name || component.longName || component.short_name)
+            .filter(Boolean);
+        if (details.length) return [...new Set(details)].join(", ");
+    }
+
+    const parts = formatLocationAddress(place?.formatted_address || place?.address || place?.vicinity).split(", ").filter(Boolean);
+    // Discard the matched place's building and street, retaining its locality details.
+    const streetIndex = parts.findIndex((part) => /\b(jalan|jln|lorong|persiaran|lebuh|street|road|avenue|drive|lane)\b/i.test(part));
+    if (streetIndex >= 0) return parts.slice(streetIndex + 1).join(", ");
+    return parts.slice(/^\s*(?:no\.?\s*)?\d+[\w/-]*\s*$/i.test(parts[0] || "") ? 2 : 1).join(", ");
+};
+
 const getEditFieldIcon = (name) => {
     const text = String(name || "").trim().toLowerCase();
-    if (/street|address|building|unit|city|state|town/.test(text)) return FaMapMarkerAlt;
+    if (/street|address|building|unit|city|state|town|cordinate|coordinate/.test(text)) return FaMapMarkerAlt;
     if (/opening|hours|schedule|check/.test(text)) return FaRegClock;
     if (/website|url|web/.test(text)) return FaGlobe;
     if (/telephone|phone|contact/.test(text)) return FaPhoneAlt;
@@ -755,7 +758,8 @@ const isLongEditField = (name, value) => {
 const buildMetaModel = (assetInfo, title, showEmptyBusinessFields = false, projectId) => {
     const groups = normalizeApiSpecGroups(assetInfo?.specGroups);
     const rows = groups.flatMap((group) => group.children || []).filter(shouldShowMetaRow);
-    const companyName = findMetaValue(rows, ["Company Name", "AssetName"]) || title;
+    const companyValue = findMetaValue(rows, ["Company Name", "AssetName"]);
+    const companyName = companyValue && !/^n\/?a$/i.test(companyValue) ? companyValue : title;
     const businessDescription = findMetaValue(rows, ["Business Description", "Description"]);
     const comments = findMetaValue(rows, ["Comments"]);
     const description = businessDescription || comments;
@@ -763,19 +767,15 @@ const buildMetaModel = (assetInfo, title, showEmptyBusinessFields = false, proje
     const streetName = findMetaValue(rows, ["Street Name", "Street", "Address"]);
     const streetNumber = findMetaValue(rows, ["Street Number", "Street No.", "Street No", "No.", "No"]);
     const buildingNumber = findMetaValue(rows, ["Building Number", "Building No", "Unit"]);
-    const formattedStreetNumber = streetNumber
-        ? `No. ${String(streetNumber).replace(/^no\.?\s*/i, "").trim()}`
-        : "";
-    const address = [formattedStreetNumber || buildingNumber, streetName].filter(Boolean).join(", ");
-    const city = String(projectId) === "153_L1"
-        ? "XME Business Park, Nilai Impian, 71800 Nilai, Negeri Sembilan, Malaysia"
-        : findMetaValue(rows, ["City", "Town", "State"]) || "Seri Kembangan, Selangor, Malaysia";
+    const city = findMetaValue(rows, ["City", "Town", "State"]);
+    const streetAddress = formatLocationAddress([buildingNumber || streetNumber, streetName].filter(Boolean).join(", "));
+    const address = formatLocationAddress([streetAddress, city].filter(Boolean).join(", "));
     const openingHours = findMetaValue(rows, ["Opening Hours", "Hours"]);
     const website = findMetaValue(rows, ["Website Url", "Website URL", "Website"]);
     const telephone = findMetaValue(rows, ["Telephone No.", "Telephone", "Phone", "Contact"]);
     const coordinates = findMetaValue(rows, ["Cordinate", "Cordinates", "Coordinates"]);
-    const rating = findMetaValue(rows, ["Rating", "Google Rating"]) || "4.5";
-    const reviews = findMetaValue(rows, ["Reviews", "Review Count"]) || "127";
+    const rating = findMetaValue(rows, ["Rating", "Google Rating"]);
+    const reviews = findMetaValue(rows, ["Reviews", "Review Count"]);
     const businessKind = getBusinessKind(businessType, companyName, description);
     const consumedNames = new Set([
         "company name",
@@ -825,6 +825,7 @@ const buildMetaModel = (assetInfo, title, showEmptyBusinessFields = false, proje
 
     return {
         address,
+        streetAddress,
         businessKind,
         businessType,
         businessDescription,
@@ -1047,42 +1048,34 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [draftRows, setDraftRows] = useState([]);
-    const [googlePlace, setGooglePlace] = useState(null);
-    const [googlePlaceStatus, setGooglePlaceStatus] = useState("idle");
+    const [placeRatings, setPlaceRatings] = useState(null);
     const BusinessIcon = meta.businessKind.Icon;
 
     useEffect(() => {
-        let cancelled = false;
-        const hasCoordinates = Boolean(String(meta.coordinates || "").trim());
+        const controller = new AbortController();
+        setPlaceRatings(null);
+        if (!meta.coordinates || !meta.companyName || assetInfo?.isLoadingDetails) return undefined;
 
-        setGooglePlace(null);
-        setGooglePlaceStatus(hasCoordinates ? "loading" : "idle");
+        const url = `${getApiBaseUrl()}/search-places?cordinates=${encodeURIComponent(meta.coordinates)}&companyName=${encodeURIComponent(meta.companyName)}`;
+        fetch(url, { signal: controller.signal })
+            .then((response) => {
+                if (!response.ok) throw new Error("Unable to load place ratings");
+                return response.json();
+            })
+            .then((place) => {
+                if (controller.signal.aborted) return;
+                setPlaceRatings({
+                    rating: place?.rating ?? place?.googleRating,
+                    reviews: place?.reviewCount ?? place?.user_ratings_total ?? place?.reviews,
+                    addressDetails: getPlaceAddressDetails(place),
+                });
+            })
+            .catch((error) => {
+                if (error.name !== "AbortError") console.warn("Place ratings lookup failed:", error);
+            });
 
-        if (!hasCoordinates || !meta.companyName) return undefined;
-
-        fetchGooglePlaceDetails({
-            companyName: meta.companyName,
-            coordinates: meta.coordinates,
-            fallbackAddress: meta.address,
-            fallbackRating: meta.rating,
-            fallbackReviews: meta.reviews,
-        }).then((data) => {
-            if (cancelled) return;
-            if (data) setGooglePlace(data);
-            setGooglePlaceStatus(data ? "ready" : "empty");
-        });
-
-        return () => {
-            cancelled = true;
-        };
-    }, [
-        selectedAssetId,
-        meta.companyName,
-        meta.coordinates,
-        meta.address,
-        meta.rating,
-        meta.reviews,
-    ]);
+        return () => controller.abort();
+    }, [selectedAssetId, meta.coordinates, meta.companyName, assetInfo?.isLoadingDetails]);
 
     useEffect(() => {
         
@@ -1181,11 +1174,12 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
         }));
     };
 
-    const isWaitingForGooglePlace = Boolean(meta.coordinates) && googlePlaceStatus === "loading";
-    const displayTitle = googlePlace?.title || meta.companyName || title;
-    const displayAddress = isWaitingForGooglePlace ? "Loading address..." : googlePlace?.address || meta.address;
-    const displayRating = isWaitingForGooglePlace ? "..." : googlePlace?.rating || meta.rating;
-    const displayReviews = isWaitingForGooglePlace ? "..." : googlePlace?.reviews || meta.reviews;
+    const displayTitle = meta.companyName || title;
+    const displayAddress = placeRatings?.addressDetails
+        ? formatLocationAddress([meta.streetAddress, placeRatings.addressDetails].filter(Boolean).join(", "))
+        : meta.address;
+    const displayRating = valueText(placeRatings?.rating) || meta.rating || "N/A";
+    const displayReviews = valueText(placeRatings?.reviews) || meta.reviews || "N/A";
 
     if (!assetInfo) return null;
 
@@ -1301,7 +1295,6 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                                 <FaMapMarkerAlt aria-hidden="true" />
                                 <div>
                                     <strong>{displayAddress || "N/A"}</strong>
-                                    {!googlePlace?.address && meta.city && <span>{meta.city}</span>}
                                 </div>
                             </div>
                         )}

@@ -141,7 +141,6 @@ export default async function InstancedPattern(
     category_index
 ) {
     const lowerName = String(name || "").toLowerCase();
-    const disableBuildingLabels = String(projectID) === "153_L1";
     const generatedAsset = isGeneratedAssetReference(fileName);
     const cleanKey = normalizeSceneAssetName(fileName || name || "")
     const assetCommandLines = [];
@@ -510,7 +509,10 @@ export default async function InstancedPattern(
         // }
 
       
-        if (lowerName.includes('buildings')) {
+        const buildingNumberField = fields['Building Number'] || fields['Building No'] ||
+            Object.values(fields).find((field) => /^(building number|building no\.?)$/i.test(String(field?.name || '').trim()));
+        const buildingNumberText = String(buildingNumberField?.value ?? '').trim();
+        if (lowerName.includes('buildings') && buildingNumberText) {
             const labelAngle = THREE.MathUtils.degToRad(Number(angle) || 0);
             // Measure the rendered geometry in the label's rotated frame, in world units.
             // This also handles imported meshes whose origin is not at their centre.
@@ -529,22 +531,22 @@ export default async function InstancedPattern(
             frontOffset.x = frontBounds.min.x + (labelHalfWidth*15);
             frontOffset.y *= 0.4;
             frontOffset.z = frontBounds.max.z + 0.02;
-            // AttachLabel scales offsets by 0.01; AddLabel moves its plane back by 1.
-            frontOffset.multiplyScalar(100);
-            frontOffset.z += 1;
+            // Rotate the local face offset around the building pivot before translating it.
+            const frontLabelPosition = frontOffset.clone().applyQuaternion(labelFrameRotation).add(position);
             const textList = [];
 
-            textList.push(`96`);
+            textList.push(buildingNumberText);
             //textList.push(`Usage: ${fields['Usage']?.value}-${fields['OS']?.value}`);
 
             labelId = AttachLabel(
                 projectID,
                 textList,
                 scene,
-                position,
+                frontLabelPosition,
                 new Vector3(),
                 textIndexList,
-                frontOffset,
+                // AddLabel moves its plane back by 1; cancel that in label-local units.
+                new Vector3(0, 0, 1),
                 new Vector3(0, labelAngle, 0),
                 sizeAndFont,
                 false
@@ -613,7 +615,7 @@ export default async function InstancedPattern(
             commandLine: assetCommandLines[assetCommandLines.length - 1] || "",
         };
 
-        const buildingLabel = !disableBuildingLabels && createBuildingLabelSprite({
+        const buildingLabel = createBuildingLabelSprite({
             fields,
             fallbackName: name,
             position,
@@ -622,6 +624,8 @@ export default async function InstancedPattern(
             halfLength: l,
             topY: labelBoxTmp.max.y,
             instanceId,
+            name,
+            projectID
             
         });
 

@@ -11,6 +11,7 @@ type PlayerTrackSource = {
     id: string;
     url: string;
     color?: string;
+    projectID?: string;
 };
 
 const PROJECT_TRACK_SOURCES: Record<string, PlayerTrackSource[]> = {
@@ -36,8 +37,17 @@ function getTrackPlayerIds() {
 
 function getTrackSources(projectID: any, sourceType: "gps" | "rtls") {
     if (sourceType === "rtls") {
-        const id = String(projectID) === "153_L1" ? "GR2eb1" : "GR100f";
-        return [{ id, url: `${getApiBaseUrl()}/player/${id}.json` }];
+        const project = String(projectID);
+        if (project === "33_L0" || project === "33") {
+            return [
+                { id: "GR100f", url: `${getApiBaseUrl()}/player/GR100f.json`, color: "#ff1f2f", projectID: "33_L0" },
+                { id: "GR2eb1", url: `${getApiBaseUrl()}/player/GR2eb1.json`, color: "#1e7bff", projectID: "33_L0" },
+            ];
+        }
+        if (project === "153_L1") {
+            return [{ id: "GR2eb1", url: `${getApiBaseUrl()}/player/GR2eb1.json`, color: "#1e7bff" }];
+        }
+        return [];
     }
     const projectSources = PROJECT_TRACK_SOURCES[getProjectBaseId(projectID)];
     if (projectSources) return projectSources;
@@ -175,7 +185,7 @@ function byDateTime(firstRecord: any, secondRecord: any) {
     return firstDate - secondDate;
 }
 
-async function fetchTrack(source: { id: string; url: string }, projectID: any, sourceType: "gps" | "rtls") {
+async function fetchTrack(source: PlayerTrackSource, projectID: any, sourceType: "gps" | "rtls") {
     const response = await fetch(source.url);
     if (!response.ok) throw new Error(`Unable to load player track ${source.id}`);
 
@@ -184,6 +194,9 @@ async function fetchTrack(source: { id: string; url: string }, projectID: any, s
     if (!Array.isArray(records)) return [];
 
         return records
+        .map((record) => sourceType === "rtls" && source.projectID
+            ? { ...record, projectID: source.projectID }
+            : record)
         .filter((record) => (sourceType === "rtls" ? Boolean(record?.rtls) : hasGpsFix(record)) && isSameProject(record, projectID))
         .sort(byDateTime)
         .slice(sourceType === "rtls" ? 0 : TRACK_START_FRAME)
