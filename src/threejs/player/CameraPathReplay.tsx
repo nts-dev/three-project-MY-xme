@@ -129,9 +129,12 @@ function getRtlsRoutePositions(points: any[], projectID: any): THREE.Vector3[] {
     }
 
     return dotPositions.map((position) => {
+        // Rotate the curve 180 degrees around the Y axis before positioning it.
+        // position.x = -position.x;
+        position.z = -position.z;
         position.add(RTLS_ROUTE_OFFSET);
         position.x -= 1;
-        position.z += 3;
+        position.z += 37.5;
         return position;
     });
 }
