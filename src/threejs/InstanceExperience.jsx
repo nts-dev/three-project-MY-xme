@@ -48,6 +48,70 @@ import CameraRealtimeFollow from "./player/CameraRealtimeFollow";
 
 const DSL_SCENE_COMMAND_APPLIED = "dsl-scene-command-applied";
 const MIN_REMOTE_SCENE_INDICATOR_MS = 450;
+const FALLBACK_FILE_URL = "http://bo8.nts.nl/network/controller/files/";
+
+const getFallbackFileUrl = (url) => {
+    const source = String(url || "").replace(/\\/g, "/");
+    if (!source || /^(blob:|data:)/i.test(source) || source.startsWith(FALLBACK_FILE_URL)) {
+        return null;
+    }
+    // The fallback server stores files by filename, regardless of their original directory.
+    const filename = source.split(/[?#]/)[0].split("/").pop();
+    return filename ? `${FALLBACK_FILE_URL}${filename}` : null;
+};
+
+const loadAssetWithFallback = async (loader, url) => {
+    try {
+        return await loader.loadAsync(url);
+    } catch (error) {
+        const fallbackUrl = getFallbackFileUrl(url);
+        if (!fallbackUrl) throw error;
+        return loader.loadAsync(fallbackUrl);
+    }
+};
+
+class FallbackTextureLoader extends THREE.TextureLoader {
+    load(url, onLoad, onProgress, onError) {
+        // Keep the returned texture: materials may already reference it when the retry finishes.
+        const texture = super.load(url, onLoad, onProgress, (error) => {
+            const fallbackUrl = getFallbackFileUrl(url);
+            if (!fallbackUrl) {
+                onError?.(error);
+                return;
+            }
+            const fallbackLoader = new THREE.TextureLoader(this.manager);
+            fallbackLoader.setCrossOrigin(this.crossOrigin);
+            fallbackLoader.load(fallbackUrl, (loadedTexture) => {
+                texture.image = loadedTexture.image;
+                texture.needsUpdate = true;
+                onLoad?.(texture);
+            }, onProgress, onError);
+        });
+        return texture;
+    }
+}
+
+const createAssetLoadingManager = () => {
+    const manager = new THREE.LoadingManager();
+    manager.addHandler(/\.(png|jpe?g|gif|webp|bmp|avif|svg)(?:[?#].*)?$/i, new FallbackTextureLoader(manager));
+    return manager;
+};
+
+const fallbackGltfLoaders = new WeakSet();
+const configureGltfFallback = (loader) => {
+    if (fallbackGltfLoaders.has(loader)) return;
+    fallbackGltfLoaders.add(loader);
+    loader.manager = createAssetLoadingManager();
+    const load = loader.load.bind(loader);
+    loader.load = (url, onLoad, onProgress, onError) => load(url, onLoad, onProgress, (error) => {
+        const fallbackUrl = getFallbackFileUrl(url);
+        if (fallbackUrl) {
+            load(fallbackUrl, onLoad, onProgress, onError);
+        } else {
+            onError?.(error);
+        }
+    });
+};
 
 const waitForSceneUpdatePaint = () => new Promise((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(resolve));
@@ -124,7 +188,8 @@ export default function InstanceExperience() {
     const setShowOdims = useGame((state) => state.setShowOdims);
     const setLocationList = useGame((state) => state.setLocationList);
     const setSearchList = useGame((state) => state.setSearchList);
-    const textureLoader = useMemo(() => new THREE.TextureLoader(), []);
+    const assetLoadingManager = useMemo(createAssetLoadingManager, []);
+    const textureLoader = useMemo(() => new FallbackTextureLoader(assetLoadingManager), [assetLoadingManager]);
     const setColliders = useGame((state) => state.setColliders)
     const [box, setBox] = useState()
     const [sceneMorphs, setSceneMorphs] = useState([]);
@@ -171,8 +236,8 @@ export default function InstanceExperience() {
     });
     const lastAppliedDslCommandRef = useRef("");
     const collidersSignatureRef = useRef("");
-    const fbxLoader = useMemo(() => new FBXLoader(), []);
-    const gltfLoader = useMemo(() => new GLTFLoader(), []);
+    const fbxLoader = useMemo(() => new FBXLoader(assetLoadingManager), [assetLoadingManager]);
+    const gltfLoader = useMemo(() => new GLTFLoader(assetLoadingManager), [assetLoadingManager]);
 
     // const lights = useMemo(()=>new THREE.Group(),[]);
     // extend(THREE)
@@ -997,8 +1062,8 @@ const configureOriginalMeshMaterial = (material, mesh) => {
         const descriptor = getSceneAssetDescriptor(file, properties);
         if (!modelCacheRef.current.has(descriptor.cacheKey)) {
             const loaderPromise = ["glb", "gltf"].includes(descriptor.extension)
-                ? gltfLoader.loadAsync(descriptor.url)
-                : fbxLoader.loadAsync(descriptor.url);
+                ? loadAssetWithFallback(gltfLoader, descriptor.url)
+                : loadAssetWithFallback(fbxLoader, descriptor.url);
             modelCacheRef.current.set(descriptor.cacheKey, loaderPromise);
         }
 
@@ -1008,7 +1073,7 @@ const configureOriginalMeshMaterial = (material, mesh) => {
 
     const loadBagModel = async () => {
         if (!bagModelPromiseRef.current) {
-            bagModelPromiseRef.current = fbxLoader.loadAsync(
+            bagModelPromiseRef.current = loadAssetWithFallback(fbxLoader,
                 `${import.meta.env.VITE_FILE_URL}/Pink Ant Static Bags.FBX`
             );
         }
@@ -1496,7 +1561,7 @@ const configureOriginalMeshMaterial = (material, mesh) => {
                     .filter((value) => !Number.isNaN(value))
             );
         }
-        useGLTF.preload(`${import.meta.env.VITE_FILE_URL}/Nathan_man.glb`);
+        useGLTF.preload(`${import.meta.env.VITE_FILE_URL}/Nathan_man.glb`, true, true, configureGltfFallback);
         return commandString;
     };
 
