@@ -13,6 +13,7 @@ import { EcctrlJoystick } from "../threejs/player/EcctrlJoyStick";
 import Channels2 from "./popup/sideBar/Channels2";
 import VideoPopup from "./popup/sideBar/VideoPopup";
 import ZoomAsset from "../threejs/scene/ZoomAsset.jsx";
+import BuildingSearch from './BuildingSearch.jsx';
 import Roof from "../threejs/scene/Roof";
 import { GameExperience } from "../threejs/GameExperience.jsx";
 import SceneGrid from './popup/grid/SceneGrid';
@@ -706,6 +707,7 @@ export default function ThreeView() {
         <>
             {!isXrPresenting && ((character || firstPerson) && isTouchScreen) && <EcctrlJoystick buttonNumber={2} />}
             <Toast ref={toast} />
+            {!isXrPresenting && !character && !firstPerson && <BuildingSearch />}
             <div
                 ref={setCanvasHostNode}
                 className={`canvas-element${isAssetOver ? ' is-asset-drop-target' : ''}`}

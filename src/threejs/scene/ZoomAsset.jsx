@@ -4,6 +4,7 @@ import useGame from "../../hooks/useGame";
 import * as THREE from 'three'
 import CameraController from "./camera/CameraController";
 import { sceneAssets } from "../player/puzzle/character/Constants";
+import { getBuildingSearchView } from './buildingSearchView';
 
 
 export default function ZoomAsset(props) {
@@ -38,9 +39,22 @@ export default function ZoomAsset(props) {
         latestSelectionRef.current = {selectedAssetId, selectedEditorInstance, buttonMode};
     }, [selectedAssetId, selectedEditorInstance, buttonMode]);
 
-    const zoomToAsset = useCallback((assetObj) => {
+    const zoomToAsset = useCallback((assetObj, view) => {
         if (!assetObj?.position || !orbitControls.current) {
             return false;
+        }
+
+        const frontView = view === 'building-front' ? getBuildingSearchView(assetObj, camera) : null;
+        if (frontView) {
+            setDimensions({ view: 'building-front' });
+            setSearchDimensions(null);
+            setSearchCenter(frontView.target);
+            camera.position.copy(frontView.position);
+            camera.lookAt(frontView.target);
+            orbitControls.current.target.copy(frontView.target);
+            orbitControls.current.update?.();
+            camera.updateProjectionMatrix();
+            return true;
         }
 
         const center = assetObj.position.clone
@@ -153,8 +167,8 @@ export default function ZoomAsset(props) {
             }
             return;
         }
-        zoomToAsset(assetObj)
-    }, [id,scan,scannedId,noZoom,randomSearchVal, zoomToAsset]);
+        zoomToAsset(assetObj, searchItem.view)
+    }, [id,scan,scannedId,noZoom,searchItem.view,searchItem.requestId,randomSearchVal, zoomToAsset]);
 
     useEffect(() => {
         const handleZoomSelectedAsset = () => {
@@ -173,6 +187,7 @@ export default function ZoomAsset(props) {
         const activeDimensions = searchDimensions?.source === 'floor'
             ? searchDimensions
             : dimensions;
+        if (activeDimensions?.view === 'building-front') return;
         const  {width,length,halfHeight} = activeDimensions || {}
         if (halfHeight>0 && searchCenter && orbitControls.current) {
             const boxSize = Math.max(width, length, halfHeight); // Find the largest dimension
