@@ -28,13 +28,14 @@ function formatElapsed(seconds) {
 
 export default function CameraRealtimeTelemetryHud() {
     const cameraRealtimeFollow = useGame((state) => state.cameraRealtimeFollow);
+    const robotRealtimeFollow = useGame((state) => state.robotRealtimeFollow);
     const character = useGame((state) => state.character);
     const firstPerson = useGame((state) => state.firstPerson);
     const telemetry = useGame((state) => state.cameraRealtimeTelemetry);
     const resetCameraRealtimeTelemetry = useGame((state) => state.resetCameraRealtimeTelemetry);
     const elapsedStartRef = useRef(Date.now());
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
-    const showTelemetryHud = cameraRealtimeFollow || character || firstPerson;
+    const showTelemetryHud = cameraRealtimeFollow || robotRealtimeFollow || character || firstPerson;
 
     useEffect(() => {
         if (!showTelemetryHud) return undefined;

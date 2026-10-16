@@ -11,6 +11,8 @@ export default function VrViewButton() {
     const setButtonMode = useGame((state) => state.setButtonMode);
     const setFirstPerson = useGame((state) => state.setFirstPerson);
     const setCharacter = useGame((state) => state.setCharacter);
+    const setRobotFirstPerson = useGame((state) => state.setRobotFirstPerson);
+    const setRobotRealtimeFollow = useGame((state) => state.setRobotRealtimeFollow);
 
     useEffect(() => {
         let isMounted = true;
@@ -48,8 +50,10 @@ export default function VrViewButton() {
         setButtonMode("Play mode");
         setFirstPerson(true);
         setCharacter(false);
+        setRobotFirstPerson(false);
+        setRobotRealtimeFollow(false);
         await xrStore.enterVR();
-    }, [setButtonMode, setCharacter, setFirstPerson]);
+    }, [setButtonMode, setCharacter, setFirstPerson, setRobotFirstPerson, setRobotRealtimeFollow]);
 
     return (
         <button

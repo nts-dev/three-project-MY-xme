@@ -1,4 +1,5 @@
 import {useEffect, useMemo, useRef, useState} from "react";
+import { ROBOT_TRIALS } from "./robotTrials";
 
 const DEFAULT_TRACK_PLAYER_IDS = ["47116a0906b3acc8"];
 export type PlayerTrackPathGroup = {
@@ -25,6 +26,8 @@ const PROJECT_TRACK_SOURCES: Record<string, PlayerTrackSource[]> = {
 const TRACK_STEP_MS = 650;
 const TRACK_START_FRAME = 10;
 const TRACK_DOT_SPACING = 0.35*5;
+const ROBOT_POSITION_X_OFFSET = 1.4;
+const ROBOT_POSITION_Z_OFFSET = 2.5;
 
 function getTrackPlayerIds() {
     const configuredIds = String(import.meta.env.VITE_PLAYER_TRACK_IDS || "")
@@ -35,7 +38,19 @@ function getTrackPlayerIds() {
     return configuredIds.length > 0 ? configuredIds : DEFAULT_TRACK_PLAYER_IDS;
 }
 
-function getTrackSources(projectID: any, sourceType: "gps" | "rtls") {
+function getTrackSources(projectID: any, sourceType: "gps" | "rtls" | "robot") {
+    if (sourceType === "robot") {
+        const project = String(projectID);
+        if (project === "33_L0" || project === "33") {
+            return ROBOT_TRIALS.map((trial) => ({
+                id: trial.sourceId,
+                url: `${getApiBaseUrl()}/player/${encodeURIComponent(trial.fileName)}.json`,
+                color: trial.color,
+                projectID: "33_L0",
+            }));
+        }
+        return [];
+    }
     if (sourceType === "rtls") {
         const project = String(projectID);
         if (project === "33_L0" || project === "33") {
@@ -185,7 +200,7 @@ function byDateTime(firstRecord: any, secondRecord: any) {
     return firstDate - secondDate;
 }
 
-async function fetchTrack(source: PlayerTrackSource, projectID: any, sourceType: "gps" | "rtls") {
+async function fetchTrack(source: PlayerTrackSource, projectID: any, sourceType: "gps" | "rtls" | "robot") {
     const response = await fetch(source.url);
     if (!response.ok) throw new Error(`Unable to load player track ${source.id}`);
 
@@ -193,17 +208,23 @@ async function fetchTrack(source: PlayerTrackSource, projectID: any, sourceType:
     const records = Array.isArray(payload) ? payload : payload?.data;
     if (!Array.isArray(records)) return [];
 
-        return records
-        .map((record) => sourceType === "rtls" && source.projectID
+    // "rtls" and "robot" sources are both recorded via the RTLS tag feed, just filtered into separate route sets.
+    const isRtlsRecorded = sourceType !== "gps";
+
+    return records
+        .map((record) => isRtlsRecorded && source.projectID
             ? { ...record, projectID: source.projectID }
             : record)
-        .filter((record) => (sourceType === "rtls" ? Boolean(record?.rtls) : hasGpsFix(record)) && isSameProject(record, projectID))
+        .filter((record) => (isRtlsRecorded ? Boolean(record?.rtls) : hasGpsFix(record)) && isSameProject(record, projectID))
         .sort(byDateTime)
-        .slice(sourceType === "rtls" ? 0 : TRACK_START_FRAME)
-        .map((record) => normalizeTrackRecord(record, source.id));
+        .slice(isRtlsRecorded ? 0 : TRACK_START_FRAME)
+        .map((record) => normalizeTrackRecord(record, source.id))
+        .map((record) => sourceType === "robot"
+            ? { ...record, position: { ...record.position, x: record.position.x + ROBOT_POSITION_X_OFFSET,z: record.position.z + ROBOT_POSITION_Z_OFFSET } }
+            : record);
 }
 
-export default function usePlayerTrackReplay(projectID: any, enabled: boolean, sourceType: "gps" | "rtls" = "gps") {
+export default function usePlayerTrackReplay(projectID: any, enabled: boolean, sourceType: "gps" | "rtls" | "robot" = "gps") {
     const [tracks, setTracks] = useState<Record<string, { color: string; records: any[] }>>({});
     const [players, setPlayers] = useState<any[]>([]);
     const indexesRef = useRef<Record<string, number>>({});

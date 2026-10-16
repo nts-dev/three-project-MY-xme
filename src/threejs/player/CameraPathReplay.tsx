@@ -4,6 +4,16 @@ import * as THREE from "three";
 import useGame from "../../hooks/useGame";
 import usePlayerTrackReplay from "./usePlayerTrackReplay";
 import { RTLS_ROUTE_OFFSET } from "./rtlsLiveMotion";
+import RobotTrackReplay from "./RobotTrackReplay";
+import RobotFirstPersonCamera from "./RobotFirstPersonCamera";
+import { getRobotTrial } from "./robotTrials";
+
+// GR100F recordings self-report projectID "153_L1" but are only wired up (see
+// usePlayerTrackReplay's "robot" source branch) under the 33_L0 RTLS calibration.
+function isRobotCalibratedProject(projectID: any) {
+    const project = String(projectID);
+    return project === "33_L0" || project === "33";
+}
 
 const CAMERA_ROUTE_HEIGHT = 1.7;
 const PROJECT_126_CAMERA_HEIGHT_SCALE = -0.21;
@@ -18,6 +28,10 @@ const POSITION_SMOOTHING = 7;
 const TARGET_SMOOTHING = 4;
 const CAMERA_ROUTE_DOT_COLOR = "#ff1f2f";
 const CAMERA_ROUTE_DOT_SPACING = 0.25;
+// Kept well under the robot chassis's ~0.17m length (see RaspbotModel.tsx) so the
+// trail reads as a thin path instead of burying the robot. Shared by both the
+// "rtls" and "robot" dot trails since they render through the same component.
+const CAMERA_ROUTE_DOT_RADIUS = 0.03;
 
 type PathSegment = {
     from: THREE.Vector3;
@@ -101,7 +115,20 @@ function samplePath(segments: PathSegment[], distance: number, target: SampledPa
     return target;
 }
 
-function getRtlsRoutePositions(points: any[], projectID: any): THREE.Vector3[] {
+// Shared per-point calibration from recorded scene coordinates to the 33_L0 floor.
+// Used both for the dot trail below and for anything else (robot replay, test-area
+// markers) that needs to line up with where those dots actually render.
+export function transformRtlsScenePoint(position: THREE.Vector3): THREE.Vector3 {
+    // Rotate the curve 180 degrees around the Y axis before positioning it.
+    // position.x = -position.x;
+    position.z = -position.z;
+    position.add(RTLS_ROUTE_OFFSET);
+    position.x -= 1;
+    position.z += 37.5;
+    return position;
+}
+
+export function getRtlsRoutePositions(points: any[], projectID: any): THREE.Vector3[] {
     const positions: THREE.Vector3[] = [];
 
     for (const point of points) {
@@ -128,26 +155,18 @@ function getRtlsRoutePositions(points: any[], projectID: any): THREE.Vector3[] {
         dotPositions = curve.getSpacedPoints(divisions);
     }
 
-    return dotPositions.map((position) => {
-        // Rotate the curve 180 degrees around the Y axis before positioning it.
-        // position.x = -position.x;
-        position.z = -position.z;
-        position.add(RTLS_ROUTE_OFFSET);
-        position.x -= 1;
-        position.z += 37.5;
-        return position;
-    });
+    return dotPositions.map(transformRtlsScenePoint);
 }
 
-function CameraRouteDots({ points, projectID, color = CAMERA_ROUTE_DOT_COLOR }: { points: any[]; projectID: any; color?: string }) {
-    const geometry = useMemo(() => new THREE.SphereGeometry(0.088, 10, 8), []);
+function CameraRouteDots({ points, projectID, color = CAMERA_ROUTE_DOT_COLOR, opacity = 0.9 }: { points: any[]; projectID: any; color?: string; opacity?: number }) {
+    const geometry = useMemo(() => new THREE.SphereGeometry(CAMERA_ROUTE_DOT_RADIUS, 10, 8), []);
     const material = useMemo(() => new THREE.MeshBasicMaterial({
         color,
         depthTest: false,
         depthWrite: false,
         transparent: true,
-        opacity: 0.9,
-    }), [color]);
+        opacity,
+    }), [color, opacity]);
 
     const matrices = useMemo(() => {
         const matrix = new THREE.Matrix4();
@@ -176,11 +195,34 @@ function CameraRouteDots({ points, projectID, color = CAMERA_ROUTE_DOT_COLOR }: 
     );
 }
 
-function RtlsRouteDots({ projectID }: { projectID: any }) {
-    const { pathGroups } = usePlayerTrackReplay(projectID, true, "rtls");
+// Dots for the trial not currently selected are kept visible (useful for comparing
+// repeated runs) but dimmed, never recolored — the robot's actual movement is
+// always driven by robotSelectedTrial alone, never by which dots are shown.
+const ROBOT_TRIAL_DIMMED_OPACITY = 0.28;
+const ROBOT_TRIAL_SELECTED_OPACITY = 0.95;
 
-    return <>{pathGroups.map((group) => (
-        <CameraRouteDots key={group.id} points={group.points} projectID={projectID} color={group.color} />
+function TrackRouteDots({ projectID, sourceType }: { projectID: any; sourceType: "rtls" | "robot" }) {
+    const { pathGroups } = usePlayerTrackReplay(projectID, true, sourceType);
+    const robotSelectedTrial = useGame((state: any) => state.robotSelectedTrial);
+    const robotTrialVisibilityMode = useGame((state: any) => state.robotTrialVisibilityMode);
+
+    const selectedSourceId = sourceType === "robot" ? getRobotTrial(robotSelectedTrial)?.sourceId : undefined;
+    const visibleGroups = sourceType === "robot" && robotTrialVisibilityMode === "active"
+        ? pathGroups.filter((group) => group.id === selectedSourceId)
+        : pathGroups;
+
+    return <>{visibleGroups.map((group) => (
+        <CameraRouteDots
+            key={group.id}
+            points={group.points}
+            projectID={projectID}
+            color={group.color}
+            opacity={
+                sourceType === "robot" && selectedSourceId
+                    ? (group.id === selectedSourceId ? ROBOT_TRIAL_SELECTED_OPACITY : ROBOT_TRIAL_DIMMED_OPACITY)
+                    : undefined
+            }
+        />
     ))}</>;
 }
 
@@ -190,6 +232,8 @@ export default function CameraPathReplay() {
     const cameraPathReplay = useGame((state: any) => state.cameraPathReplay);
     const cameraPathSource = useGame((state: any) => state.cameraPathSource);
     const rtlsRouteDots = useGame((state: any) => state.rtlsRouteDots);
+    const robotRouteDots = useGame((state: any) => state.robotRouteDots);
+    const robotFirstPerson = useGame((state: any) => state.robotFirstPerson);
     const setCameraPathReplay = useGame((state: any) => state.setCameraPathReplay);
     const orbitControlsRef = useGame((state: any) => state.orbitControlsRef);
     const { pathGroups } = usePlayerTrackReplay(projectID, cameraPathReplay, cameraPathSource);
@@ -327,5 +371,12 @@ export default function CameraPathReplay() {
             setCameraPathReplay(false);
         }
     });
-    return rtlsRouteDots ? <RtlsRouteDots projectID={projectID} /> : null;
+    return (
+        <>
+            {rtlsRouteDots ? <TrackRouteDots projectID={projectID} sourceType="rtls" /> : null}
+            {robotRouteDots ? <TrackRouteDots projectID={projectID} sourceType="robot" /> : null}
+            {robotRouteDots && isRobotCalibratedProject(projectID) ? <RobotTrackReplay projectID={projectID} /> : null}
+            {robotFirstPerson && isRobotCalibratedProject(projectID) ? <RobotFirstPersonCamera /> : null}
+        </>
+    );
 }

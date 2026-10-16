@@ -1,8 +1,9 @@
 import React, { useCallback } from "react";
-import { FaEye, FaLocationArrow, FaTag, FaEllipsisH, FaVideo } from "react-icons/fa";
+import { FaEye, FaLocationArrow, FaTag, FaEllipsisH, FaVideo, FaRobot, FaCamera, FaSatelliteDish } from "react-icons/fa";
 import useGame from "../../../../hooks/useGame";
 import { publicAssetUrl } from "../../../../puzzleUi/publicAssetUrl";
 import VrViewButton from "./VrViewButton";
+import RobotTrialControls from "./RobotTrialControls";
 
 const characterIconUrl = publicAssetUrl("character.svg");
 const freeCameraIconUrl = publicAssetUrl("freecamera.svg");
@@ -39,6 +40,12 @@ export default function PlayModeViewControls() {
     const setCameraPathSource = useGame((state) => state.setCameraPathSource);
     const rtlsRouteDots = useGame((state) => state.rtlsRouteDots);
     const setRtlsRouteDots = useGame((state) => state.setRtlsRouteDots);
+    const robotRouteDots = useGame((state) => state.robotRouteDots);
+    const setRobotRouteDots = useGame((state) => state.setRobotRouteDots);
+    const robotFirstPerson = useGame((state) => state.robotFirstPerson);
+    const setRobotFirstPerson = useGame((state) => state.setRobotFirstPerson);
+    const robotRealtimeFollow = useGame((state) => state.robotRealtimeFollow);
+    const setRobotRealtimeFollow = useGame((state) => state.setRobotRealtimeFollow);
     const setCameraPathReplay = useGame((state) => state.setCameraPathReplay);
     const cameraRealtimeFollow = useGame((state) => state.cameraRealtimeFollow);
     const setCameraRealtimeFollow = useGame((state) => state.setCameraRealtimeFollow);
@@ -49,6 +56,8 @@ export default function PlayModeViewControls() {
         (mode) => {
             setCameraPathReplay(false);
             setCameraRealtimeFollow(false);
+            setRobotFirstPerson(false);
+            setRobotRealtimeFollow(false);
 
             if (mode === "firstPerson") {
                 setButtonMode("Play mode");
@@ -68,7 +77,7 @@ export default function PlayModeViewControls() {
             setFirstPerson(false);
             setCharacter(false);
         },
-        [setButtonMode, setCameraPathReplay, setCameraRealtimeFollow, setCharacter, setFirstPerson]
+        [setButtonMode, setCameraPathReplay, setCameraRealtimeFollow, setCharacter, setFirstPerson, setRobotFirstPerson, setRobotRealtimeFollow]
     );
 
     const toggleCameraPathReplay = useCallback((source) => {
@@ -77,10 +86,12 @@ export default function PlayModeViewControls() {
         setButtonMode("Play mode");
         setFirstPerson(false);
         setCharacter(false);
+        setRobotFirstPerson(false);
+        setRobotRealtimeFollow(false);
         setCameraPathSource(source);
         setCameraPathReplay(nextCameraPathReplay);
         if (nextCameraPathReplay) setCameraRealtimeFollow(false);
-    }, [cameraPathReplay, cameraPathSource, setCameraPathSource, setButtonMode, setCameraPathReplay, setCameraRealtimeFollow, setCharacter, setFirstPerson]);
+    }, [cameraPathReplay, cameraPathSource, setCameraPathSource, setButtonMode, setCameraPathReplay, setCameraRealtimeFollow, setCharacter, setFirstPerson, setRobotFirstPerson, setRobotRealtimeFollow]);
 
     const toggleCameraRealtimeFollow = useCallback(() => {
         const nextCameraRealtimeFollow = !cameraRealtimeFollow;
@@ -90,9 +101,41 @@ export default function PlayModeViewControls() {
             setFirstPerson(false);
             setCharacter(false);
             setCameraPathReplay(false);
+            setRobotFirstPerson(false);
+            setRobotRealtimeFollow(false);
         }
         setCameraRealtimeFollow(nextCameraRealtimeFollow);
-    }, [cameraRealtimeFollow, setButtonMode, setCameraPathReplay, setCameraRealtimeFollow, setCharacter, setFirstPerson]);
+    }, [cameraRealtimeFollow, setButtonMode, setCameraPathReplay, setCameraRealtimeFollow, setCharacter, setFirstPerson, setRobotFirstPerson, setRobotRealtimeFollow]);
+
+    const toggleRobotFirstPerson = useCallback(() => {
+        const nextRobotFirstPerson = !robotFirstPerson;
+
+        setButtonMode("Play mode");
+        if (nextRobotFirstPerson) {
+            setFirstPerson(false);
+            setCharacter(false);
+            setCameraPathReplay(false);
+            setCameraRealtimeFollow(false);
+            setRobotRealtimeFollow(false);
+            // The robot must actually be visible/walking for first-person to show anything.
+            setRobotRouteDots(true);
+        }
+        setRobotFirstPerson(nextRobotFirstPerson);
+    }, [robotFirstPerson, setButtonMode, setCameraPathReplay, setCameraRealtimeFollow, setCharacter, setFirstPerson, setRobotFirstPerson, setRobotRealtimeFollow, setRobotRouteDots]);
+
+    const toggleRobotRealtimeFollow = useCallback(() => {
+        const nextRobotRealtimeFollow = !robotRealtimeFollow;
+
+        setButtonMode("Play mode");
+        if (nextRobotRealtimeFollow) {
+            setFirstPerson(false);
+            setCharacter(false);
+            setCameraPathReplay(false);
+            setCameraRealtimeFollow(false);
+            setRobotFirstPerson(false);
+        }
+        setRobotRealtimeFollow(nextRobotRealtimeFollow);
+    }, [robotRealtimeFollow, setButtonMode, setCameraPathReplay, setCameraRealtimeFollow, setCharacter, setFirstPerson, setRobotFirstPerson, setRobotRealtimeFollow]);
 
     return (
         <div className="play-view-controls" role="toolbar" aria-label="Play mode view controls">
@@ -151,6 +194,41 @@ export default function PlayModeViewControls() {
                 onClick={() => setRtlsRouteDots(!rtlsRouteDots)}
             >
                 <FaEllipsisH className="play-view-controls__svg-icon" aria-hidden="true" />
+            </button>
+
+            <button
+                type="button"
+                className={`play-view-controls__button${robotRouteDots ? " is-active" : ""}`}
+                aria-label={robotRouteDots ? "Hide robot path" : "Show robot path"}
+                aria-pressed={robotRouteDots}
+                data-tooltip={robotRouteDots ? "Hide robot path" : "Show robot path"}
+                onClick={() => setRobotRouteDots(!robotRouteDots)}
+            >
+                <FaRobot className="play-view-controls__svg-icon" aria-hidden="true" />
+            </button>
+
+            <RobotTrialControls />
+
+            <button
+                type="button"
+                className={`play-view-controls__button${robotFirstPerson ? " is-active" : ""}`}
+                aria-label={robotFirstPerson ? "Exit Raspbot first-person view" : "Raspbot First-Person View"}
+                aria-pressed={robotFirstPerson}
+                data-tooltip={robotFirstPerson ? "Exit Raspbot first-person view" : "Raspbot First-Person View"}
+                onClick={toggleRobotFirstPerson}
+            >
+                <FaCamera className="play-view-controls__svg-icon" aria-hidden="true" />
+            </button>
+
+            <button
+                type="button"
+                className={`play-view-controls__button${robotRealtimeFollow ? " is-active" : ""}`}
+                aria-label={robotRealtimeFollow ? "Stop real-time robot follow" : "Follow robot (real-time)"}
+                aria-pressed={robotRealtimeFollow}
+                data-tooltip={robotRealtimeFollow ? "Stop real-time robot follow" : "Follow robot (real-time)"}
+                onClick={toggleRobotRealtimeFollow}
+            >
+                <FaSatelliteDish className="play-view-controls__svg-icon" aria-hidden="true" />
             </button>
 
             <button

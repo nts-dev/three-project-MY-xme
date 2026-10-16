@@ -4,6 +4,8 @@ const URL = import.meta.env.MODE === "production"
   ? "https://xme.com.my/"
   : "http://localhost:4000";
 
+console.log("Socket server URL:", URL); //add w5d5
+
 export const socket = io(URL, {
   path: "/socket.io/",
   autoConnect: false,

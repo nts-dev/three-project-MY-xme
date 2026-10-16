@@ -254,6 +254,24 @@ const useGame = create((set) => ({
     cameraPathReplay: false,
     cameraPathSource: "gps",
     rtlsRouteDots: false,
+    robotRouteDots: false,
+    // User's intended trial (toolbar selection) vs. the trial actually driving the
+    // robot's movement right now (confirmed by RobotTrackReplay once that trial's
+    // recorded data has loaded) — kept separate so the Feature 1 indicator can
+    // never claim a trial is active when the robot isn't really walking it.
+    robotSelectedTrial: "T1",
+    robotActiveTrial: null,
+    robotTrialVisibilityMode: "all", // "all" | "active"
+    robotFirstPerson: false,
+    // Live refs published by RobotTrackReplay so RobotFirstPersonCamera can read
+    // the robot's current world transform without re-deriving its walk/path logic.
+    robotGroupRef: null,
+    robotCameraOffset: new Vector3(0, 0.13, 0.06),
+    // Pins CameraRealtimeFollow onto the robot's live RTLS tag specifically,
+    // instead of the generic "any live tag or GPS player" behavior cameraRealtimeFollow
+    // already has — distinct from robotRouteDots/robotSelectedTrial, which replay
+    // recorded trial JSON rather than live socket data.
+    robotRealtimeFollow: false,
     cameraRealtimeFollow: false,
     cameraRealtimeTelemetry: {
         currentSpeed: 0,
@@ -549,6 +567,14 @@ const useGame = create((set) => ({
         })),
     setCameraPathSource: (cameraPathSource: "gps" | "rtls") => set({ cameraPathSource }),
     setRtlsRouteDots: (rtlsRouteDots: boolean) => set({ rtlsRouteDots }),
+    setRobotRouteDots: (robotRouteDots: boolean) => set({ robotRouteDots }),
+    setRobotSelectedTrial: (robotSelectedTrial: "T1" | "T2" | "T3" | null) => set({ robotSelectedTrial }),
+    setRobotActiveTrial: (robotActiveTrial: "T1" | "T2" | "T3" | null) => set({ robotActiveTrial }),
+    setRobotTrialVisibilityMode: (robotTrialVisibilityMode: "all" | "active") => set({ robotTrialVisibilityMode }),
+    setRobotFirstPerson: (robotFirstPerson: boolean) => set({ robotFirstPerson }),
+    setRobotGroupRef: (robotGroupRef: any) => set({ robotGroupRef }),
+    setRobotCameraOffset: (robotCameraOffset: any) => set({ robotCameraOffset }),
+    setRobotRealtimeFollow: (robotRealtimeFollow: boolean) => set({ robotRealtimeFollow }),
     setCameraRealtimeFollow: (cameraRealtimeFollow: boolean) =>
         set((state: any) => ({
             ...state,

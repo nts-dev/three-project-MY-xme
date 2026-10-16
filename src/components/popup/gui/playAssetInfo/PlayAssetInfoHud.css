@@ -149,6 +149,145 @@
     transform: translateX(-50%) translateY(0);
 }
 
+.robot-trial-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    padding: 0 2px;
+}
+
+.robot-trial-controls__button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 22px;
+    padding: 0 7px;
+    border: 1px solid rgba(242, 251, 255, 0.22);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(242, 251, 255, 0.78);
+    font: inherit;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.robot-trial-controls__dot {
+    display: block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--robot-trial-color, currentColor);
+    box-shadow: 0 0 5px var(--robot-trial-color, transparent);
+}
+
+.robot-trial-controls__button:hover {
+    color: #ffffff;
+    border-color: rgba(242, 251, 255, 0.45);
+}
+
+.robot-trial-controls__button.is-selected {
+    border-color: var(--robot-trial-color, #23f4f8);
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    box-shadow: 0 0 8px var(--robot-trial-color, rgba(35, 244, 248, 0.6));
+}
+
+.robot-trial-controls__visibility {
+    height: 22px;
+    padding: 0 8px;
+    border: 1px solid rgba(242, 251, 255, 0.22);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(242, 251, 255, 0.72);
+    font: inherit;
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.robot-trial-controls__visibility:hover {
+    color: #ffffff;
+    border-color: rgba(35, 244, 248, 0.6);
+}
+
+.robot-trial-controls__button::after,
+.robot-trial-controls__visibility::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%) translateY(-2px);
+    min-width: max-content;
+    padding: 4px 7px;
+    border: 1px solid rgba(35, 244, 248, 0.42);
+    background: rgba(3, 10, 12, 0.92);
+    color: #f2fbff;
+    font-size: 10px;
+    font-weight: 400;
+    text-transform: none;
+    line-height: 1;
+    opacity: 0;
+    pointer-events: none;
+    transition:
+        opacity 120ms ease,
+        transform 120ms ease;
+    white-space: nowrap;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.45);
+}
+
+.robot-trial-controls__button:hover::after,
+.robot-trial-controls__button:focus-visible::after,
+.robot-trial-controls__visibility:hover::after,
+.robot-trial-controls__visibility:focus-visible::after {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.robot-trajectory-indicator {
+    position: fixed;
+    top: 88px;
+    right: 64px;
+    z-index: 1000005;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 26px;
+    padding: 0 12px;
+    pointer-events: none;
+    color: #f2fbff;
+    font-family: var(--game-play-hud-font, "New Science", "Roboto Mono", "Consolas", monospace);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    background: rgba(3, 10, 12, 0.72);
+    border: 1px solid rgba(35, 244, 248, 0.24);
+    border-radius: 999px;
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.robot-trajectory-indicator__dot {
+    display: block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    box-shadow: 0 0 6px currentColor;
+}
+
+.robot-trajectory-indicator__dot.is-inactive {
+    background: rgba(242, 251, 255, 0.3);
+    box-shadow: none;
+}
+
 .camera-realtime-walk-tracker {
     position: fixed;
     left: 16px;

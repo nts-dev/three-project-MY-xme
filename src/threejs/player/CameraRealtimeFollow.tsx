@@ -19,6 +19,9 @@ const MOVEMENT_DIRECTION_EPSILON = 0.00004;
 const GPS_UPDATE_TIMEOUT_MS = 3000;
 const TELEMETRY_EMIT_INTERVAL_MS = 160;
 const TELEMETRY_DISTANCE_EPSILON = 0.001;
+// The Raspbot V2's RTLS tag clientId — matches the recorded GR100F*.json trial
+// files (see robotTrials.ts) and the "robot" branch of usePlayerTrackReplay.
+const ROBOT_RTLS_TAG_ID = "GR100f";
 
 function toNumber(value: any, fallback = 0) {
     const numberValue = Number(value);
@@ -90,7 +93,12 @@ export default function CameraRealtimeFollow() {
     const { camera } = useThree();
     const projectID = useGame((state: any) => state.projectID);
     const cameraRealtimeFollow = useGame((state: any) => state.cameraRealtimeFollow);
-    const rtlsMotions = useLiveRtlsMotion(projectID, cameraRealtimeFollow);
+    const robotRealtimeFollow = useGame((state: any) => state.robotRealtimeFollow);
+    const followEnabled = cameraRealtimeFollow || robotRealtimeFollow;
+    // True only when the robot-specific button is on and the generic "follow walking
+    // camera" isn't — i.e. this frame must never fall back to a GPS-followed human.
+    const robotOnly = robotRealtimeFollow && !cameraRealtimeFollow;
+    const rtlsMotions = useLiveRtlsMotion(projectID, followEnabled);
     const rtlsIdRef = useRef<string | null>(null);
     const rtlsDistanceOriginRef = useRef(0);
     const playerViewAngle = useGame((state: any) => state.playerViewAngle);
@@ -114,7 +122,7 @@ export default function CameraRealtimeFollow() {
     const lastTelemetryEmitAtRef = useRef(0);
 
     useEffect(() => {
-        if (!cameraRealtimeFollow) {
+        if (!followEnabled) {
             rtlsIdRef.current = null;
             followedPlayerRef.current = null;
             lastGpsUpdateAtRef.current = 0;
@@ -145,11 +153,11 @@ export default function CameraRealtimeFollow() {
         return () => {
             socket.off("playersUpdate", handlePlayers);
         };
-    }, [cameraRealtimeFollow, setCameraRealtimeTelemetry]);
+    }, [followEnabled, setCameraRealtimeTelemetry]);
 
     useEffect(() => {
         const controls = orbitControlsRef?.current;
-        if (!cameraRealtimeFollow || !controls) return undefined;
+        if (!followEnabled || !controls) return undefined;
 
         const previousEnabled = controls.enabled;
         controls.enabled = false;
@@ -170,10 +178,10 @@ export default function CameraRealtimeFollow() {
         return () => {
             controls.enabled = previousEnabled;
         };
-    }, [cameraRealtimeFollow, camera, orbitControlsRef, projectID, setCameraRealtimeTelemetry]);
+    }, [followEnabled, camera, orbitControlsRef, projectID, setCameraRealtimeTelemetry]);
 
     useEffect(() => {
-        if (!cameraRealtimeFollow) return;
+        if (!followEnabled) return;
 
         totalDistanceRef.current = 0;
         rtlsDistanceOriginRef.current = rtlsMotions.get(rtlsIdRef.current || "")?.distance || 0;
@@ -190,16 +198,19 @@ export default function CameraRealtimeFollow() {
             distance: 0,
             heading: getHeadingFromDirection(followDirectionRef.current),
         });
-    }, [cameraRealtimeFollow, cameraRealtimeTelemetryResetTick, setCameraRealtimeTelemetry]);
+    }, [followEnabled, cameraRealtimeTelemetryResetTick, setCameraRealtimeTelemetry]);
 
     useFrame((_, delta) => {
-        if (!cameraRealtimeFollow) return;
+        if (!followEnabled) return;
 
         const now = performance.now();
-        // Prefer the recorded-route tag, then retain the selected RTLS tag while available.
-        const rtlsId = rtlsIdRef.current && rtlsMotions.has(rtlsIdRef.current)
-            ? rtlsIdRef.current
-            : rtlsMotions.has("GR100f") ? "GR100f" : rtlsMotions.keys().next().value;
+        // Robot-only mode is pinned to the robot's own tag; otherwise prefer the
+        // recorded-route tag, then retain the selected RTLS tag while available.
+        const rtlsId: string | null = robotOnly
+            ? (rtlsMotions.has(ROBOT_RTLS_TAG_ID) ? ROBOT_RTLS_TAG_ID : null)
+            : rtlsIdRef.current && rtlsMotions.has(rtlsIdRef.current)
+                ? rtlsIdRef.current
+                : rtlsMotions.has(ROBOT_RTLS_TAG_ID) ? ROBOT_RTLS_TAG_ID : (rtlsMotions.keys().next().value ?? null);
         const rtls = rtlsId ? rtlsMotions.get(rtlsId) : null;
         if (rtls?.ready) {
             if (rtlsIdRef.current !== rtlsId) {
@@ -229,6 +240,17 @@ export default function CameraRealtimeFollow() {
             }
             return;
         }
+
+        if (robotOnly) {
+            // Robot-only mode never falls back to a GPS-followed human player —
+            // just hold the last view until the robot's tag is live again.
+            if (now - lastTelemetryEmitAtRef.current >= TELEMETRY_EMIT_INTERVAL_MS) {
+                lastTelemetryEmitAtRef.current = now;
+                setCameraRealtimeTelemetry({ currentSpeed: 0, hasGpsUpdate: false });
+            }
+            return;
+        }
+
         const hasFreshGpsUpdate = followedPlayerRef.current
             && now - lastGpsUpdateAtRef.current <= GPS_UPDATE_TIMEOUT_MS;
 
