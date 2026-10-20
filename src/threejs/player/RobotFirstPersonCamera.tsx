@@ -40,6 +40,8 @@ export default function RobotFirstPersonCamera() {
         };
     }, [active, orbitControlsRef]);
 
+    // RobotTrackReplay runs at priority -1. Copy its already-interpolated heading
+    // at priority 0 so camera view shares the same stop/turn/resume timing.
     useFrame(() => {
         const group = robotGroupRef?.current as THREE.Object3D | undefined;
         if (!active || !group || !robotCameraOffset) return;
@@ -52,7 +54,7 @@ export default function RobotFirstPersonCamera() {
         rotationMatrixRef.current.lookAt(eyeWorldRef.current, forwardWorldRef.current, camera.up);
         camera.quaternion.setFromRotationMatrix(rotationMatrixRef.current);
         camera.updateMatrixWorld();
-    });
+    }, 0);
 
     return null;
 }
