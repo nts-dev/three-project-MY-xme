@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import useGame from "../../../hooks/useGame";
+import { wheelDollyStep } from "./navigationMath.js";
 
 const MIN_DOLLY_TARGET_DISTANCE = 1.2;
 const WHEEL_DOLLY_STEP = 0.9;
@@ -11,6 +12,9 @@ const PINCH_DOLLY_SPEED_SCALE = 0.3;
 const MIN_CAMERA_Y = 0.15;
 const MIN_TARGET_Y = 0;
 const MAX_POLAR_ANGLE = Math.PI / 2 - 0.03;
+// How quickly queued wheel/pinch zoom is applied (higher = snappier).
+const DOLLY_SMOOTHING = 14;
+const MIN_PENDING_DOLLY = 0.0005;
 
 export default function CameraController(props: any) {
     const { orbitControls, gl } = props;
@@ -19,7 +23,14 @@ export default function CameraController(props: any) {
     const pinchDistanceRef = useRef(0);
     const pinchCenterRef = useRef(new THREE.Vector2());
     const isClampingControlsRef = useRef(false);
+    // Signed distance still to dolly: positive = in, negative = out.
+    const pendingDollyRef = useRef(0);
     const projectId = useGame((state: any) => state.projectID);
+    const scratch = useMemo(() => ({
+        forward: new THREE.Vector3(),
+        offset: new THREE.Vector3(),
+        spherical: new THREE.Spherical(),
+    }), []);
 
     const settings = useMemo(() => {
         return {
@@ -29,7 +40,7 @@ export default function CameraController(props: any) {
     }, [projectId]);
 
     const getCameraForward = (camera: THREE.Camera) => {
-        const forward = new THREE.Vector3();
+        const forward = scratch.forward;
         camera.getWorldDirection(forward);
         if (forward.lengthSq() === 0) {
             forward.set(0, 0, -1);
@@ -57,12 +68,12 @@ export default function CameraController(props: any) {
             didClamp = true;
         }
 
-        const offset = camera.position.clone().sub(target);
-        const spherical = new THREE.Spherical().setFromVector3(offset);
+        const offset = scratch.offset.copy(camera.position).sub(target);
+        const spherical = scratch.spherical.setFromVector3(offset);
 
         if (spherical.phi > MAX_POLAR_ANGLE) {
             spherical.phi = MAX_POLAR_ANGLE;
-            camera.position.copy(target).add(new THREE.Vector3().setFromSpherical(spherical));
+            camera.position.copy(target).add(offset.setFromSpherical(spherical));
             didClamp = true;
         }
 
@@ -97,21 +108,43 @@ export default function CameraController(props: any) {
             camera.position.addScaledVector(forward, -step);
         }
 
+        // MapControls already calls update() every frame; calling it again here
+        // would apply damping twice and make rotation lurch while zooming.
         camera.updateMatrixWorld();
-        orbitControls.current.update();
         clampCameraToScene();
     };
+
+    const queueDolly = (direction: "in" | "out", step: number) => {
+        const signedStep = direction === "in" ? step : -step;
+        // Reversing direction cancels the leftover zoom instead of fighting it.
+        if (Math.sign(signedStep) !== Math.sign(pendingDollyRef.current)) {
+            pendingDollyRef.current = 0;
+        }
+        // Bound the backlog so a burst of wheel events cannot cause a long glide.
+        pendingDollyRef.current = THREE.MathUtils.clamp(
+            pendingDollyRef.current + signedStep, -MAX_WHEEL_DOLLY_STEP * 2, MAX_WHEEL_DOLLY_STEP * 2
+        );
+    };
+
+    useFrame((_state, delta) => {
+        const pending = pendingDollyRef.current;
+        if (pending === 0) return;
+
+        const portion = Math.abs(pending) < MIN_PENDING_DOLLY
+            ? pending
+            : pending * (1 - Math.exp(-DOLLY_SMOOTHING * Math.min(delta, 0.1)));
+
+        pendingDollyRef.current = pending - portion;
+        dollyCamera(portion > 0 ? "in" : "out", Math.abs(portion));
+    });
 
     const getWheelDollyStep = (event: WheelEvent) => {
         const controls = orbitControls.current;
         if (!controls || !controls.object) return WHEEL_DOLLY_STEP;
 
         const distanceToTarget = controls.object.position.distanceTo(controls.target);
-        const wheelAmount = Math.min(6, Math.max(0.35, Math.abs(event.deltaY) / 80));
-        const speedStep = wheelAmount * settings.zoomSpeed * 0.25;
-        const distanceStep = Math.max(distanceToTarget * 0.12, 0.05);
-
-        return Math.min(Math.max(speedStep, distanceStep), MAX_WHEEL_DOLLY_STEP);
+        return wheelDollyStep(event.deltaY, event.deltaMode,
+            gl.current?.domElement?.clientHeight || 800, distanceToTarget, settings.zoomSpeed);
     };
 
     const getTouchDistance = (event: TouchEvent) => {
@@ -141,12 +174,9 @@ export default function CameraController(props: any) {
 
         const distanceToTarget = controls.object.position.distanceTo(controls.target);
         const deltaDistance = nextDistance - previousDistance;
-        const pinchRatio = previousDistance > 0 ? Math.abs(nextDistance / previousDistance - 1) : 0;
-        const pinchAmount = Math.min(8, Math.max(0.6, (Math.abs(deltaDistance) / 10) + (pinchRatio * 12)));
-        const speedStep = pinchAmount * settings.zoomSpeed * 0.28;
-        const distanceStep = Math.max(distanceToTarget * 0.14, 0.08);
-
-        return Math.min(Math.max(speedStep, distanceStep), MAX_WHEEL_DOLLY_STEP) * PINCH_DOLLY_SPEED_SCALE;
+        const pinchRatio = previousDistance > 0 ? Math.abs(deltaDistance / previousDistance) : 0;
+        const step = pinchRatio * Math.max(distanceToTarget, settings.zoomSpeed);
+        return Math.min(step, MAX_WHEEL_DOLLY_STEP) * PINCH_DOLLY_SPEED_SCALE;
     };
 
     // Gamepad event handling
@@ -171,7 +201,7 @@ export default function CameraController(props: any) {
     }, []);
 
     // Gamepad input processing
-    useFrame(() => {
+    useFrame((_state, delta) => {
         const controls = orbitControls.current;
         if (!controls || gamepadIndex.current === null) return;
 
@@ -193,14 +223,17 @@ export default function CameraController(props: any) {
             (applyDeadzone(rx) + previousAxes.current[2]) / 2,
             (applyDeadzone(ry) + previousAxes.current[3]) / 2,
         ];
-        previousAxes.current = [lx, ly, rx, ry];
+        previousAxes.current = [lx, ly, rx, ry].map(applyDeadzone);
+
+        if (!zoomIn && !zoomOut && smoothedAxes.every(axis => axis === 0)) return;
+        const frameScale = Math.min(delta, 0.1) * 60;
 
         const camera = controls.object;
         const target = controls.target;
 
         // Orbit (right joystick)
         if (Math.abs(smoothedAxes[2]) > 0 || Math.abs(smoothedAxes[3]) > 0) {
-            const orbitSpeed = settings.zoomSpeed * 0.05; // Reuse zoomSpeed for orbiting
+            const orbitSpeed = settings.zoomSpeed * 0.05 * frameScale;
             const thetaDelta = -smoothedAxes[2] * orbitSpeed; // Horizontal (azimuthal)
             const phiDelta = -smoothedAxes[3] * orbitSpeed; // Vertical (polar)
 
@@ -229,10 +262,10 @@ export default function CameraController(props: any) {
         // Zoom (right trigger for zoom in, left trigger for zoom out)
         if (zoomIn || zoomOut) {
             if (zoomIn) {
-                dollyCamera("in", settings.zoomSpeed * 0.03);
+                dollyCamera("in", settings.zoomSpeed * 0.03 * frameScale);
             }
             if (zoomOut) {
-                dollyCamera("out", settings.zoomSpeed * 0.03);
+                dollyCamera("out", settings.zoomSpeed * 0.03 * frameScale);
             }
         }
 
@@ -249,16 +282,16 @@ export default function CameraController(props: any) {
             // Calculate pan offset
             offset
                 .set(0, 0, 0)
-                .addScaledVector(right, -smoothedAxes[0] * settings.panFactor * 0.05) // Pan left/right
-                .addScaledVector(up, smoothedAxes[1] * settings.panFactor * 0.05); // Pan up/down
+                .addScaledVector(right, -smoothedAxes[0] * settings.panFactor * 0.05 * frameScale)
+                .addScaledVector(up, smoothedAxes[1] * settings.panFactor * 0.05 * frameScale);
 
             // Apply pan to both target and camera position
             controls.target.add(offset);
             camera.position.add(offset);
         }
 
-        // Update controls to apply changes
-        controls.update();
+        // MapControls applies damping once at the start of the next frame.
+        camera.updateMatrixWorld();
         clampCameraToScene();
     });
 
@@ -274,6 +307,7 @@ export default function CameraController(props: any) {
 
         if (!domElement || !orbitControls.current) return;
         const controls = orbitControls.current;
+        pendingDollyRef.current = 0;
 
         // Configure MapControls
         controls.enableDamping = true;
@@ -311,7 +345,7 @@ export default function CameraController(props: any) {
             event.stopImmediatePropagation();
 
             const direction = event.deltaY < 0 ? "in" : "out";
-            dollyCamera(direction, getWheelDollyStep(event));
+            queueDolly(direction, getWheelDollyStep(event));
         };
 
         const handleTouchStart = (event: TouchEvent) => {
@@ -343,7 +377,7 @@ export default function CameraController(props: any) {
 
             if (Math.abs(deltaDistance) > 0.25) {
                 const direction = deltaDistance > 0 ? "in" : "out";
-                dollyCamera(direction, getPinchDollyStep(previousDistance, nextDistance));
+                queueDolly(direction, getPinchDollyStep(previousDistance, nextDistance));
             }
 
             pinchDistanceRef.current = nextDistance;
@@ -365,6 +399,7 @@ export default function CameraController(props: any) {
 
         // Cleanup
         return () => {
+            pendingDollyRef.current = 0;
             domElement.removeEventListener("wheel", handleWheel, { capture: true });
             domElement.removeEventListener("touchstart", handleTouchStart, { capture: true });
             domElement.removeEventListener("touchmove", handleTouchMove, { capture: true });

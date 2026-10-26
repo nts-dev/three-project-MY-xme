@@ -487,6 +487,8 @@ export const createBuildingLabelSprite = ({
         depthTest: true,
         depthWrite: false,
         side: THREE.DoubleSide,
+        // Billboard planes have no volume; a second transparent pass adds no detail.
+        forceSinglePass: true,
         polygonOffset: true,
         polygonOffsetFactor: -2,
         polygonOffsetUnits: -2,

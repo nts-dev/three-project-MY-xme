@@ -827,7 +827,7 @@ export default function ThreeView() {
 
 
                     <MapControls ref={orbitControls} enabled={!isXrPresenting} />
-                    <AdaptiveDpr pixelated />
+                    <AdaptiveDpr />
                     {!isXrPresenting && !packageControl && !isPackage && <Stats className="r3f-stats" showPanel={0} />}
                    
                     </XrSceneRoot>
