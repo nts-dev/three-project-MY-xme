@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom';
-import { Canvas, extend } from '@react-three/fiber';
+import { Canvas, extend, useThree } from '@react-three/fiber';
 import { useDrop } from 'react-dnd';
 import { AdaptiveDpr, KeyboardControls, MapControls, Stats, useHelper } from "@react-three/drei";
 import Hud from "../threejs/hud/Hud";
@@ -112,6 +112,27 @@ const DEFAULT_SCENE_CAMERA_FAR = 100000000;
 const subscribeXrSession = (callback) => xrStore.subscribe(callback);
 const getXrSessionSnapshot = () => Boolean(xrStore.getState?.().session);
 const getServerXrSessionSnapshot = () => false;
+
+// Neutral tone mapping keeps texture hue/saturation when lights are bright,
+// where the default ACES curve pushes saturated colors toward white.
+function ProjectToneMapping({ projectBaseId }) {
+    const gl = useThree((state) => state.gl);
+
+    useEffect(() => {
+        if (projectBaseId !== '153') return undefined;
+
+        const previous = { toneMapping: gl.toneMapping, exposure: gl.toneMappingExposure };
+        gl.toneMapping = THREE.NeutralToneMapping;
+        gl.toneMappingExposure = 1.38;
+
+        return () => {
+            gl.toneMapping = previous.toneMapping;
+            gl.toneMappingExposure = previous.exposure;
+        };
+    }, [gl, projectBaseId]);
+
+    return null;
+}
 
 function applyFixedEditModeCamera(camera, controls) {
     if (!camera || !controls) return;
@@ -737,6 +758,7 @@ export default function ThreeView() {
                     }}
                 >
                     <XrSceneRoot>
+                    <ProjectToneMapping projectBaseId={projectBaseId} />
 
                         {
                             projectId === 145 ? (
@@ -768,13 +790,13 @@ export default function ThreeView() {
                                     
                                                  <InstanceExperience key={`instanceexperience-${projectId}`} />
                                                 
-                                                <directionalLight ref={directionalLightRef} position={[5, 10, 5]} intensity={String(projectId).includes('137') ? 6.5 : 1} />
+                                                <directionalLight ref={directionalLightRef} position={[5, 10, 5]} intensity={String(projectId).includes('137') ? 6.5 : String(projectId).startsWith('153') ? 3.5 : 1} />
                                                 <AvatarEyeDirectionalLight
                                                     lightRef={directionalLightRef}
                                                     enabled={false}
                                                 />
                                                 <Ground />
-                                                <ambientLight intensity={String(projectId).includes('137') ? 3 : 4} />
+                                                <ambientLight intensity={String(projectId).includes('137') ? 3 : String(projectId).startsWith('153') ? 2 : 4} />
                                                 </>
                                             )}
                                             

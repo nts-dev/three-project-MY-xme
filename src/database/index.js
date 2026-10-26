@@ -16,8 +16,11 @@ const adapter = new LokiJSAdapter({
     dbName: 'project_3d_v35', // Optional, default is 'watermelon'
     schema,
     useWebWorker: false, // Recommended to be true, but can be false for simplicity
+    // Keep Loki's autosave on: WatermelonDB never saves to IndexedDB by itself,
+    // so with autosave off every reload starts empty and re-imports all data.
     extraLokiOptions: {
-        autosave: false,
+        autosave: true,
+        autosaveInterval: 500,
     },
     useIncrementalIndexedDB: true,
     onQuotaExceededError: (error) => {

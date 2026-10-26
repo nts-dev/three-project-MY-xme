@@ -9,6 +9,8 @@ import pako from 'pako';
 import {sceneAssets} from "./threejs/player/puzzle/character/Constants.jsx";
 import { normalizeSceneAssetName } from "./threejs/generatedAssetPaths";
 
+const INITIAL_IMPORT_KEY = 'initialImportComplete';
+
 const LoadWatermelon = () => {
 
     const branchList = [];
@@ -613,6 +615,8 @@ const LoadWatermelon = () => {
             await generateJsonFromChildren(obj.children, obj.id)
 
         }
+        // Written last so an import interrupted by a reload is retried.
+        await database.localStorage.set(INITIAL_IMPORT_KEY, true)
         setLazy(false)
     }
 
@@ -935,8 +939,9 @@ const LoadWatermelon = () => {
 
         const fetchRooms = async () => {
             const existingRooms = await roomsCollection.query().fetch();
+            const importComplete = await database.localStorage.get(INITIAL_IMPORT_KEY);
 
-            if (existingRooms.length === 0) {
+            if (existingRooms.length === 0 || !importComplete) {
                     await generateJsonFromArray();
                 // setLazy(false)
                 // setIframeLazy(false)

@@ -36,6 +36,7 @@ import {
 } from "./player/puzzle/character/Constants.jsx";
 import { socket } from "../socket.js";
 import { getSceneAssetDescriptor, normalizeSceneAssetName } from "./generatedAssetPaths";
+import { consolidateObjectGeometryGroups } from "./geometryGroups";
 import DslMorphClouds from "./DslMorphClouds";
 import DroneShowMorph from "./DroneShowMorph";
 import GpgpuBirdFlock from "./GpgpuBirdFlock";
@@ -442,14 +443,22 @@ const configureOriginalMeshMaterial = (material, mesh) => {
         material.metalness = 0;
     }
 
-    // Make facade texture more visible
-    if (material.emissive) {
+    // FBX Phong materials carry glossy specular; under the sun it blows
+    // roofs and ground out to white, so keep them matte.
+    if (material.specular?.set) {
+        material.specular.set(0x000000);
+    }
+
+    if ("shininess" in material) {
+        material.shininess = 0;
+    }
+
+    // Make facade texture more visible. Only boost textured materials; a white
+    // emissive without a map adds flat white to every surface and washes it out.
+    if (material.emissive && material.map) {
         material.emissive.set(0xffffff);
         material.emissiveIntensity = 0.2;
-
-        if (material.map) {
-            material.emissiveMap = material.map;
-        }
+        material.emissiveMap = material.map;
     }
 
     if (hasCutoutAlpha) {
@@ -459,10 +468,6 @@ const configureOriginalMeshMaterial = (material, mesh) => {
             material.alphaTest,
             forceCutout ? 0.02 : 0.25
         );
-
-        if (material.specular?.set) {
-            material.specular.set(0x000000);
-        }
     }
 
     material.needsUpdate = true;
@@ -1062,9 +1067,13 @@ const configureOriginalMeshMaterial = (material, mesh) => {
     const loadModelClone = async (file, properties) => {
         const descriptor = getSceneAssetDescriptor(file, properties);
         if (!modelCacheRef.current.has(descriptor.cacheKey)) {
-            const loaderPromise = ["glb", "gltf"].includes(descriptor.extension)
+            const loaderPromise = (["glb", "gltf"].includes(descriptor.extension)
                 ? loadAssetWithFallback(gltfLoader, descriptor.url)
-                : loadAssetWithFallback(fbxLoader, descriptor.url);
+                : loadAssetWithFallback(fbxLoader, descriptor.url)
+            ).then((loaded) => {
+                consolidateObjectGeometryGroups(loaded?.scene || loaded);
+                return loaded;
+            });
             modelCacheRef.current.set(descriptor.cacheKey, loaderPromise);
         }
 
@@ -2100,7 +2109,7 @@ const configureOriginalMeshMaterial = (material, mesh) => {
             <CameraRealtimeFollow />
             {(String(projectId) === "33_L0" || String(projectId) === "33") && <RobotTestArea projectID={projectId} />}
             {/* {showProject135PathAvatar && <Project135PathAvatar />} */}
-            {bProjectId > 0 && (bProjectId != 147 && bProjectId != 148) && <Building bProjectId={bProjectId} />}
+            {bProjectId > 0 && (bProjectId != 147 && bProjectId != 148 && bProjectId != 153) && <Building bProjectId={bProjectId} />}
             {/* <DroneShowMorph morphs={sceneMorphs} categories={morphCategories} /> */}
             <DslMorphClouds morphs={sceneMorphs} categories={morphCategories} />
 

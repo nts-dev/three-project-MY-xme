@@ -46,7 +46,7 @@ export default function ProjectSkyClouds({ projectBaseId }) {
                             opacity={cloud.opacity}
                             speed={0.08}
                             bounds={cloud.bounds}
-                            segments={34}
+                            segments={16}
                             scale={cloud.scale}
                             volume={cloud.volume}
                             smallestVolume={0.8}
