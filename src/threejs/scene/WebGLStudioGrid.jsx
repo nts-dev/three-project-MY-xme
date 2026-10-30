@@ -1,6 +1,8 @@
-import React, { useMemo, useRef } from 'react';
-import { useFrame, useLoader } from '@react-three/fiber';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { useFrame, useLoader, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
+import { MeshBasicNodeMaterial } from 'three/webgpu';
+import { abs, float, fwidth, length, max, mix, positionWorld, smoothstep, sRGBTransferEOTF, texture as textureNode, uniform, vec2, vec3, vec4 } from 'three/tsl';
 
 const vertexShader = `
     varying vec3 v_world_position;
@@ -43,7 +45,43 @@ const fragmentShader = `
     }
 `;
 
+// TSL port of the GLSL shader above, for WebGPURenderer (which cannot run ShaderMaterial).
+function createGridNodeMaterial(texture, cameraPosition) {
+    const pos = positionWorld;
+    const gridPos = pos.xz.div(0.01);
+    const f = vec2(1.0 / 64.0, -1.0 / 64.0);
+
+    const brightness = textureNode(texture, gridPos.add(f)).x.mul(0.6)
+        .add(textureNode(texture, gridPos.mul(0.1).add(f)).x.mul(0.3))
+        .add(textureNode(texture, gridPos.mul(0.01).add(f)).x.mul(0.2))
+        .div(max(1.0, length(cameraPosition.xz.sub(pos.xz)).mul(0.001)));
+
+    // The GLSL `if (abs < width) color = mix(axis, color, smoothstep(...))` equals an unconditional mix,
+    // since smoothstep is 1 outside the axis width.
+    const axisWidthX = max(fwidth(pos.x).mul(1.5), 0.001);
+    const axisWidthZ = max(fwidth(pos.z).mul(1.5), 0.001);
+    let color = vec4(vec3(0.18), brightness.mul(1.5));
+    color = mix(vec4(0.4, 0.4, 1.0, 0.42), color, smoothstep(float(0), axisWidthX, abs(pos.x)));
+    color = mix(vec4(1.0, 0.4, 0.4, 0.42), color, smoothstep(float(0), axisWidthZ, abs(pos.z)));
+
+    const material = new MeshBasicNodeMaterial({
+        transparent: true,
+        depthWrite: false,
+        depthTest: true,
+        polygonOffset: true,
+        polygonOffsetFactor: 1,
+        polygonOffsetUnits: 1,
+        side: THREE.FrontSide,
+    });
+    // The GLSL shader writes raw values; node materials sRGB-encode on output, so linearise to match.
+    material.colorNode = sRGBTransferEOTF(color.rgb);
+    material.opacityNode = color.a;
+    material.toneMapped = false;
+    return material;
+}
+
 export default function WebGLStudioGrid() {
+    const isWebGPU = useThree((state) => Boolean(state.gl.isWebGPURenderer));
     const meshRef = useRef(null);
     const materialRef = useRef(null);
     const lastCameraPositionRef = useRef(new THREE.Vector3(Number.NaN, Number.NaN, Number.NaN));
@@ -62,6 +100,13 @@ export default function WebGLStudioGrid() {
         u_grid_scale: { value: 0.01 },
     }), [texture]);
 
+    // Shares the u_camera_position Vector3, so the useFrame copy below drives both paths.
+    const nodeMaterial = useMemo(
+        () => (isWebGPU ? createGridNodeMaterial(texture, uniform(uniforms.u_camera_position.value)) : null),
+        [isWebGPU, texture, uniforms]
+    );
+    useEffect(() => () => nodeMaterial?.dispose(), [nodeMaterial]);
+
     useFrame(({ camera }) => {
         if (lastCameraPositionRef.current.equals(camera.position)) {
             return;
@@ -74,15 +119,13 @@ export default function WebGLStudioGrid() {
             meshRef.current.position.z = camera.position.z;
         }
 
-        if (materialRef.current) {
-            materialRef.current.uniforms.u_camera_position.value.copy(camera.position);
-        }
+        uniforms.u_camera_position.value.copy(camera.position);
     });
 
     return (
         <mesh ref={meshRef} rotation-x={-Math.PI / 2} position-y={-0.02} renderOrder={-1000} frustumCulled={false}>
             <planeGeometry args={[20000, 20000, 1, 1]} />
-            <shaderMaterial
+            {nodeMaterial ? <primitive object={nodeMaterial} attach="material" /> : <shaderMaterial
                 ref={materialRef}
                 uniforms={uniforms}
                 vertexShader={vertexShader}
@@ -94,7 +137,7 @@ export default function WebGLStudioGrid() {
                 polygonOffsetFactor={1}
                 polygonOffsetUnits={1}
                 side={THREE.FrontSide}
-            />
+            />}
         </mesh>
     );
 }

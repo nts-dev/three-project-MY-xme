@@ -50,6 +50,9 @@ import RobotTestArea from "./environment/RobotTestArea";
 
 const DSL_SCENE_COMMAND_APPLIED = "dsl-scene-command-applied";
 const MIN_REMOTE_SCENE_INDICATOR_MS = 450;
+// Caps on loaded model materials so the overhead sun doesn't produce white-out highlights.
+const MAX_SPECULAR = 0.08;
+const MIN_ROUGHNESS = 0.6;
 const FALLBACK_FILE_URL = "http://bo8.nts.nl/network/controller/files/";
 
 const getFallbackFileUrl = (url) => {
@@ -434,23 +437,20 @@ const configureOriginalMeshMaterial = (material, mesh) => {
 
     material.side = THREE.DoubleSide;
 
-    // Reduce reflections
-    if ("roughness" in material) {
-        material.roughness = 0.85;
+    // Reduce reflections: no mirror-like GLB surfaces
+    if (material.isMeshStandardMaterial && !material.roughnessMap) {
+        material.roughness = Math.max(material.roughness, MIN_ROUGHNESS);
     }
 
     if ("metalness" in material) {
         material.metalness = 0;
     }
 
-    // FBX Phong materials carry glossy specular; under the sun it blows
-    // roofs and ground out to white, so keep them matte.
-    if (material.specular?.set) {
-        material.specular.set(0x000000);
-    }
-
-    if ("shininess" in material) {
-        material.shininess = 0;
+    // FBX exports often carry a strong specular colour; with the near-overhead
+    // sun that reflects straight into the top-down camera and blows surfaces out.
+    if (material.specular?.isColor) {
+        const { r, g, b } = material.specular;
+        material.specular.setRGB(Math.min(r, MAX_SPECULAR), Math.min(g, MAX_SPECULAR), Math.min(b, MAX_SPECULAR));
     }
 
     // Make facade texture more visible. Only boost textured materials; a white

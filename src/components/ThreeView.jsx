@@ -82,6 +82,7 @@ import ShowController from "./popup/miscellaneous/ShowController.jsx";
 import StatsPopup from "./popup/gui/stats/StatsPopup.jsx";
 import SoundTrack from "../threejs/player/puzzle/character/SoundTrack";
 import * as THREE from 'three'
+import { createRenderer, disableWebGPU, getWebGPUAdapterDescription, resolveRendererKind } from "../threejs/renderer/rendererSelection.js";
 import SingleEdgesDrawing from "../threejs/autoCad/SingleEdgesDrawing.jsx";
 import SingleEdgesOverlay from "../threejs/autoCad/SingleEdgesOverlay.jsx";
 import WebGLStudioGrid from "../threejs/scene/WebGLStudioGrid.jsx";
@@ -108,6 +109,9 @@ const EDIT_MODE_EXIT_CAMERA_TARGET = new THREE.Vector3(0, 0, 0);
 const INITIAL_SCENE_CAMERA_POSITION = [5, 25, 50];
 const MIN_SCENE_CAMERA_NEAR = 0.05;
 const DEFAULT_SCENE_CAMERA_FAR = 100000000;
+// A lower sun for project 153: the default [5, 10, 5] lights roofs and ground
+// about 2.4x brighter than shaded walls, so tops blow out while facades look dull.
+const PROJECT_153_SUN_POSITION = [8, 6, 5];
 
 const subscribeXrSession = (callback) => xrStore.subscribe(callback);
 const getXrSessionSnapshot = () => Boolean(xrStore.getState?.().session);
@@ -123,7 +127,7 @@ function ProjectToneMapping({ projectBaseId }) {
 
         const previous = { toneMapping: gl.toneMapping, exposure: gl.toneMappingExposure };
         gl.toneMapping = THREE.NeutralToneMapping;
-        gl.toneMappingExposure = 1.38;
+        gl.toneMappingExposure = 1.35;
 
         return () => {
             gl.toneMapping = previous.toneMapping;
@@ -257,6 +261,9 @@ export default function ThreeView() {
     const currentMenu = useRef([]);
     const [isTouchScreen, setIsTouchScreen] = useState(false)
     const [isLowGpu, setIsLowGpu] = useState(null)
+    // Renderer chosen for this project ('webgpu' | 'webgl'), and which one has finished initialising.
+    const [rendererKind, setRendererKind] = useState(null)
+    const [readyRenderer, setReadyRenderer] = useState(null)
     const [isHudMinimized, setIsHudMinimized] = useState(false)
     const [editorShellNode, setEditorShellNode] = useState(null)
     const showAvatarLoadingOverlay = useSyncExternalStore(
@@ -557,9 +564,24 @@ export default function ThreeView() {
         return { maxTextureSize: maxTex, maxAnisotropy: maxAniso };
     }
 
-    const onCreated = useCallback(({ camera, gl, scene }) => {
+    const onCreated = useCallback(async ({ camera, gl, scene }) => {
 
-        const info = getGpuInfoFromRenderer(gl); // may return nulls on WebGPU
+        if (gl.isWebGPURenderer) {
+            // WebGPURenderer throws on render() until its backend is initialised.
+            try {
+                await gl.init();
+            } catch (error) {
+                console.warn('WebGPU init failed, falling back to WebGL', error);
+                disableWebGPU();
+                setRendererKind('webgl');
+                return;
+            }
+        }
+        setReadyRenderer(gl.isWebGPURenderer ? 'webgpu' : 'webgl');
+
+        const info = gl.isWebGPURenderer
+            ? { combined: await getWebGPUAdapterDescription() }
+            : getGpuInfoFromRenderer(gl);
         const perf = getPerfHints(gl);
         cameraRef.current = camera;
         sceneRef.current = scene;
@@ -621,7 +643,22 @@ export default function ThreeView() {
     const isGameRuntime = isPuzzleGame && buttonMode === 'Play mode';
     const projectBaseId = String(projectId).replace(/_L\d+$/i, "");
     const isCadProject = projectBaseId === "151";
-    const disableAntialiasing = isLowGpu 
+    const disableAntialiasing = isLowGpu
+
+    useEffect(() => {
+        let cancelled = false;
+        resolveRendererKind(projectBaseId).then((kind) => {
+            if (!cancelled) setRendererKind(kind);
+        });
+        return () => { cancelled = true; };
+    }, [projectBaseId]);
+
+    const createGl = useCallback((canvas) => createRenderer(rendererKind, canvas, {
+        antialias: !disableAntialiasing,
+        powerPreference: "high-performance",
+        logarithmicDepthBuffer: true,
+    }), [rendererKind, disableAntialiasing]);
+    const rendererReady = rendererKind !== null && readyRenderer === rendererKind;
     const canvasBackground = isCadProject ? '#4a4a4a' : (isGameRuntime ? '#000' : '#fff');
     const showUrlViewControls = isUrlLevelProjectLaunch() && !isCadProject && !isPuzzleGame;
     const googleMapsViewportMode = useSyncExternalStore(
@@ -735,19 +772,16 @@ export default function ThreeView() {
                 className={`canvas-element${isAssetOver ? ' is-asset-drop-target' : ''}`}
             >
 
+                {rendererKind && (
                 <Canvas
+                    // Remount with a fresh renderer if WebGPU init fails and we fall back to WebGL.
+                    key={rendererKind}
                     style={{ background: canvasBackground }}
                     dpr={[0.5, 1]}
                     performance={{ min: 0.5 }}
-                    gl={{
-                        antialias: !disableAntialiasing,
-                        powerPreference: "high-performance", // safe to keep
-                        logarithmicDepthBuffer: true,
-                        outputColorSpace: THREE.SRGBColorSpace,
-                        // toneMappingExposure: 0.92,
-                        // Optionally add: alpha: false,  // if you don't need transparency
-                    }}
-
+                    gl={createGl}
+                    // Hold the loop until WebGPURenderer.init() resolves; WebGL is ready immediately.
+                    frameloop={rendererReady ? 'always' : 'never'}
                     onCreated={onCreated}
                     camera={{
                         fov: 45,
@@ -757,7 +791,8 @@ export default function ThreeView() {
 
                     }}
                 >
-                    <XrSceneRoot>
+                    {/* Scene components may call gl APIs on mount, so wait for the renderer to be ready */}
+                    {rendererReady && <XrSceneRoot>
                     <ProjectToneMapping projectBaseId={projectBaseId} />
 
                         {
@@ -790,13 +825,18 @@ export default function ThreeView() {
                                     
                                                  <InstanceExperience key={`instanceexperience-${projectId}`} />
                                                 
-                                                <directionalLight ref={directionalLightRef} position={[5, 10, 5]} intensity={String(projectId).includes('137') ? 6.5 : String(projectId).startsWith('153') ? 3.5 : 1} />
+                                                <directionalLight ref={directionalLightRef} position={projectBaseId === '153' ? PROJECT_153_SUN_POSITION : [5, 10, 5]} intensity={String(projectId).includes('137') ? 6.5 : String(projectId).startsWith('153') ? 1.6 : 5.5} />
                                                 <AvatarEyeDirectionalLight
                                                     lightRef={directionalLightRef}
                                                     enabled={false}
+                                                    defaultPosition={projectBaseId === '153' ? PROJECT_153_SUN_POSITION : undefined}
                                                 />
                                                 <Ground />
-                                                <ambientLight intensity={String(projectId).includes('137') ? 3 : String(projectId).startsWith('153') ? 2 : 4} />
+                                                <ambientLight intensity={String(projectId).includes('137') ? 3 : String(projectId).startsWith('153') ? 2.2 : 0.6} />
+                                                {/* Sky/ground fill: brightens walls while keeping directional shading, unlike flat ambient */}
+                                                {!String(projectId).includes('137') && !String(projectId).startsWith('153') && (
+                                                    <hemisphereLight args={['#dcebff', '#8a8070', 2.2]} />
+                                                )}
                                                 </>
                                             )}
                                             
@@ -830,8 +870,9 @@ export default function ThreeView() {
                     <AdaptiveDpr />
                     {!isXrPresenting && !packageControl && !isPackage && <Stats className="r3f-stats" showPanel={0} />}
                    
-                    </XrSceneRoot>
+                    </XrSceneRoot>}
                 </Canvas>
+                )}
                 {isCadProject && <SingleEdgesOverlay cameraRef={cameraRef} />}
             </div>
 

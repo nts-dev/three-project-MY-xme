@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useEffect, useMemo } from "react";
+import { useThree } from "@react-three/fiber";
 import { Cloud, Clouds, Sky } from "@react-three/drei";
 import * as THREE from "three";
+import { SkyMesh } from "three/examples/jsm/objects/SkyMesh.js";
 
 const PROJECT_153_CLOUDS = [
     { seed: 153, position: [-520, 260, -420], bounds: [72, 8, 34], scale: 6.5, volume: 5.8, opacity: 0.78 },
@@ -18,18 +20,46 @@ const PROJECT_153_CLOUDS = [
 ];
 
 const PROJECT_153_SKY_DISTANCE = 4500000;
+const DEFAULT_SKY_DISTANCE = 1000;
+const SUN_POSITION = [10000, 300000, 1000000];
+
+// drei <Sky> is a GLSL ShaderMaterial and <Clouds> relies on onBeforeCompile; neither runs on
+// WebGPURenderer, so use three's node-based SkyMesh (which has its own procedural clouds) there.
+function WebGPUSky({ distance }) {
+    const sky = useMemo(() => {
+        const mesh = new SkyMesh();
+        mesh.turbidity.value = 4;
+        mesh.rayleigh.value = 1.2;
+        mesh.mieCoefficient.value = 0.01;
+        mesh.mieDirectionalG.value = 0.98;
+        mesh.sunPosition.value.set(...SUN_POSITION);
+        return mesh;
+    }, []);
+
+    useEffect(() => () => {
+        sky.geometry.dispose();
+        sky.material.dispose();
+    }, [sky]);
+
+    return <primitive object={sky} scale={distance} />;
+}
 
 export default function ProjectSkyClouds({ projectBaseId }) {
+    const isWebGPU = useThree((state) => Boolean(state.gl.isWebGPURenderer));
     const isProject153 = projectBaseId === "153";
     const shouldRender = isProject153 || ["144", "145", "147"].includes(projectBaseId);
 
     if (!shouldRender) return null;
 
+    if (isWebGPU) {
+        return <WebGPUSky distance={isProject153 ? PROJECT_153_SKY_DISTANCE : DEFAULT_SKY_DISTANCE} />;
+    }
+
     return (
         <>
             <Sky
                 distance={isProject153 ? PROJECT_153_SKY_DISTANCE : undefined}
-                sunPosition={[10000, 300000, 1000000]}
+                sunPosition={SUN_POSITION}
                 turbidity={4}
                 rayleigh={1.2}
                 mieCoefficient={0.01}
