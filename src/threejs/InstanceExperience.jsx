@@ -53,6 +53,7 @@ const MIN_REMOTE_SCENE_INDICATOR_MS = 450;
 // Caps on loaded model materials so the overhead sun doesn't produce white-out highlights.
 const MAX_SPECULAR = 0.08;
 const MIN_ROUGHNESS = 0.6;
+const VEGETATION_MODEL_PATTERN = /tree|plant|grass|bush|hedge|palm|flower|leaf|leaves|foliage|pine|shrub/i;
 const FALLBACK_FILE_URL = "http://bo8.nts.nl/network/controller/files/";
 
 const getFallbackFileUrl = (url) => {
@@ -420,7 +421,21 @@ export default function InstanceExperience() {
         texture.needsUpdate = true;
     };
 
-const configureOriginalMeshMaterial = (material, mesh) => {
+    // Single planes (signs, decals, ground sheets) have no back faces of their own.
+    const isFlatMesh = (mesh) => {
+        const geometry = mesh?.geometry;
+        if (!geometry) {
+            return false;
+        }
+        if (!geometry.boundingBox) {
+            geometry.computeBoundingBox();
+        }
+        const size = geometry.boundingBox.getSize(new THREE.Vector3());
+        const largest = Math.max(size.x, size.y, size.z);
+        return largest > 0 && Math.min(size.x, size.y, size.z) <= largest * 0.01;
+    };
+
+const configureOriginalMeshMaterial = (material, mesh, keepDoubleSided = false) => {
     if (!material) {
         return material;
     }
@@ -435,7 +450,10 @@ const configureOriginalMeshMaterial = (material, mesh) => {
     prepareMaterialTexture(material.map);
     prepareMaterialTexture(material.alphaMap);
 
-    material.side = THREE.DoubleSide;
+    // Double-sided roughly doubles fragment work, so keep it only where back faces are visible.
+    material.side = keepDoubleSided || hasCutoutAlpha || material.transparent || isFlatMesh(mesh)
+        ? THREE.DoubleSide
+        : THREE.FrontSide;
 
     // Reduce reflections: no mirror-like GLB surfaces
     if (material.isMeshStandardMaterial && !material.roughnessMap) {
@@ -518,7 +536,7 @@ const configureOriginalMeshMaterial = (material, mesh) => {
         });
     };
 
-    const makeOriginalMaterialDoubleSided = (material, mesh) => {
+    const makeOriginalMaterialDoubleSided = (material, mesh, keepDoubleSided) => {
         const makeDoubleSided = (mat) => {
             if (!mat) {
                 return mat;
@@ -526,7 +544,7 @@ const configureOriginalMeshMaterial = (material, mesh) => {
 
             const nextMaterial = mat.clone ? mat.clone() : mat;
 
-            return configureOriginalMeshMaterial(nextMaterial, mesh);
+            return configureOriginalMeshMaterial(nextMaterial, mesh, keepDoubleSided);
         };
 
         return Array.isArray(material)
@@ -1064,7 +1082,7 @@ const configureOriginalMeshMaterial = (material, mesh) => {
         return clone;
     };
 
-    const loadModelClone = async (file, properties) => {
+    const getModelPromise = (file, properties) => {
         const descriptor = getSceneAssetDescriptor(file, properties);
         if (!modelCacheRef.current.has(descriptor.cacheKey)) {
             const loaderPromise = (["glb", "gltf"].includes(descriptor.extension)
@@ -1076,8 +1094,21 @@ const configureOriginalMeshMaterial = (material, mesh) => {
             });
             modelCacheRef.current.set(descriptor.cacheKey, loaderPromise);
         }
+        return modelCacheRef.current.get(descriptor.cacheKey);
+    };
 
-        const model = await modelCacheRef.current.get(descriptor.cacheKey);
+    // Start a download without waiting; the scene loop awaits the cached promise in order
+    // and reports any failure there.
+    const prefetchModel = (file, properties) => {
+        try {
+            Promise.resolve(getModelPromise(file, properties)).catch(() => {});
+        } catch {
+            // Reported by the scene loop's own load of this model.
+        }
+    };
+
+    const loadModelClone = async (file, properties) => {
+        const model = await getModelPromise(file, properties);
         return cloneLoadedModel(model);
     };
 
@@ -1104,6 +1135,8 @@ const configureOriginalMeshMaterial = (material, mesh) => {
         }
 
         const object = await loadModelClone(fbx, properties);
+        // Vegetation cards are single-sided planes inside a 3D model, so the flat check can't catch them.
+        const keepDoubleSided = VEGETATION_MODEL_PATTERN.test(fbx);
 
         object.traverse((child) => {
             if (fbx == "Location.FBX" && child instanceof THREE.Mesh) {
@@ -1119,7 +1152,7 @@ const configureOriginalMeshMaterial = (material, mesh) => {
                 if (hasTextureImages) {
                     applyTextures(child, textureList);
                 } else {
-                    child.material = makeOriginalMaterialDoubleSided(child.material, child);
+                    child.material = makeOriginalMaterialDoubleSided(child.material, child, keepDoubleSided);
                     // normalizeMaterialDepthState(child.material, child);
                 }
             }
@@ -1413,8 +1446,25 @@ const configureOriginalMeshMaterial = (material, mesh) => {
 
         addFloorsToMap(buildFloorsFromCategories(orderedCategories));
         const usedAssetIds = new Set();
-     
-    
+
+        // Download every changed category's model in parallel instead of one per loop iteration.
+        const nextSignatures = new Map();
+        for (const category of orderedCategories) {
+            const rawCategory = getCategoryRaw(category);
+            const fbx = rawCategory?.fbx;
+            if (!fbx) {
+                continue;
+            }
+
+            const signature = buildCategorySignature(category);
+            nextSignatures.set(category, signature);
+            const unchanged = !forceReload && categorySignatureRef.current.get(getCategoryKey(rawCategory)) === signature;
+            if (unchanged || rawCategory.name === "composite") {
+                continue;
+            }
+            prefetchModel(fbx, rawCategory.properties);
+        }
+
         for (const category of orderedCategories) {
            
             const rawCategory = getCategoryRaw(category);
@@ -1451,7 +1501,7 @@ const configureOriginalMeshMaterial = (material, mesh) => {
            .map((asset) => String(getAssetInstanceId(asset)))
            .filter(Boolean);
 
-            const nextSignature = buildCategorySignature(category);
+            const nextSignature = nextSignatures.get(category) ?? buildCategorySignature(category);
 
             nextCategoryKeys.add(categoryKey);
 
