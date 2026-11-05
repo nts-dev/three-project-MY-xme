@@ -1133,6 +1133,33 @@
     line-height: 1.45;
 }
 
+.play-asset-info__loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.play-asset-info__spinner {
+    flex: none;
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(212, 230, 226, 0.25);
+    border-top-color: #2ee6c5;
+    border-radius: 50%;
+    animation: play-asset-info-spin 0.8s linear infinite;
+}
+
+.play-asset-info__edit-button:disabled {
+    opacity: 0.45;
+    cursor: wait;
+}
+
+@keyframes play-asset-info-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .play-asset-info__specifics {
     display: grid;
     gap: 5px;

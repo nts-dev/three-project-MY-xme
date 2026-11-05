@@ -989,7 +989,10 @@ const PlaySidebarGallery = ({ assetInfo }) => {
         <div className="play-asset-info__hero-gallery">
             <div className="play-asset-info__hero-image">
                 {loading ? (
-                    <div className="play-asset-info__empty">Loading photos...</div>
+                    <div className="play-asset-info__empty play-asset-info__loading" role="status">
+                        <span className="play-asset-info__spinner" aria-hidden="true" />
+                        Loading photos...
+                    </div>
                 ) : (
                     <img src={activeImage?.itemImageSrc} alt={activeImage?.alt || ""} />
                 )}
@@ -1049,13 +1052,17 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
     const [isSaving, setIsSaving] = useState(false);
     const [draftRows, setDraftRows] = useState([]);
     const [placeRatings, setPlaceRatings] = useState(null);
+    const [isLoadingRatings, setIsLoadingRatings] = useState(false);
+    const isLoadingDetails = Boolean(assetInfo?.isLoadingDetails);
     const BusinessIcon = meta.businessKind.Icon;
 
     useEffect(() => {
         const controller = new AbortController();
         setPlaceRatings(null);
+        setIsLoadingRatings(false);
         if (!meta.coordinates || !meta.companyName || assetInfo?.isLoadingDetails) return undefined;
 
+        setIsLoadingRatings(true);
         const url = `${getApiBaseUrl()}/search-places?cordinates=${encodeURIComponent(meta.coordinates)}&companyName=${encodeURIComponent(meta.companyName)}`;
         fetch(url, { signal: controller.signal })
             .then((response) => {
@@ -1072,6 +1079,9 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
             })
             .catch((error) => {
                 if (error.name !== "AbortError") console.warn("Place ratings lookup failed:", error);
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setIsLoadingRatings(false);
             });
 
         return () => controller.abort();
@@ -1214,20 +1224,29 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                     {meta.city && <span className="play-asset-info__subtitle">{meta.city.split(",")[0]}</span>}
                     <div className="play-asset-info__rating-line">
                         <span className="play-asset-info__google-mark">G</span>
-                        <strong>{displayRating}</strong>
-                        <span
-                            className="play-asset-info__rating-stars"
-                            aria-label={`${displayRating} out of 5 stars`}
-                        >
-                            {getRatingStars(displayRating).map((star) => (
-                                star.type === "half"
-                                    ? <FaStarHalfAlt key={star.key} aria-hidden="true" />
-                                    : star.type === "empty"
-                                        ? <FaRegStar key={star.key} aria-hidden="true" />
-                                        : <FaStar key={star.key} aria-hidden="true" />
-                            ))}
-                        </span>
-                        <span>({displayReviews} reviews)</span>
+                        {isLoadingDetails || isLoadingRatings ? (
+                            <span className="play-asset-info__loading" role="status">
+                                <span className="play-asset-info__spinner" aria-hidden="true" />
+                                Loading rating...
+                            </span>
+                        ) : (
+                            <>
+                                <strong>{displayRating}</strong>
+                                <span
+                                    className="play-asset-info__rating-stars"
+                                    aria-label={`${displayRating} out of 5 stars`}
+                                >
+                                    {getRatingStars(displayRating).map((star) => (
+                                        star.type === "half"
+                                            ? <FaStarHalfAlt key={star.key} aria-hidden="true" />
+                                            : star.type === "empty"
+                                                ? <FaRegStar key={star.key} aria-hidden="true" />
+                                                : <FaStar key={star.key} aria-hidden="true" />
+                                    ))}
+                                </span>
+                                <span>({displayReviews} reviews)</span>
+                            </>
+                        )}
                     </div>
                     <div className={`play-asset-info__business-badge play-asset-info__business-badge--${meta.businessKind.className}`}>
                         <BusinessIcon aria-hidden="true" />
@@ -1236,7 +1255,7 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                 </div>
 
                 <div className="play-asset-info__body-actions">
-                    <button type="button" className="play-asset-info__edit-button" onClick={handleEditRequest}>
+                    <button type="button" className="play-asset-info__edit-button" onClick={handleEditRequest} disabled={isLoadingDetails}>
                         <FaEdit aria-hidden="true" />
                         <span>{isEditing ? "Editing" : "Edit"}</span>
                     </button>
@@ -1287,6 +1306,11 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                                 </button>
                                 <button type="button" onClick={() => setIsEditing(false)} disabled={isSaving}>Cancel</button>
                             </div>
+                        </div>
+                    ) : isLoadingDetails ? (
+                        <div className="play-asset-info__empty play-asset-info__loading" role="status">
+                            <span className="play-asset-info__spinner" aria-hidden="true" />
+                            Loading details...
                         </div>
                     ) : (
                         <div className="play-asset-info__meta-list">
@@ -1343,13 +1367,13 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                         </div>
                     )}
                 </section>
-                {(meta.businessDescription || showEmptyBusinessFields) && (
+                {!isLoadingDetails && (meta.businessDescription || showEmptyBusinessFields) && (
                     <section className="play-asset-info__text-section" aria-label="About">
                         <h3>About</h3>
                         <p>{meta.businessDescription || "N/A"}</p>
                     </section>
                 )}
-                {(meta.comments || showEmptyBusinessFields) && (
+                {!isLoadingDetails && (meta.comments || showEmptyBusinessFields) && (
                     <section className="play-asset-info__text-section play-asset-info__text-section--notes" aria-label="Notes">
                         <h3>Notes</h3>
                         <p>{meta.comments || "N/A"}</p>
