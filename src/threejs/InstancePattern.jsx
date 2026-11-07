@@ -8,6 +8,7 @@ import Composite from './Composite';
 import { applyDslAnimations, clearDslAnimations, readDslAnimations } from './dslAnimationRuntime';
 import { isGeneratedAssetReference, normalizeSceneAssetName } from './generatedAssetPaths';
 import { enableSpatialInstanceCulling } from './spatialInstanceCulling.js';
+import { registerDistanceCulledMesh } from './scene/distanceCulling';
 
 import {
     instanceMesh,
@@ -664,7 +665,9 @@ export default async function InstancedPattern(
         instancedMesh.computeBoundingSphere?.();
         const triangleCount = (object.geometry.index?.count || object.geometry.attributes.position.count) / 3;
         if (String(projectID) === '153_L1' && triangleCount >= 100000) {
-            enableSpatialInstanceCulling(instancedMesh);
+            // Each spatial batch is also hidden when far from the camera (see distanceCulling.js).
+            const batches = enableSpatialInstanceCulling(instancedMesh);
+            batches?.forEach(registerDistanceCulledMesh);
         }
         scene.add(instancedMesh);
     }

@@ -10,6 +10,26 @@ import {sceneAssets} from "./threejs/player/puzzle/character/Constants.jsx";
 import { normalizeSceneAssetName } from "./threejs/generatedAssetPaths";
 
 const INITIAL_IMPORT_KEY = 'initialImportComplete';
+const LOOKUP_CHUNK_SIZE = 1000;
+// Projects whose json_mongo_<id>.json files the first load imports.
+const IMPORTED_PROJECT_IDS = [125, 115, 120, 48, 132, 135, 32, 139, 137, 142, 144, 145, 147, 148, 150];
+
+// One Q.oneOf query per chunk instead of one query per record: the first import
+// writes ~120k fields, and a query each roughly doubled the insert time.
+const fetchExistingRecords = async (collection, column, keys) => {
+    const existing = new Map();
+    const uniqueKeys = [...new Set(keys)];
+
+    for (let i = 0; i < uniqueKeys.length; i += LOOKUP_CHUNK_SIZE) {
+        const records = await collection.query(Q.where(column, Q.oneOf(uniqueKeys.slice(i, i + LOOKUP_CHUNK_SIZE)))).fetch();
+        records.forEach((record) => {
+            const key = record._raw[column];
+            if (!existing.has(key)) existing.set(key, record);
+        });
+    }
+
+    return existing;
+};
 
 const LoadWatermelon = () => {
 
@@ -25,7 +45,17 @@ const LoadWatermelon = () => {
     const setIframeLazy = useGame((state) => state.setIframeLazy)
     const searchParams = new URLSearchParams(window.location.search);
     const prId = searchParams.get('projectId');
+    // "147_L0" is a level of project 147, whose data lives in json_mongo_147.json.
+    const prBaseId = parseInt(String(prId ?? ''), 10);
     const projectIdRef = useRef(projectID);
+    const importBlocksLoaderRef = useRef(false);
+
+    const releaseImportLoader = () => {
+        if (!importBlocksLoaderRef.current) return;
+        importBlocksLoaderRef.current = false;
+        setLazy(false)
+        setIframeLazy(false)
+    }
 
     const set = useMemo(()=>new Set(),[])
 
@@ -122,64 +152,57 @@ const LoadWatermelon = () => {
     const bulkInsertCategories = async (categories) => {
 
         const categoriesCollection = database.collections.get('categories');
+        const operations = [];
 
-        for (const category of categories) {
-           //console.log(category)
-            const existingCategories = await categoriesCollection.query(Q.where('category_id', category.categoryId)).fetch();
-            if (existingCategories.length > 0 && projectID > 0) {
-                const operations = [];
-                const existingCategory = existingCategories[0];
-                const update = existingCategory.prepareUpdate(record => {
-                    record.categoryId = category.categoryId;
-                    record.categoryIndex = category.categoryIndex;
-                    record.projectId = category.projectId;
-                    record.name = category.name;
-                    record.fbx = category.fbx;
-                    record.textures = category.textures;
-                    record.instances = category.instances;
-                    record.properties = category.properties;
-                    record.defaultColor = category.defaultColor;
+        // Composite categories share a category_id. Written one by one, later
+        // duplicates updated the first, so with a project the last one wins.
+        const pendingCategories = projectID > 0
+            ? [...new Map(categories.map((category) => [category.categoryId, category])).values()]
+            : categories;
+        const existingCategories = await fetchExistingRecords(
+            categoriesCollection,
+            'category_id',
+            pendingCategories.map((category) => category.categoryId)
+        );
 
-                });
-                operations.push(update);
-                await database.write(async () => {
-                    await database.batch(operations);
-                });
+        for (const category of pendingCategories) {
+            const existingCategory = existingCategories.get(category.categoryId);
+            const applyCategory = (record) => {
+                record.categoryId = category.categoryId;
+                record.categoryIndex = category.categoryIndex;
+                record.projectId = category.projectId;
+                record.name = category.name;
+                record.fbx = category.fbx;
+                record.textures = category.textures;
+                record.instances = category.instances;
+                record.properties = category.properties;
+                record.defaultColor = category.defaultColor;
+            };
 
-            } else {
-                // Prepare insert operation
-                const operations = [];
-                const create = categoriesCollection.prepareCreate(record => {
-                    record.categoryId = category.categoryId;
-                    record.categoryIndex = category.categoryIndex;
-                    record.projectId = category.projectId;
-                    record.name = category.name;
-                    record.fbx = category.fbx;
-                    record.textures = category.textures;
-                    record.instances = category.instances;
-                    record.properties = category.properties;
-                    record.defaultColor = category.defaultColor;
-
-                });
-                operations.push(create);
-                await database.write(async () => {
-                    await database.batch(operations);
-                });
-            }
+            operations.push(existingCategory && projectID > 0
+                ? existingCategory.prepareUpdate(applyCategory)
+                : categoriesCollection.prepareCreate(applyCategory));
         }
 
+        await database.write(async () => {
+            await database.batch(operations);
+        });
 
     };
 
     const bulkInsertAssets = async (assets) => {
         const assetsCollection = database.collections.get('assets');
         const operations = [];
+        const existingAssets = await fetchExistingRecords(
+            assetsCollection,
+            'instance_id',
+            assets.map((asset) => parseInt(asset.instanceId))
+        );
 
         for (const asset of assets) {
-            const existingAssets = await assetsCollection.query(Q.where('instance_id', parseInt(asset.instanceId))).fetch();
+            const existingCategory = existingAssets.get(parseInt(asset.instanceId));
 
-            if (existingAssets.length > 0 && projectID > 0) {
-                const existingCategory = existingAssets[0];
+            if (existingCategory && projectID > 0) {
                 const update = existingCategory.prepareUpdate(record => {
                     record.instanceId = asset.instanceId;
                     record.category = asset.category;
@@ -331,12 +354,16 @@ const LoadWatermelon = () => {
         const optionsCollection = database.collections.get('options');
 
         const operations = [];
+        const existingOptions = await fetchExistingRecords(
+            optionsCollection,
+            'value_id',
+            fields.map((field) => field.valueId)
+        );
 
         for (const field of fields) {
-            const existingOptions = await optionsCollection.query(Q.where('value_id', field.valueId)).fetch();
+            const existingOption = existingOptions.get(field.valueId);
 
-            if (existingOptions.length > 0 && projectID > 0) {
-                const existingOption = existingOptions[0];
+            if (existingOption && projectID > 0) {
                 const update = existingOption.prepareUpdate(record => {
                     record.valueId = field.valueId;
                     record.sortId = field.sortId;
@@ -368,13 +395,16 @@ const LoadWatermelon = () => {
         const fieldsCollection = database.collections.get('fields');
 
         const operations = [];
+        const existingFields = await fetchExistingRecords(
+            fieldsCollection,
+            'value_id',
+            fields.map((field) => field.valueId)
+        );
 
         for (const field of fields) {
+            const existingCategory = existingFields.get(field.valueId);
 
-            const existingFields = await fieldsCollection.query(Q.where('value_id', field.valueId)).fetch();
-
-            if (existingFields.length > 0 && projectID > 0) {
-                const existingCategory = existingFields[0];
+            if (existingCategory && projectID > 0) {
 
                 const update = existingCategory.prepareUpdate(record => {
                     record.valueId = field.valueId;
@@ -583,6 +613,7 @@ const LoadWatermelon = () => {
     }
     async function generateJsonFromArray() {
        const newList = sortByKey(projectsData,prId)
+        importBlocksLoaderRef.current = true
         setLazy(true)
         for (const i in newList) {
             const obj = projectsData[i]
@@ -610,6 +641,14 @@ const LoadWatermelon = () => {
             const tResult = await fetchAssets(`${import.meta.env.VITE_JSON_URL}/${id}.json`);
             await bulkInsertTemplateFiles(id,tResult)
         }
+
+        // Only the opened project's data is worth blocking on; the other
+        // projects keep importing in the background. Project 153, levels and
+        // the start page (no projectId) are not imported here at all.
+        if (!IMPORTED_PROJECT_IDS.includes(prBaseId)) {
+            releaseImportLoader()
+        }
+
         for (const i in newList) {
             const obj = projectsData[i]
             await generateJsonFromChildren(obj.children, obj.id)
@@ -617,7 +656,8 @@ const LoadWatermelon = () => {
         }
         // Written last so an import interrupted by a reload is retried.
         await database.localStorage.set(INITIAL_IMPORT_KEY, true)
-        setLazy(false)
+        // Covers an opened project whose file failed to load.
+        releaseImportLoader()
     }
 
     async function deleteAssets(projectId) {
@@ -753,9 +793,8 @@ const LoadWatermelon = () => {
             if(files && files.data){
                 await loadDB(files.data,childId);
 
-                if(prId==childId ){
-                    setLazy(false)
-                    setIframeLazy(false)
+                if (prBaseId === parseInt(childId, 10)) {
+                    releaseImportLoader()
                 }
             }
 
@@ -824,7 +863,7 @@ const LoadWatermelon = () => {
         for (const childKey of Object.keys(children)) {
 
             const child = children[childKey];
-            if ([125, 115,120, 48, 132, 135, 32, 139,137,142,144,145,147,148,150].includes(parseInt(child.id))) {
+            if (IMPORTED_PROJECT_IDS.includes(parseInt(child.id))) {
 
                 if(!set.has(child.id)){
                     set.add(child.id)

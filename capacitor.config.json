@@ -1,0 +1,14 @@
+{
+  "appId": "com.nts.xme",
+  "appName": "XME",
+  "webDir": "android-shell",
+  "server": {
+    "url": "https://xme.com.my",
+    "androidScheme": "https",
+    "errorPath": "index.html"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#020607"
+  }
+}

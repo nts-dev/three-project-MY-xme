@@ -5,6 +5,7 @@ import useGame from "../hooks/useGame";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import InstancePattern from "./InstancePattern";
+import { updateDistanceCulling } from "./scene/distanceCulling";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Html, useGLTF } from "@react-three/drei";
 import Rack from "./rack/Rack";
@@ -2114,6 +2115,8 @@ const configureOriginalMeshMaterial = (material, mesh, keepDoubleSided = false) 
     }, [anims]);
 
     useFrame(({ camera }, delta) => {
+        updateDistanceCulling(camera);
+
         if (anims && animations?.length) {
             for (const mixerObj of animations) {
                 if (mixerObj.name === "Ceiling Fan Animated.FBX") {
