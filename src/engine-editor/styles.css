@@ -1657,6 +1657,44 @@ body.is-editor-panel-resizing-bottom {
     padding: 0;
 }
 
+/* "Back to start view" button at the right end of the top-right view-controls row (HomeViewButton.tsx). */
+.webglstudio-home-view-button {
+    /* Same row as the view controls (.play-view-controls: fixed, top 52px, 28px tall, moved left to make room). */
+    position: fixed;
+    top: 50px;
+    right: 64px;
+    z-index: 1000005;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    font-size: 15px;
+    padding: 0;
+    border: 1px solid rgba(88, 94, 98, 0.88);
+    border-radius: 3px;
+    background: rgba(18, 20, 21, 0.88);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    color: #cde5ea;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.webglstudio-home-view-button:hover {
+    background: rgba(38, 44, 46, 0.95);
+    color: #ffffff;
+}
+
+.webglstudio-home-view-button:focus-visible {
+    outline: 2px solid #5fe1f7;
+    outline-offset: 2px;
+}
+
+/* Room for the home button at the right end of the view-controls row. */
+body:has(.webglstudio-home-view-button) .play-view-controls {
+    right: 104px;
+}
+
 .webglstudio-layer-toolstrip {
     position: absolute;
     top: calc(var(--editor-top) + 204px);

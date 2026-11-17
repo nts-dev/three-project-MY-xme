@@ -23,6 +23,8 @@ import { useSelector } from "react-redux";
 import Materials from "./rack/Materials";
 import AddLabels from "./rack/AddLabels";
 import Building from "./environment/Building1";
+import TerrainSystem from "./terrain/TerrainSystem";
+import { getProjectOptimizeOptions, optimizeModel } from "./scene/optimize/modelOptimizer";
 import { AnnotationData } from "./label/AttachLabel";
 import { disposeBuildingLabelSprite } from "./label/BuildingLabelSprite";
 import {
@@ -1089,8 +1091,11 @@ const configureOriginalMeshMaterial = (material, mesh, keepDoubleSided = false) 
             const loaderPromise = (["glb", "gltf"].includes(descriptor.extension)
                 ? loadAssetWithFallback(gltfLoader, descriptor.url)
                 : loadAssetWithFallback(fbxLoader, descriptor.url)
-            ).then((loaded) => {
+            ).then(async (loaded) => {
                 consolidateObjectGeometryGroups(loaded?.scene || loaded);
+                // Once per download, before cloning: simplify over-dense meshes, shrink huge textures.
+                const optimizeOptions = getProjectOptimizeOptions(projectIdRef.current);
+                if (optimizeOptions) await optimizeModel(loaded?.scene || loaded, optimizeOptions);
                 return loaded;
             });
             modelCacheRef.current.set(descriptor.cacheKey, loaderPromise);
@@ -2163,6 +2168,8 @@ const configureOriginalMeshMaterial = (material, mesh, keepDoubleSided = false) 
             {(String(projectId) === "33_L0" || String(projectId) === "33") && <RobotTestArea projectID={projectId} />}
             {/* {showProject135PathAvatar && <Project135PathAvatar />} */}
             {bProjectId > 0 && (bProjectId != 147 && bProjectId != 148 && bProjectId != 153) && <Building bProjectId={bProjectId} />}
+            {/* Ground terrain of scenes whose scene JSON has `terrain` (153_L2, the XME map); others render nothing. */}
+            {projectId ? <TerrainSystem sceneKey={projectId} /> : null}
             {/* <DroneShowMorph morphs={sceneMorphs} categories={morphCategories} /> */}
             <DslMorphClouds morphs={sceneMorphs} categories={morphCategories} />
 

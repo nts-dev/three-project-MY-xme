@@ -35,6 +35,7 @@ import ComponentSideBar from "./packaging/ComponentSideBar";
 import PackageRuntimeBridge from "./packaging/PackageRuntimeBridge.jsx";
 import ProductsTreeGrid from "./popup/sideBar/ProductsTreeGrid";
 import ZoomSlider from "../threejs/hud/camera/ZoomSlider";
+import HomeViewButton from "../threejs/hud/camera/HomeViewButton";
 import ViewportMouseCoordinates from "./ViewportMouseCoordinates.jsx";
 import PlayerHeightSlider from "../threejs/hud/playerControls/PlayerHeightSlider";
 import PlayerViewAngleSlider from "../threejs/hud/playerControls/PlayerViewAngleSlider";
@@ -112,6 +113,13 @@ const DEFAULT_SCENE_CAMERA_FAR = 100000000;
 // A lower sun for project 153: the default [5, 10, 5] lights roofs and ground
 // about 2.4x brighter than shaded walls, so tops blow out while facades look dull.
 const PROJECT_153_SUN_POSITION = [8, 6, 5];
+
+// Scenes with a "back to start view" button under the zoom slider (large maps where the start is easy to lose),
+// with their start view in scene metres (null = the pose the scene opens with).
+// 153_L2: ~390 m out, 40° down from the south, over the XME estate (ground at the origin is height 0).
+const HOME_VIEWS = {
+    "153_L2": { position: [0, 250, 300], target: [0, 0, 0] },
+};
 
 const subscribeXrSession = (callback) => xrStore.subscribe(callback);
 const getXrSessionSnapshot = () => Boolean(xrStore.getState?.().session);
@@ -585,9 +593,16 @@ export default function ThreeView() {
         const perf = getPerfHints(gl);
         cameraRef.current = camera;
         sceneRef.current = scene;
+        // Dev-only handle for profiling scripts (draw calls, triangles, lights) from the console.
+        if (import.meta.env.DEV) window.__editorThree = { scene, gl, camera, get controls() { return orbitControls.current; } };
         // gl.lighting = lighting
         glRef.current = gl;
         gl.xr?.setFramebufferScaleFactor?.(0.55);
+        // Reading each new shader's error log forces its compile to finish
+        // synchronously: a 100-300 ms freeze whenever a new material variant
+        // first appears. Set localStorage 'debug:shaderErrors' = '1' to get
+        // three.js shader error reports.
+        if (gl.debug) gl.debug.checkShaderErrors = localStorage.getItem('debug:shaderErrors') === '1';
         // Heuristic: if no GPU string, decide from caps (tune thresholds)
         const lowByCaps =
             (perf.maxTextureSize != null && perf.maxTextureSize <= 4096) ||
@@ -630,6 +645,9 @@ export default function ThreeView() {
     const zoomOverlay = (
         <div className="webglstudio-zoom-toolstrip">
             <ZoomSlider camera={cameraRef} orbitControls={orbitControls} />
+            {String(projectId) in HOME_VIEWS && (
+                <HomeViewButton camera={cameraRef} orbitControls={orbitControls} projectId={projectId} startView={HOME_VIEWS[String(projectId)]} />
+            )}
         </div>
     );
     const layerOverlay = isPuzzleGame && !isMobile && buttonMode === 'Edit Mode' ? (

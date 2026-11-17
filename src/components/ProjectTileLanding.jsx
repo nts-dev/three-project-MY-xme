@@ -31,8 +31,18 @@ const PROJECTS = [
         floorLabel: "First Floor / Floors 0-13",
     },
     {
-        id: "126",
+        id: "153_L2",
         number: "03",
+        title: "XME Map",
+        imageFile: "153.jpeg",
+        type: "Terrain Map",
+        date: "11/17/2026",
+        buildingCount: "XME estate",
+        floorLabel: "Satellite terrain / Nilai",
+    },
+    {
+        id: "126",
+        number: "04",
         title: "Tradestar Kenya LDT Street View",
         org: "NTS COMPUTERS KENYA",
         imageFile: "126.png",
@@ -160,7 +170,7 @@ export default function ProjectTileLanding() {
                 </div>
                 <div className="project-tile-status">
                     <span aria-hidden="true" />
-                    3 locations online
+                    {PROJECTS.length} locations online
                 </div>
             </header>
 

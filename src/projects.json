@@ -193,6 +193,19 @@
         },
         "branch_name": "NTS Computers SDN BHD",
         "branch_id": "8"
+      },
+      "153_L2": {
+        "children": [],
+        "id": "153_L2",
+        "name": "XME map",
+        "floors": [0],
+        "landing_point": {
+          "x": 274.6,
+          "y": 624.9,
+          "z": 806.9
+        },
+        "branch_name": "NTS Computers SDN BHD",
+        "branch_id": "8"
       }
     },
     "id": "30",
