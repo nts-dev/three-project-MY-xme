@@ -32,27 +32,10 @@ import { publicAssetCssUrl } from "../../../../puzzleUi/publicAssetUrl";
 import SaveFromTemplate from "../../form/SaveFromTemplate.jsx";
 import { isBusinessMetadataField } from "./assetInfoData";
 import SidebarImageUpload from "./SidebarImageUpload.jsx";
+import { getAssetImageUrl, getGalleryCacheKey, imageObject, loadAssetGalleryImages, mediaCache, setGalleryCache } from "./galleryImages";
 
 const leftAnchorUrl = publicAssetCssUrl("left.svg");
 const rightAnchorUrl = publicAssetCssUrl("right.svg");
-
-const isFaultyImageFileName = (fileName) => {
-    const normalized = String(fileName || "").trim().toLowerCase();
-    return !normalized || normalized === "no_image.png" || normalized === "image1.jpeg" || normalized === "image1.jpg";
-};
-
-const getImageHostUrl = (fileName) => {
-    const text = String(fileName || "").trim();
-    const cleanFileName = text.includes("/files/")
-        ? text.split("/files/").pop()
-        : text.replace(/^\.\.\/files\//i, "").replace(/^\/?files\//i, "");
-
-    return `${import.meta.env.VITE_IMAGE_URL}/${String(cleanFileName || "no_image.png").split("/").map(encodeURIComponent).join("/")}`;
-};
-
-const getAssetImageUrl = (fileName) => {
-    return getImageHostUrl(fileName);
-};
 
 const TAB_ITEMS = [
     { value: "spec", label: "Meta", icon: FaEdit },
@@ -61,7 +44,6 @@ const TAB_ITEMS = [
 
 const specGroupsCache = new Map();
 const infoCache = new Map();
-const mediaCache = new Map();
 const filesCache = new Map();
 const logsCache = new Map();
 
@@ -115,29 +97,6 @@ const HIDDEN_META_ROW_NAMES = new Set([
 ]);
 
 const shouldShowMetaRow = (field) => !HIDDEN_META_ROW_NAMES.has(String(field?.name || "").trim().toLowerCase());
-
-const imageObject = (imageList) => {
-    if (!imageList || imageList.length === 0) {
-        const url = getImageHostUrl("no_image.png");
-        return [{ itemImageSrc: url, thumbnailImageSrc: url, alt: "No image available" }];
-    }
-
-    const validImages = imageList.filter((image) => !isFaultyImageFileName(image?.name));
-    if (!validImages.length) {
-        const url = getImageHostUrl("no_image.png");
-        return [{ itemImageSrc: url, thumbnailImageSrc: url, alt: "No image available" }];
-    }
-
-    return validImages.map((image, index) => {
-        const url = getAssetImageUrl(image.name);
-        return {
-            id: image.id,
-            itemImageSrc: url,
-            thumbnailImageSrc: url,
-            alt: `Asset image ${index + 1}`,
-        };
-    });
-};
 
 const buildGroupsFromTemplate = async (selectedAssetId, categoryIndex, fallbackTitle) => {
     if (!selectedAssetId || !categoryIndex) return [];
@@ -891,7 +850,7 @@ const PlaySidebarGallery = ({ assetInfo }) => {
     const selectedAssetId = assetInfo?.instanceId;
     const sceneAsset = sceneAssets?.[selectedAssetId];
     const assetID = assetInfo?.assetID || sceneAsset?.assetID || sceneAsset?.assetId || selectedAssetId;
-    const cacheKey = `${selectedAssetId}:${assetID}`;
+    const cacheKey = getGalleryCacheKey(selectedAssetId, assetID);
     const apiImages = useMemo(() => (
         Array.isArray(assetInfo?.images)
             ? assetInfo.images.filter((image) => {
@@ -904,36 +863,9 @@ const PlaySidebarGallery = ({ assetInfo }) => {
     const fetchImages = useCallback(async ({ force = false } = {}) => {
         const requestId = ++imageRequestRef.current;
         try {
-            setLoading(true);
-            if (!force && apiImages.length && !mediaCache.has(cacheKey)) {
-                mediaCache.set(cacheKey, apiImages);
-                setImages(apiImages);
-                setActiveIndex(0);
-                setLoading(false);
-                return;
-            }
-
-            if (!force) {
-                const cached = mediaCache.get(cacheKey);
-                if (cached) {
-                    setImages(cached);
-                    setActiveIndex(0);
-                    setLoading(false);
-                    return;
-                }
-            }
-
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/getImages`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ assetID, id: selectedAssetId }),
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const allImages = await response.json();
+            if (!mediaCache.has(cacheKey) || force) setLoading(true);
+            const nextImages = await loadAssetGalleryImages({ instanceId: selectedAssetId, assetID, apiImages, force });
             if (requestId !== imageRequestRef.current) return;
-            const imageList = allImages?.images?.length ? allImages.images : allImages?.category_images;
-            const nextImages = imageObject(imageList);
-            mediaCache.set(cacheKey, nextImages);
             setImages(nextImages);
             setActiveIndex(0);
         } catch (error) {
@@ -968,7 +900,7 @@ const PlaySidebarGallery = ({ assetInfo }) => {
                     const url = String(image.itemImageSrc || "").split("?")[0];
                     return url !== imageUrl && !/\/no_image\.png$/i.test(url);
                 })];
-                mediaCache.set(cacheKey, nextImages);
+                setGalleryCache(cacheKey, selectedAssetId, nextImages);
                 setImages(nextImages);
                 setActiveIndex(0);
                 setLoading(false);

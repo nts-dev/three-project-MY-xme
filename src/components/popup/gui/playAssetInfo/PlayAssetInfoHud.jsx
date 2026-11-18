@@ -23,6 +23,7 @@ import {
 import useGame from "../../../../hooks/useGame";
 import PlayAssetInfoFrame from "./PlayAssetInfoFrame";
 import { loadPlayAssetInfo } from "./assetInfoData";
+import { GALLERY_UPDATED_EVENT, firstRealPhotoUrl, getGalleryCacheKey, isPlaceholderImage, loadAssetGalleryImages } from "./galleryImages";
 import { usePlayAssetInfo } from "./usePlayAssetInfo";
 import SystemBuilderPopup from "../systemBuilder/SystemBuilderPopup";
 import { updateBuildingLabelSpriteLogo } from "../../../../threejs/label/BuildingLabelSprite";
@@ -49,10 +50,6 @@ const buildBackendLogoUrl = (logoNameOrUrl) => {
     const encodedPath = cleanName.split("/").map(encodeURIComponent).join("/");
     return apiBase ? `${apiBase}/files/${encodedPath}` : `/files/${encodedPath}`;
 };
-
-const buildImageHostUrl = (fileName = "no_image.png") => (
-    `${import.meta.env.VITE_IMAGE_URL}/${String(fileName || "no_image.png").split("/").map(encodeURIComponent).join("/")}`
-);
 
 const getApiBaseUrl = () => (
     String(import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:4000/api" : "/api"))
@@ -277,6 +274,8 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
     const [whatsAppChat, setWhatsAppChat] = useState(null);
     const [whatsAppMessages, setWhatsAppMessages] = useState([]);
     const [whatsAppStatus, setWhatsAppStatus] = useState("idle");
+    // Same photo as the sidebar gallery: { instanceId, url ("" = none), loading }.
+    const [galleryPhoto, setGalleryPhoto] = useState(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -340,6 +339,39 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
     }, [popup?.info?.instanceId, popupAssetInfo]);
 
     useEffect(() => {
+        let cancelled = false;
+        const instanceId = popup?.info?.instanceId;
+        if (!instanceId) {
+            setGalleryPhoto(null);
+            return undefined;
+        }
+        const loadedInfo = popupAssetInfo && String(popupAssetInfo.instanceId) === String(instanceId) ? popupAssetInfo.data : null;
+        const sceneAsset = sceneAssets?.[instanceId];
+        const assetID = loadedInfo?.assetID || sceneAsset?.assetID || sceneAsset?.assetId || instanceId;
+        const cacheKey = getGalleryCacheKey(instanceId, assetID);
+
+        setGalleryPhoto((current) => (current?.instanceId === String(instanceId) && current.url ? current : { instanceId: String(instanceId), url: "", loading: true }));
+        loadAssetGalleryImages({ instanceId, assetID, apiImages: Array.isArray(loadedInfo?.images) ? loadedInfo.images : [] })
+            .then((images) => {
+                if (!cancelled) setGalleryPhoto({ instanceId: String(instanceId), url: firstRealPhotoUrl(images), loading: false });
+            })
+            .catch(() => {
+                if (!cancelled) setGalleryPhoto({ instanceId: String(instanceId), url: "", loading: false });
+            });
+
+        // Uploads in the sidebar update the shared cache; follow them here.
+        const handleGalleryUpdate = (event) => {
+            if (event?.detail?.cacheKey !== cacheKey) return;
+            setGalleryPhoto({ instanceId: String(instanceId), url: firstRealPhotoUrl(event.detail.images), loading: false });
+        };
+        window.addEventListener(GALLERY_UPDATED_EVENT, handleGalleryUpdate);
+        return () => {
+            cancelled = true;
+            window.removeEventListener(GALLERY_UPDATED_EVENT, handleGalleryUpdate);
+        };
+    }, [popup?.info?.instanceId, popupAssetInfo]);
+
+    useEffect(() => {
         setWhatsAppChat(null);
         setWhatsAppMessages([]);
         setWhatsAppStatus("idle");
@@ -396,7 +428,10 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
     );
     const resolvedPopupInfo = isPopupAssetInfoMatch ? popupAssetInfo.data : null;
     const resolvedPopupPhotoUrl = resolvedPopupInfo?.images?.[0]?.itemImageSrc || resolvedPopupInfo?.imageUrl;
-    const popupPhotoUrl = sidebarPhotoUrl || resolvedPopupPhotoUrl || info.photoUrl || buildImageHostUrl("no_image.png");
+    const matchingGalleryPhoto = galleryPhoto?.instanceId === String(info.instanceId) ? galleryPhoto : null;
+    // The sidebar gallery photo first (uploaded images), then other sources; never the placeholder.
+    const popupPhotoUrl = [matchingGalleryPhoto?.url, sidebarPhotoUrl, resolvedPopupPhotoUrl, info.photoUrl].find((url) => url && !isPlaceholderImage(url)) || "";
+    const popupPhotoLoading = !popupPhotoUrl && Boolean(matchingGalleryPhoto?.loading);
     const displayPhone = findAssetInfoValue(resolvedPopupInfo, ["Telephone", "Phone Number", "Phone", "Contact Number"], info.phone);
     const displayWhatsApp = findAssetInfoValue(resolvedPopupInfo, ["WhatsApp", "Whatsapp", "WhatsApp Number"], info.whatsapp || displayPhone);
     const displayWebsite = findAssetInfoValue(resolvedPopupInfo, ["Website Url", "Website URL", "Website", "Web", "URL"], info.website);
@@ -585,7 +620,13 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
                         src={popupPhotoUrl}
                         alt=""
                     />
-                ) : null}
+                ) : popupPhotoLoading ? (
+                    <div className="play-asset-info__skeleton play-asset-info__skeleton--photo" role="status" aria-label="Loading photo" />
+                ) : (
+                    <div className="play-asset-info__photo-empty">
+                        <span>No photos yet</span>
+                    </div>
+                )}
             </div>
             <dl className="play-building-label-popup__rows">
                 <div><dt>Business Type</dt><dd>{info.businessType}</dd></div>
