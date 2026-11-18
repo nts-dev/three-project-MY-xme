@@ -4,6 +4,11 @@ import {useEffect,  useRef, useState} from "react";
 import * as THREE from "three";
 import {useGame1} from "../../hooks/useGame1";
 import useGame from "../../hooks/useGame";
+import { sceneHasTerrain } from "../terrain/terrainData";
+
+// Run = the walk cycle played this much faster (the model has no run clip).
+// (1/3 of the earlier 2.6: legs at ~1.3x the clip; movement speed is set separately in Ecctrl.)
+const RUN_ANIMATION_RATE = 2.6 / 3;
 
 export default function CharacterModel({charModel}: any) {
     const groupRef: any = useRef<THREE.Group>();
@@ -34,12 +39,19 @@ export default function CharacterModel({charModel}: any) {
     const playerSpeed = useGame((state: any) => state.playerSpeed)
     const setPlayerSpeed = useGame((state: any) => state.setPlayerSpeed)
     const floorValue = useGame((state: any) => state.floorValue) ;
+    // The -1.4 model offset assumes the capsule floats 0.3 m above the ground, but the controller
+    // runs without the float spring, so the feet end up 0.3 m below the ground. Older levels make
+    // up for that in their floors (153_L1: +0.4); terrain scenes stand on the real ground, so
+    // there the model is lifted to put the feet on the capsule bottom.
+    const onTerrain = useGame((state: any) => sceneHasTerrain(state, state.projectID));
+    const modelOffsetY = onTerrain ? -1.1 : -1.4;
 
     const animationSet = {
         idle: "Idle",
         walk: "Walk",
         jump: "Jump",
-        run: "Walk",
+        // Nathan_man.glb has no run clip (Idle, Jump, Walking): "Run" plays the walk clip faster.
+        run: "Run",
         fail: "Fail",
         recover: "Recover",
         climb: "Climb"
@@ -61,7 +73,9 @@ export default function CharacterModel({charModel}: any) {
     useEffect(() => {
         const speed = 1 + (playerSpeed / 100) *5
        
-        const action: any = actions[curAnimation ? curAnimation : animationSet.idle];
+        const isRun = curAnimation === animationSet.run;
+        const clipName = isRun && !actions[animationSet.run] ? animationSet.walk : (curAnimation || animationSet.idle);
+        const action: any = actions[clipName];
 
        if(action==undefined)
            return
@@ -92,10 +106,11 @@ export default function CharacterModel({charModel}: any) {
         }
         else {
             //   console.log(speed)
+            const rate = isRun ? speed * RUN_ANIMATION_RATE : speed;
             action
                 .reset()
                 .fadeIn(0.2)
-                .setDuration(action.getClip().duration/speed )
+                .setDuration(action.getClip().duration / rate)
                 .play();
         }
         // When any action is clamp and finished reset animation
@@ -118,7 +133,7 @@ export default function CharacterModel({charModel}: any) {
     return (
         <>d
             <group ref={groupRef} key={projectID} >
-                <group name="Scene"  position={[0, -1.4 , 0]} >
+                <group name="Scene"  position={[0, modelOffsetY, 0]} >
                     <group key={"char"} name="KayKit_Animated_Character">
                         <primitive object={scene} position-y={charYPosOffset}/>
                     </group>

@@ -20,8 +20,8 @@ const JoystickComponents = (props: EcctrlJoystickProps) => {
     const joystickMovementVec2 = useMemo(() => new THREE.Vector2(), [])
 
     const [windowSize, setWindowSize] = useState({ innerHeight, innerWidth })
-    const pressButton1 = useJoystickControls((state:any) => state.pressButton1)
-    const releaseAllButtons = useJoystickControls((state: any) => state.releaseAllButtons)
+    const holdButton1 = useJoystickControls((state:any) => state.holdButton1)
+    const releaseButton1 = useJoystickControls((state: any) => state.releaseButton1)
     const start = useInterface((state) => state.start)
     /**
      * Animation preset
@@ -74,7 +74,8 @@ const JoystickComponents = (props: EcctrlJoystickProps) => {
         )
         const joystickAng = touch1MovementVec2.angle()
         joystickMovementVec2.set(joystickDis * Math.cos(joystickAng), joystickDis * Math.sin(joystickAng))
-        const runState = joystickDis > joystickMaxDisRef.current * 0.7
+        // Running is the Walk/Run button's toggle (curRunToggle), not how far the stick is pushed.
+        const runState = false
 
         // Apply animations
         api.start({
@@ -109,9 +110,9 @@ const JoystickComponents = (props: EcctrlJoystickProps) => {
 
     const pressBtn1 = ()=>{
         start()
-        pressButton1()
-
-        setTimeout(()=>releaseAllButtons(),500)
+        // Double tap on the joystick: one jump.
+        holdButton1()
+        setTimeout(() => releaseButton1(), 300)
 
     }
 
@@ -171,7 +172,8 @@ const ButtonComponents = ({ buttonNumber = 1, ...props }: EcctrlJoystickProps) =
     /**
      * Button component materials
      */
-    const curButton1Pressed = useJoystickControls((state: any) => state.curButton1Pressed)
+    // Button 1 = Jump (momentary), button 2 = Walk/Run toggle (stays pressed while running).
+    const curRunToggle = useJoystickControls((state: any) => state.curRunToggle)
     const buttonBaseMaterial = useMemo(() => new THREE.MeshNormalMaterial({ transparent: true, opacity: 0.3 }), [])
     const buttonTop1Material = useMemo(() => new THREE.MeshNormalMaterial({ transparent: true, opacity: 0.5 }), [])
     const buttonTop2Material = useMemo(() => new THREE.MeshNormalMaterial({ transparent: true, opacity: 0.5 }), [])
@@ -205,8 +207,9 @@ const ButtonComponents = ({ buttonNumber = 1, ...props }: EcctrlJoystickProps) =
     /**
      * Button store setup
      */
-    const pressButton1 = useJoystickControls((state:any) => state.pressButton1)
-    const pressButton2 = useJoystickControls((state: any) => state.pressButton2)
+    const holdButton1 = useJoystickControls((state:any) => state.holdButton1)
+    const releaseButton1 = useJoystickControls((state: any) => state.releaseButton1)
+    const toggleRun = useJoystickControls((state: any) => state.toggleRun)
     const pressButton3 = useJoystickControls((state: any) => state.pressButton3)
     const pressButton4 = useJoystickControls((state: any) => state.pressButton4)
     const pressButton5 = useJoystickControls((state: any) => state.pressButton5)
@@ -216,18 +219,15 @@ const ButtonComponents = ({ buttonNumber = 1, ...props }: EcctrlJoystickProps) =
     const onPointerDown = (number: number) => {
         switch (number) {
             case 1:
-                pressButton1()
+                holdButton1()
                 api.start({
                     buttonTop1BaseScaleY: 0.5,
                     buttonTop1BaseScaleXAndZ: 1.15,
                 })
                 break;
             case 2:
-                pressButton2()
-                api.start({
-                    buttonTop2BaseScaleY: 0.5,
-                    buttonTop2BaseScaleXAndZ: 1.15,
-                })
+                // Visual follows curRunToggle (effect below).
+                toggleRun()
                 break;
             case 3:
                 pressButton3()
@@ -258,11 +258,10 @@ const ButtonComponents = ({ buttonNumber = 1, ...props }: EcctrlJoystickProps) =
     // Pointer up function
     const onPointerUp = () => {
         releaseAllButtons();
+        releaseButton1();
         api.start({
-            buttonTop1BaseScaleY: curButton1Pressed ? 0.5 : 1,
-            buttonTop1BaseScaleXAndZ: curButton1Pressed ? 1.15 : 1,
-            buttonTop2BaseScaleY: 1,
-            buttonTop2BaseScaleXAndZ: 1,
+            buttonTop1BaseScaleY: 1,
+            buttonTop1BaseScaleXAndZ: 1,
             buttonTop3BaseScaleY: 1,
             buttonTop3BaseScaleXAndZ: 1,
             buttonTop4BaseScaleY: 1,
@@ -282,10 +281,10 @@ const ButtonComponents = ({ buttonNumber = 1, ...props }: EcctrlJoystickProps) =
 
     useEffect(() => {
         api.start({
-            buttonTop1BaseScaleY: curButton1Pressed ? 0.5 : 1,
-            buttonTop1BaseScaleXAndZ: curButton1Pressed ? 1.15 : 1,
+            buttonTop2BaseScaleY: curRunToggle ? 0.5 : 1,
+            buttonTop2BaseScaleXAndZ: curRunToggle ? 1.15 : 1,
         });
-    }, [api, curButton1Pressed]);
+    }, [api, curRunToggle]);
 
     return (
         <Suspense fallback="null">
@@ -345,6 +344,33 @@ const ButtonComponents = ({ buttonNumber = 1, ...props }: EcctrlJoystickProps) =
                 <mesh geometry={buttonTop5Geo} material={buttonTop5Material} position={[0, -0.3, 0]} {...props.buttonTop5Props} />
             </animated.group>}
         </Suspense>
+    )
+}
+
+/**
+ * Captions on the two default buttons (120 px box, zoom 20: 1 unit = 20 px from the centre):
+ * button 1 at (2, 1) = Jump, button 2 at (0.5, -1.3) = Walk/Run toggle.
+ */
+const buttonLabelStyle = (left: number, top: number, active = false): React.CSSProperties => ({
+    position: "absolute",
+    left,
+    top,
+    transform: "translate(-50%, -50%)",
+    pointerEvents: "none",
+    color: active ? "#7dfce8" : "#ffffff",
+    font: "800 9px/1 system-ui, sans-serif",
+    letterSpacing: "0.04em",
+    textShadow: "0 1px 2px rgba(0, 0, 0, 0.75)",
+    whiteSpace: "nowrap",
+})
+
+const ButtonLabels = () => {
+    const running = useJoystickControls((state: any) => state.curRunToggle)
+    return (
+        <>
+            <span style={buttonLabelStyle(100, 40)}>JUMP</span>
+            <span style={buttonLabelStyle(70, 86, running)}>{running ? "RUN" : "WALK"}</span>
+        </>
     )
 }
 
@@ -413,6 +439,7 @@ export const EcctrlJoystick = forwardRef<HTMLDivElement, EcctrlJoystickProps>((p
                         <ButtonComponents {...props} />
                         {props.children}
                     </Canvas>
+                    {props.buttonNumber === 2 && !props.buttonGroup1Position && !props.buttonGroup2Position && <ButtonLabels />}
                 </div>
             }
         </div>

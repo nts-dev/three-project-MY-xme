@@ -1,9 +1,15 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 import { FaEye, FaLocationArrow, FaTag, FaEllipsisH, FaVideo, FaRobot, FaCamera, FaSatelliteDish } from "react-icons/fa";
 import useGame from "../../../../hooks/useGame";
 import { publicAssetUrl } from "../../../../puzzleUi/publicAssetUrl";
 import VrViewButton from "./VrViewButton";
 import RobotTrialControls from "./RobotTrialControls";
+import "./PlayMobileSplit.css";
+
+// Phones (see PlayMobileSplit.css): while the map is navigated freely, the map takes the top 2/3
+// of the screen and the bottom 1/3 shows the details popup, or these buttons when it is closed.
+const MOBILE_SPLIT_CLASS = "play-mobile-split";
+const MOBILE_WALK_CLASS = "play-mobile-walk";
 
 const characterIconUrl = publicAssetUrl("character.svg");
 const freeCameraIconUrl = publicAssetUrl("freecamera.svg");
@@ -51,6 +57,14 @@ export default function PlayModeViewControls() {
     const setCameraRealtimeFollow = useGame((state) => state.setCameraRealtimeFollow);
 
     const activeView = firstPerson ? "firstPerson" : character ? "character" : "orbit";
+
+    // Character / first-person views keep the full screen (their joystick sits at the bottom) and
+    // get their own compact layout.
+    useEffect(() => {
+        const className = activeView === "orbit" ? MOBILE_SPLIT_CLASS : MOBILE_WALK_CLASS;
+        document.body.classList.add(className);
+        return () => document.body.classList.remove(className);
+    }, [activeView]);
 
     const setViewMode = useCallback(
         (mode) => {

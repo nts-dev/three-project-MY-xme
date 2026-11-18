@@ -36,6 +36,8 @@ import PackageRuntimeBridge from "./packaging/PackageRuntimeBridge.jsx";
 import ProductsTreeGrid from "./popup/sideBar/ProductsTreeGrid";
 import ZoomSlider from "../threejs/hud/camera/ZoomSlider";
 import HomeViewButton from "../threejs/hud/camera/HomeViewButton";
+import TerrainGroundCollider from "../threejs/terrain/TerrainGroundCollider";
+import { sceneHasTerrain } from "../threejs/terrain/terrainData";
 import ViewportMouseCoordinates from "./ViewportMouseCoordinates.jsx";
 import PlayerHeightSlider from "../threejs/hud/playerControls/PlayerHeightSlider";
 import PlayerViewAngleSlider from "../threejs/hud/playerControls/PlayerViewAngleSlider";
@@ -237,6 +239,7 @@ export default function ThreeView() {
     const packageControl = useGame((state) => state.packageControl);
     const isPackage = useGame((state) => state.isPackage);
     const isMobile = useGame((state) => state.isMobile);
+    const hasTerrain = useGame((state) => sceneHasTerrain(state, state.projectID));
     const setIsMobile = useGame((state) => state.setIsMobile);
     const isGame = useGame((state) => state.isGame);
     const setIsGame = useGame((state) => state.setIsGame);
@@ -838,7 +841,8 @@ export default function ThreeView() {
                                                     orbitControls={orbitControls}
                                                 />}
                                                 {/* <AIChaserDebug enabled={character || firstPerson} /> */}
-                                                <Floor />
+                                                {/* Terrain scenes: physics ground follows the terrain instead of a flat slab. */}
+                                                {hasTerrain ? <TerrainGroundCollider /> : <Floor />}
 
                                     
                                                  <InstanceExperience key={`instanceexperience-${projectId}`} />

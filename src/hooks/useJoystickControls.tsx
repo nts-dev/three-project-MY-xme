@@ -16,6 +16,8 @@ export const useJoystickControls = /* @__PURE__ */ create<State>()(
             curButton3Pressed: false as boolean,
             curButton4Pressed: false as boolean,
             curButton5Pressed: false as boolean,
+            // Touch run toggle (EcctrlJoyStick Walk/Run button): stays on until tapped again.
+            curRunToggle: false as boolean,
 
             setJoystick: (
                 joystickDis: number,
@@ -50,6 +52,20 @@ export const useJoystickControls = /* @__PURE__ */ create<State>()(
                         curButton1Pressed: !state.curButton1Pressed,
                     };
                 });
+            },
+
+            // Jump as a momentary press: held while the finger is down, released on lift
+            // (pressButton1 toggles, which kept the character jumping until a second tap).
+            holdButton1: () => {
+                set((state) => (state.curButton1Pressed ? {} : { curButton1Pressed: true }));
+            },
+
+            releaseButton1: () => {
+                set((state) => (state.curButton1Pressed ? { curButton1Pressed: false } : {}));
+            },
+
+            toggleRun: () => {
+                set((state) => ({ curRunToggle: !state.curRunToggle }));
             },
 
             pressButton2: () => {
@@ -132,6 +148,10 @@ type State = {
     curButton3Pressed: boolean;
     curButton4Pressed: boolean;
     curButton5Pressed: boolean;
+    curRunToggle: boolean;
+    holdButton1: () => void;
+    releaseButton1: () => void;
+    toggleRun: () => void;
     setJoystick: (
         joystickDis: number,
         joystickAng: number,

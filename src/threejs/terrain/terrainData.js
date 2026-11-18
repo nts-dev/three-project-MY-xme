@@ -70,6 +70,12 @@ export function createTerrain(manifest, tiles) {
 
 let activeTerrain = null;
 
+/** Store selector: does the loaded scene JSON of `projectId` define terrain? useGame((s) => sceneHasTerrain(s, id)) */
+export function sceneHasTerrain(state, projectId) {
+    const key = (value) => String(value ?? "").trim().toUpperCase();
+    return Boolean(state?.projectSceneData?.terrain) && key(state.projectSceneKey) === key(projectId);
+}
+
 export function setActiveTerrain(terrain) {
     activeTerrain = terrain;
 }

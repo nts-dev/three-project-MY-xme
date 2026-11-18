@@ -15,9 +15,13 @@ import {emitSocketEvent} from "../../socket";
 import useInterface from "../../hooks/stores/useInterface";
 import PlayerLabel from "./PlayerLabel";
 import {createGameplayRaycast} from "./gameplayRaycast";
+import {getProjectSpawn} from "./projectSpawn";
 // import {useFollowCam} from "../../hooks/useFollowCam";
 
 const PROJECT_153_L1_RUN_SPEED_MULTIPLIER = 3;
+const TOUCH_RUN_SPEED_MULTIPLIER = 5;
+const PC_RUN_SPEED_MULTIPLIER = 3;
+const WALK_SPEED_MULTIPLIER = 1.5; // walking only; run speeds above are unchanged
 const HORIZONTAL_MOVE_ACCELERATION = 14;
 const HORIZONTAL_MOVE_DECELERATION = 20;
 const HORIZONTAL_MOVE_MAX_ACCEL = 24;
@@ -296,7 +300,6 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
      * Joystick controls setup
      */
     const getJoystickValues = useJoystickControls(state => state.getJoystickValues)
-    const pressButton1 = useJoystickControls((state) => state.pressButton1)
     const pressButton2 = useJoystickControls((state) => state.pressButton2)
     const pressButton3 = useJoystickControls((state) => state.pressButton3)
     const pressButton4 = useJoystickControls((state) => state.pressButton4)
@@ -357,9 +360,11 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
         lastGamepadButtonActionRef.current = nextAction;
 
         // Gamepad trigger the EcctrlJoystick buttons to play animations
+        // Jump is held only while its button is (pressButton1 would toggle it on until pressed again).
+        if (nextAction !== "jump") useJoystickControls.getState().releaseButton1()
         if (nextAction === "action4") pressButton2()
         else if (nextAction === "action3") pressButton4()
-        else if (nextAction === "jump") pressButton1()
+        else if (nextAction === "jump") useJoystickControls.getState().holdButton1()
         else if (nextAction === "action2") pressButton3()
         else if (nextAction === "action1") pressButton5()
         else releaseAllButtons()
@@ -550,6 +555,9 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     const cameraRealtimeTelemetryResetTick = useGame((state: any) => state.cameraRealtimeTelemetryResetTick)
     const setCameraRealtimeTelemetry = useGame((state: any) => state.setCameraRealtimeTelemetry)
     const projectID = useGame((state: any) => state.projectID)
+    // Per-project start point (e.g. 153_L2: in front of NTS Computers), worked out when the
+    // character appears; null = the default spot.
+    const projectSpawn = useMemo(() => getProjectSpawn(projectID), [projectID])
     const disableSceneCollision = String(projectID) === "153_L1";
     const {clientId, dateTime} = client ? JSON.parse(client) : {clientId: "custom_person", dateTime: 'now'}
     const setCharacterIsInWater: any = useGame((state: any) => state.setCharacterIsInWater)
@@ -583,9 +591,10 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
 
     useEffect(() => {
 
-        if (curAnimation === 'Walk' && !characterIsInWater) {
+        const isStepping = curAnimation === 'Walk' || curAnimation === 'Run';
+        if (isStepping && !characterIsInWater) {
             setSoundUrl('running.mp3')
-        } else if (curAnimation === 'Walk' && characterIsInWater) {
+        } else if (isStepping && characterIsInWater) {
             setSoundUrl('walking-in-the-water.mp3')
         } else if (curAnimation === 'Idle') {
             setSoundUrl('')
@@ -722,9 +731,10 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
         player.position.x = currentPos.x;
         player.position.y = currentPos.y;
         player.position.z = currentPos.z;
-        player.currentAnimation = curAnimation;
+        // "Run" is the walk clip played faster locally; other players' models only know "Walk".
+        player.currentAnimation = curAnimation === 'Run' ? 'Walk' : curAnimation;
         player.angle = THREE.MathUtils.radToDeg(modelEuler.y);
-        player.prevAnimation = prevAnimation;
+        player.prevAnimation = prevAnimation === 'Run' ? 'Walk' : prevAnimation;
         player.direction = modelEuler.y;
         player.speed = playerSpeed;
         player.dateTime = dateTime;
@@ -812,7 +822,9 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
         }
 
         const levelRunSpeedMultiplier = String(projectID) === "153_L1" || String(projectID) === "33_L0" ? PROJECT_153_L1_RUN_SPEED_MULTIPLIER : 1;
-        const speedMult = run ? sprintMult * levelRunSpeedMultiplier : 1;
+        // Phones: the touch Walk/Run toggle runs 5x the base run; PC (keyboard Shift / gamepad) 3x.
+        const inputRunMultiplier = useJoystickControls.getState().curRunToggle ? TOUCH_RUN_SPEED_MULTIPLIER : PC_RUN_SPEED_MULTIPLIER;
+        const speedMult = run ? sprintMult * levelRunSpeedMultiplier * inputRunMultiplier : WALK_SPEED_MULTIPLIER;
         const targetSpeed = maxVelLimit * speedMult;
         const rotationSmoothing = 3.5 * TURN_RESPONSE_MULTIPLIER * speedRotMult;
         const safeDelta = Math.max(delta, 1 / 240);
@@ -1018,7 +1030,10 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
 
     useEffect(() => {
         // Initialize character facing direction
-        modelEuler.y = characterInitDir
+        modelEuler.y = projectSpawn?.yaw ?? characterInitDir
+        // The model follows the indicator, which otherwise only turns while steering: start it
+        // facing the same way (e.g. towards the building the project starts at).
+        characterModelIndicator.quaternion.setFromEuler(modelEuler)
         // Initialize camera facing direction
         pivot.rotation.x = camInitDir.x
         pivot.rotation.y = camInitDir.y
@@ -1328,7 +1343,8 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
         const joystickState = useJoystickControls.getState();
         const joystickDis = joystickState.curJoystickDis;
         const joystickAng = joystickState.curJoystickAng;
-        const runState = joystickState.curRunState;
+        // Gamepad stick pushed far (curRunState) or the touch Walk/Run toggle.
+        const runState = joystickState.curRunState || joystickState.curRunToggle;
         const button1Pressed = joystickState.curButton1Pressed;
         const hasKeyboardTurnInput = leftward || rightward;
         const hasGamepadTurnInput = gamepadKeys.leftward || gamepadKeys.rightward;
@@ -1907,7 +1923,7 @@ if(!firstPerson && !character) return null
             onCollisionExit={handleOnCharacterIntersectionExit}
             onCollisionEnter={handleOnCharacterIntersectionEnter}
             userData={{canJump: false, name: 'avatar'}}
-            position={[20,0, -60]}
+            position={projectSpawn?.position ?? [20,0, -60]}
             {...props}
         >
             {/* <PlayerLabel

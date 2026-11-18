@@ -22,6 +22,7 @@ function showAttribution(canvas, text) {
     const host = canvas?.parentElement;
     if (!host || !text) return () => {};
     const element = document.createElement("div");
+    element.className = "terrain-attribution";
     element.textContent = text;
     Object.assign(element.style, {
         position: "absolute",
@@ -90,7 +91,14 @@ function WorldTerrainLayer({ configKey }) {
                     maxAnisotropy: gl.capabilities.getMaxAnisotropy(),
                     ...(config.options || {}),
                 });
-                setActiveTerrain({ heightAt: (x, z) => world.heightAt(x, z), contains: (x, z) => world.heightAt(x, z) !== null });
+                // `world` / `getBridges` give the physics ground (TerrainGroundCollider) the loaded
+                // tiles and the raised bridge decks to build colliders from.
+                setActiveTerrain({
+                    heightAt: (x, z) => world.heightAt(x, z),
+                    contains: (x, z) => world.heightAt(x, z) !== null,
+                    world,
+                    getBridges: () => bridges?.group ?? null,
+                });
                 if (regions.some((region) => region.bridges?.length)) {
                     bridges = buildBridges({
                         regions,
