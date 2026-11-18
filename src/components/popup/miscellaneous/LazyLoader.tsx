@@ -1,30 +1,22 @@
-import { BlockUI } from 'primereact/blockui';
-
 import useGame from "../../../hooks/useGame";
 
-
+/**
+ * Busy indicator for the global `lazy` flag. It no longer blocks the screen: background work
+ * (the first data import, scene loads) shows nothing, and actions that set a message
+ * (setLazyMsg, e.g. "Saving...") show a small non-blocking status pill in the corner.
+ */
 export default function LazyLoader() {
-    const lazy: boolean = useGame((state: any) => state.lazy)
-    const lazyMsg: string = useGame((state: any) => state.lazyMsg)
+    const lazy: boolean = useGame((state: any) => state.lazy);
+    const lazyMsg: string = useGame((state: any) => state.lazyMsg);
 
+    if (!lazy || !lazyMsg) {
+        return null;
+    }
 
-
-   
-    // if (isPuzzleGame) {
-    //     return null;
-    // }
-
-    // return (<BlockUI blocked={lazy} template={lazyMsg} style={{ fontSize: '2rem', color: '#343434' }} fullScreen />)
     return (
-        <BlockUI
-            blocked={lazy}
-            template={(
-                <div className="app-lazy-loader">
-                    <i className="pi pi-spin pi-spinner" aria-hidden="true"></i>
-                    <span>{lazyMsg || 'Please wait...'}</span>
-                </div>
-            )}
-            fullScreen
-        />
-    )
+        <div className="app-busy-pill" role="status" aria-live="polite">
+            <span className="app-busy-pill__spinner" aria-hidden="true" />
+            <span>{lazyMsg}</span>
+        </div>
+    );
 }

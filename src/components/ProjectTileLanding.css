@@ -208,6 +208,9 @@
 }
 
 .project-tile-image {
+    /* Hide the alt text the browser draws while the photo is still downloading. */
+    color: transparent;
+    font-size: 0;
     display: block;
     width: 100%;
     height: 100%;

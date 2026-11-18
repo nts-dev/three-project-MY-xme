@@ -4137,3 +4137,41 @@ MuiButton-textSizeMedium{
     left: 35px !important; */
     
 }
+
+/* Non-blocking busy indicator (LazyLoader.tsx), shown only for named actions like "Saving...". */
+.app-busy-pill {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 1000020;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    background: rgba(15, 21, 28, 0.94);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    color: #eef2f6;
+    font: 500 13px Inter, "Segoe UI", Roboto, Arial, sans-serif;
+    pointer-events: none;
+    animation: app-busy-pill-in 160ms ease-out;
+}
+
+.app-busy-pill__spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.12);
+    border-top-color: #2dd4bf;
+    border-radius: 50%;
+    animation: app-busy-pill-spin 800ms linear infinite;
+}
+
+@keyframes app-busy-pill-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes app-busy-pill-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
