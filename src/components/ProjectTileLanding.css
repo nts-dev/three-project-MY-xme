@@ -1,321 +1,335 @@
 .project-tile-landing {
+    --landing-bg: #0b1016;
+    --landing-surface: #121922;
+    --landing-surface-raised: #17202b;
+    --landing-border: rgba(255, 255, 255, 0.08);
+    --landing-border-strong: rgba(255, 255, 255, 0.16);
+    --landing-text: #eef2f6;
+    --landing-text-muted: #8b97a6;
+    --landing-text-subtle: #5f6b7a;
+    --landing-accent: #2dd4bf;
+    --landing-accent-strong: #14b8a6;
+
     position: fixed;
     inset: 0;
     z-index: 20;
     min-height: 100vh;
     overflow: auto;
     background:
-        radial-gradient(circle at 10% -18%, rgba(18, 116, 92, 0.2), transparent 34%),
-        radial-gradient(circle at 90% 10%, rgba(16, 87, 78, 0.18), transparent 32%),
-        linear-gradient(180deg, #07140f 0%, #020806 100%);
-    color: #f2fff9;
-    font-family: Inter, Roboto, Arial, sans-serif;
+        radial-gradient(1200px 500px at 50% -260px, rgba(45, 212, 191, 0.08), transparent 70%),
+        var(--landing-bg);
+    color: var(--landing-text);
+    font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
 }
 
-.project-tile-landing::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    background:
-        linear-gradient(90deg, rgba(68, 255, 218, 0.03) 1px, transparent 1px),
-        linear-gradient(0deg, rgba(68, 255, 218, 0.025) 1px, transparent 1px);
-    background-size: 42px 42px;
-    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.95), transparent 84%);
-}
-
-.project-tile-landing::after {
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    background:
-        linear-gradient(180deg, rgba(1, 9, 6, 0) 55%, rgba(4, 24, 17, 0.7) 100%),
-        linear-gradient(120deg, rgba(47, 255, 215, 0.06), transparent 42%);
-}
-
+/* Header */
 .project-tile-nav {
-    position: relative;
+    position: sticky;
+    top: 0;
     z-index: 2;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-height: 56px;
-    padding: 0 22px;
-    border-bottom: 1px solid rgba(115, 255, 217, 0.12);
-    background: rgba(4, 20, 14, 0.78);
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
-    backdrop-filter: blur(18px);
+    height: 64px;
+    padding: 0 32px;
+    border-bottom: 1px solid var(--landing-border);
+    background: rgba(11, 16, 22, 0.82);
+    backdrop-filter: blur(14px);
 }
 
 .project-tile-brand {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 12px;
     min-width: 0;
 }
 
-.project-tile-brand strong {
-    color: #ffffff;
-    font-size: 14px;
+.project-tile-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--landing-accent), #0e7490);
+    color: #04201c;
+    font-size: 15px;
     font-weight: 800;
-    line-height: 1;
 }
 
-.project-tile-brand span {
-    color: rgba(198, 224, 214, 0.48);
-    font-size: 11px;
-    font-weight: 500;
+.project-tile-brand div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.project-tile-brand strong {
+    color: var(--landing-text);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.project-tile-brand div span {
+    color: var(--landing-text-muted);
+    font-size: 12px;
+    line-height: 1.2;
 }
 
 .project-tile-status {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    min-height: 24px;
-    gap: 7px;
-    padding: 0 12px;
-    border: 1px solid rgba(30, 222, 136, 0.36);
-    border-radius: 999px;
-    background: rgba(10, 49, 30, 0.48);
-    color: #73ffba;
-    font-size: 11px;
-    font-weight: 700;
+    gap: 8px;
+    color: var(--landing-text-muted);
+    font-size: 12px;
+    font-weight: 500;
     white-space: nowrap;
 }
 
 .project-tile-status span {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    background: #2df48e;
-    box-shadow: 0 0 14px rgba(45, 244, 142, 0.9);
+    background: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
 }
 
+/* Page */
 .project-tile-main {
     position: relative;
     z-index: 1;
-    width: 100%;
-    height: calc(100vh - 56px);
-    padding: 24px 28px 26px;
-    display: flex;
-    flex-direction: column;
-    min-height: 640px;
+    max-width: 1920px;
+    margin: 0 auto;
+    padding: clamp(28px, 4vh, 56px) clamp(16px, 3vw, 56px) 56px;
     box-sizing: border-box;
 }
 
 .project-tile-title {
-    flex: 0 0 auto;
-    margin-bottom: 14px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 32px;
 }
 
 .project-tile-title p {
-    margin: 0 0 8px;
-    color: #37ffe2;
-    font-size: 10px;
-    font-weight: 900;
-    letter-spacing: 1.6px;
+    margin: 0 0 10px;
+    color: var(--landing-accent);
+    font-size: 13px;
+    font-weight: 600;
 }
 
 .project-tile-title h1 {
     margin: 0;
-    color: #ffffff;
-    font-size: 31px;
-    font-weight: 900;
-    line-height: 1.05;
-    letter-spacing: 0;
+    color: var(--landing-text);
+    font-size: clamp(26px, 2.2vw, 40px);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
 }
 
-.project-tile-title span {
+.project-tile-title div > span {
     display: block;
-    margin-top: 8px;
-    color: rgba(210, 231, 223, 0.58);
-    font-size: 14px;
+    margin-top: 10px;
+    color: var(--landing-text-muted);
+    font-size: 15px;
+    line-height: 1.5;
 }
 
+.project-tile-count {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 10px 16px;
+    border: 1px solid var(--landing-border);
+    border-radius: 10px;
+    background: var(--landing-surface);
+    white-space: nowrap;
+}
+
+.project-tile-count strong {
+    color: var(--landing-text);
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.project-tile-count span {
+    color: var(--landing-text-muted);
+    font-size: 13px;
+}
+
+/* Cards */
 .project-tile-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 18px;
-    flex: 1 1 auto;
-    min-height: 0;
+    /* Tiles grow with the window: as many columns of at least 380px as fit, filling the full width. */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+    gap: clamp(16px, 1.6vw, 32px);
 }
 
 .project-tile-card {
-    position: relative;
+    display: flex;
+    flex-direction: column;
     min-width: 0;
-    height: 100%;
-    min-height: 0;
     overflow: hidden;
-    border: 1px solid rgba(136, 255, 220, 0.18);
+    border: 1px solid var(--landing-border);
     border-radius: 14px;
-    background: #08130f;
-    box-shadow:
-        0 28px 90px rgba(0, 0, 0, 0.44),
-        0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+    background: var(--landing-surface);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
     cursor: pointer;
-    isolation: isolate;
-    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
 .project-tile-card:hover,
 .project-tile-card:focus-visible {
-    border-color: rgba(79, 255, 226, 0.42);
-    box-shadow:
-        0 34px 100px rgba(0, 0, 0, 0.52),
-        0 0 0 1px rgba(50, 255, 218, 0.16) inset;
+    border-color: var(--landing-border-strong);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.38);
+    transform: translateY(-3px);
     outline: none;
-    transform: translateY(-2px);
+}
+
+.project-tile-card:focus-visible {
+    box-shadow: 0 0 0 2px var(--landing-accent), 0 18px 40px rgba(0, 0, 0, 0.38);
+}
+
+.project-tile-media {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    background: var(--landing-surface-raised);
+}
+
+.project-tile-media::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.18) 0%, transparent 35%);
+    pointer-events: none;
 }
 
 .project-tile-image {
-    position: absolute;
-    inset: 0;
-    z-index: -2;
+    display: block;
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transform: scale(1.012);
-    transition: transform 260ms ease, filter 260ms ease;
+    transition: transform 320ms ease;
 }
 
 .project-tile-card:hover .project-tile-image,
 .project-tile-card:focus-visible .project-tile-image {
-    filter: saturate(1.08);
-    transform: scale(1.045);
-}
-
-.project-tile-card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    background:
-        linear-gradient(180deg, rgba(5, 14, 11, 0.62) 0%, rgba(4, 14, 10, 0.22) 38%, rgba(2, 9, 7, 0.9) 100%),
-        linear-gradient(90deg, rgba(0, 62, 55, 0.48), rgba(3, 15, 12, 0.18) 58%, rgba(4, 15, 12, 0.56));
-}
-
-.project-tile-card::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    border-radius: inherit;
-    background:
-        radial-gradient(circle at 50% 70%, rgba(47, 255, 220, 0.12), transparent 32%),
-        linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.2));
-    pointer-events: none;
-}
-
-.project-tile-number {
-    position: absolute;
-    top: 28px;
-    left: 24px;
-    color: rgba(68, 255, 218, 0.08);
-    font-size: 86px;
-    font-weight: 900;
-    line-height: 1;
+    transform: scale(1.04);
 }
 
 .project-tile-type {
     position: absolute;
-    top: 24px;
-    right: 22px;
+    top: 12px;
+    left: 12px;
+    z-index: 1;
     display: inline-flex;
     align-items: center;
-    min-height: 24px;
-    padding: 0 12px;
-    border: 1px solid rgba(69, 255, 229, 0.36);
-    border-radius: 999px;
-    background: rgba(44, 211, 207, 0.24);
-    color: #93fff0;
-    font-size: 11px;
-    font-weight: 800;
+    height: clamp(24px, 1.8vw, 32px);
+    padding: 0 clamp(10px, 0.8vw, 14px);
+    border-radius: 6px;
+    background: rgba(11, 16, 22, 0.78);
+    color: var(--landing-text);
+    font-size: clamp(12px, 0.8vw, 14px);
+    font-weight: 600;
+    backdrop-filter: blur(6px);
 }
 
 .project-tile-content {
-    position: absolute;
-    right: 28px;
-    bottom: 22px;
-    left: 28px;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    padding: clamp(18px, 1.4vw, 28px);
 }
 
 .project-tile-org {
     margin: 0 0 6px;
-    color: #42ffe2;
-    font-size: 10px;
-    font-weight: 900;
-    letter-spacing: 0.8px;
+    color: var(--landing-text-subtle);
+    font-size: clamp(12px, 0.8vw, 14px);
+    font-weight: 500;
 }
 
 .project-tile-content h2 {
-    margin: 0 0 10px;
-    color: #ffffff;
-    font-size: 28px;
-    font-weight: 900;
-    line-height: 1.08;
-    letter-spacing: 0;
-    text-shadow: 0 4px 18px rgba(0, 0, 0, 0.48);
+    margin: 0 0 8px;
+    color: var(--landing-text);
+    font-size: clamp(18px, 1.35vw, 26px);
+    font-weight: 650;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
 }
 
 .project-tile-location,
-.project-tile-meta {
+.project-tile-meta span {
     display: flex;
     align-items: center;
-    gap: 8px;
-    color: rgba(220, 239, 231, 0.62);
-    font-size: 12px;
-    font-weight: 600;
-}
-
-.project-tile-location {
-    margin-bottom: 12px;
+    gap: 6px;
+    color: var(--landing-text-muted);
+    font-size: clamp(13px, 0.9vw, 16px);
+    line-height: 1.4;
 }
 
 .project-tile-location svg,
 .project-tile-meta svg {
-    color: rgba(95, 255, 228, 0.72);
-    font-size: 13px;
+    flex: 0 0 auto;
+    color: var(--landing-text-subtle);
+    font-size: 15px;
+}
+
+.project-tile-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid var(--landing-border);
+}
+
+.project-tile-location {
+    margin-bottom: 16px;
 }
 
 .project-tile-meta {
+    display: flex;
     flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 22px;
+    gap: 6px 14px;
+    min-width: 0;
 }
 
 .project-tile-meta span {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
+    font-size: clamp(12px, 0.8vw, 15px);
 }
 
 .project-tile-open-button {
     display: inline-flex;
+    flex: 0 0 auto;
     align-items: center;
-    justify-content: center;
-    min-width: 146px;
-    height: 42px;
-    gap: 10px;
-    border: 1px solid rgba(50, 255, 222, 0.55);
+    gap: 6px;
+    height: clamp(34px, 2.4vw, 44px);
+    padding: 0 clamp(14px, 1.1vw, 20px);
+    border: 0;
     border-radius: 8px;
-    background: rgba(4, 88, 80, 0.76);
-    color: #dffff9;
-    font-size: 13px;
-    font-weight: 900;
-    line-height: 1;
-    box-shadow:
-        0 15px 36px rgba(0, 0, 0, 0.32),
-        0 0 22px rgba(39, 255, 223, 0.12) inset;
+    background: var(--landing-accent);
+    color: #04201c;
+    font-size: clamp(13px, 0.9vw, 16px);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 160ms ease;
 }
 
 .project-tile-open-button:hover,
 .project-tile-open-button:focus-visible {
-    background: rgba(2, 120, 108, 0.9);
+    background: #5eead4;
     outline: none;
 }
 
+.project-tile-open-button svg {
+    font-size: 16px;
+}
+
+/* Viewer back button (shown inside a project) */
 .project-viewer-back-button {
     position: fixed;
     top: 14px;
@@ -340,61 +354,32 @@
     color: #0391ae;
 }
 
-@media (max-width: 1180px) {
-    .project-tile-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
-
-@media (max-width: 900px) {
+@media (max-width: 760px) {
     .project-tile-nav {
-        align-items: flex-start;
-        flex-direction: column;
-        gap: 10px;
-        padding: 14px 18px;
+        height: 56px;
+        padding: 0 16px;
     }
 
-    .project-tile-brand {
-        align-items: flex-start;
-        flex-direction: column;
-        gap: 5px;
+    .project-tile-status {
+        display: none;
     }
 
     .project-tile-main {
-        height: auto;
-        min-height: calc(100vh - 56px);
-        padding: 24px 18px 28px;
+        padding: 28px 16px 40px;
     }
 
-    .project-tile-grid {
-        grid-template-columns: minmax(0, 1fr);
+    .project-tile-title {
+        flex-direction: column;
+        align-items: flex-start;
+        margin-bottom: 24px;
     }
 
-    .project-tile-card {
-        height: 520px;
-        min-height: 420px;
-    }
-
-    .project-tile-content h2 {
-        font-size: 24px;
-    }
-}
-
-@media (max-width: 560px) {
     .project-tile-title h1 {
         font-size: 26px;
     }
 
-    .project-tile-card {
-        height: 460px;
-    }
-
-    .project-tile-number {
-        font-size: 64px;
-    }
-
-    .project-tile-content {
-        right: 20px;
-        left: 20px;
+    .project-tile-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 16px;
     }
 }

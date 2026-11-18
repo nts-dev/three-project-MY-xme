@@ -14,6 +14,7 @@ import {
     FaMapMarkerAlt,
     FaPhoneAlt,
     FaRegClock,
+    FaRegImage,
     FaRegStar,
     FaSchool,
     FaShareAlt,
@@ -982,6 +983,8 @@ const PlaySidebarGallery = ({ assetInfo }) => {
 
     const activeImage = images[activeIndex] || images[0];
     const hasMultipleImages = images.length > 1;
+    // The image host's no_image.png placeholder is shown as a clean empty state instead.
+    const hasPhoto = Boolean(activeImage?.itemImageSrc) && !/\/no_image\.png(?:$|\?)/i.test(String(activeImage.itemImageSrc));
     const goToPrevious = () => setActiveIndex((index) => (index <= 0 ? images.length - 1 : index - 1));
     const goToNext = () => setActiveIndex((index) => (index >= images.length - 1 ? 0 : index + 1));
 
@@ -989,12 +992,14 @@ const PlaySidebarGallery = ({ assetInfo }) => {
         <div className="play-asset-info__hero-gallery">
             <div className="play-asset-info__hero-image">
                 {loading ? (
-                    <div className="play-asset-info__empty play-asset-info__loading" role="status">
-                        <span className="play-asset-info__spinner" aria-hidden="true" />
-                        Loading photos...
-                    </div>
+                    <div className="play-asset-info__skeleton play-asset-info__skeleton--photo" role="status" aria-label="Loading photos" />
+                ) : hasPhoto ? (
+                    <img src={activeImage.itemImageSrc} alt={activeImage.alt || ""} />
                 ) : (
-                    <img src={activeImage?.itemImageSrc} alt={activeImage?.alt || ""} />
+                    <div className="play-asset-info__photo-empty">
+                        <FaRegImage aria-hidden="true" />
+                        <span>No photos yet</span>
+                    </div>
                 )}
                 {hasMultipleImages && (
                     <>
@@ -1008,7 +1013,7 @@ const PlaySidebarGallery = ({ assetInfo }) => {
                 )}
             </div>
 
-            <div className="play-asset-info__gallery-footer">
+            {hasMultipleImages && <div className="play-asset-info__gallery-footer">
                 <div className="play-asset-info__gallery-thumbs" aria-label="Business photos">
                     {images.map((image, index) => (
                         <button
@@ -1025,7 +1030,7 @@ const PlaySidebarGallery = ({ assetInfo }) => {
                 <span className="play-asset-info__gallery-count">
                     {Math.min(activeIndex + 1, Math.max(images.length, 1))} / {Math.max(images.length, 1)}
                 </span>
-            </div>
+            </div>}
         </div>
     );
 };
@@ -1184,12 +1189,14 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
         }));
     };
 
-    const displayTitle = meta.companyName || title;
+    // Model names arrive as "MalaysiaEnvironmentBuildingsSingleShortLeft": split them into words.
+    const displayTitle = meta.companyName || String(title).replace(/([a-z\d])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").trim();
     const displayAddress = placeRatings?.addressDetails
         ? formatLocationAddress([meta.streetAddress, placeRatings.addressDetails].filter(Boolean).join(", "))
         : meta.address;
     const displayRating = valueText(placeRatings?.rating) || meta.rating || "N/A";
     const displayReviews = valueText(placeRatings?.reviews) || meta.reviews || "N/A";
+    const hasRating = displayRating !== "N/A";
 
     if (!assetInfo) return null;
 
@@ -1218,19 +1225,24 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
             </div>
 
             <div className="play-asset-info__body">
-                <SidebarImageUpload key={selectedAssetId} instanceId={selectedAssetId} onUploaded={handleAddPhotosRequest} />
                 <div className="play-asset-info__title-block">
-                    <h2>{displayTitle}</h2>
+                    {isLoadingDetails ? (
+                        <div role="status" aria-label="Loading details">
+                            <span className="play-asset-info__skeleton play-asset-info__skeleton--title" />
+                            <span className="play-asset-info__skeleton play-asset-info__skeleton--line" />
+                        </div>
+                    ) : (
+                        <h2>{displayTitle}</h2>
+                    )}
                     {meta.city && <span className="play-asset-info__subtitle">{meta.city.split(",")[0]}</span>}
                     <div className="play-asset-info__rating-line">
-                        <span className="play-asset-info__google-mark">G</span>
                         {isLoadingDetails || isLoadingRatings ? (
-                            <span className="play-asset-info__loading" role="status">
-                                <span className="play-asset-info__spinner" aria-hidden="true" />
-                                Loading rating...
-                            </span>
+                            <span className="play-asset-info__skeleton play-asset-info__skeleton--rating" role="status" aria-label="Loading rating" />
+                        ) : !hasRating ? (
+                            <span className="play-asset-info__rating-empty">No reviews yet</span>
                         ) : (
                             <>
+                                <span className="play-asset-info__google-mark">G</span>
                                 <strong>{displayRating}</strong>
                                 <span
                                     className="play-asset-info__rating-stars"
@@ -1255,6 +1267,7 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                 </div>
 
                 <div className="play-asset-info__body-actions">
+                    <SidebarImageUpload key={selectedAssetId} instanceId={selectedAssetId} onUploaded={handleAddPhotosRequest} />
                     <button type="button" className="play-asset-info__edit-button" onClick={handleEditRequest} disabled={isLoadingDetails}>
                         <FaEdit aria-hidden="true" />
                         <span>{isEditing ? "Editing" : "Edit"}</span>
@@ -1271,7 +1284,7 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                 </div>
 
                 <section className="play-asset-info__meta-section" aria-label="Business metadata">
-                    <h3>Meta</h3>
+                    <h3>Details</h3>
                     {isEditing ? (
                         <div className="play-asset-info__edit-form">
                             {draftRows.map((row, index) => {
@@ -1308,9 +1321,10 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                             </div>
                         </div>
                     ) : isLoadingDetails ? (
-                        <div className="play-asset-info__empty play-asset-info__loading" role="status">
-                            <span className="play-asset-info__spinner" aria-hidden="true" />
-                            Loading details...
+                        <div className="play-asset-info__skeleton-list" role="status" aria-label="Loading details">
+                            {[0, 1, 2, 3].map((row) => (
+                                <span key={row} className="play-asset-info__skeleton play-asset-info__skeleton--row" />
+                            ))}
                         </div>
                     ) : (
                         <div className="play-asset-info__meta-list">
@@ -1362,7 +1376,7 @@ export default function PlayAssetInfoFrame({ assetInfo, onClose, onSystemBuilder
                             </div>
                         ))}
                         {!showEmptyBusinessFields && !displayAddress && !meta.openingHours && !meta.website && !meta.telephone && !meta.extraRows.length && (
-                            <div className="play-asset-info__empty">No metadata available</div>
+                            <div className="play-asset-info__empty">No business details added yet. Use Edit to add them.</div>
                         )}
                         </div>
                     )}

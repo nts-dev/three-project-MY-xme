@@ -48,7 +48,7 @@ const PROJECTS = [
         imageFile: "126.png",
         type: "Office",
         date: "08/22/2026",
-        buildingCount: "1 buildings",
+        buildingCount: "1 building",
         floorLabel: "Economic Building, 1st Floor, Rm 25",
     },
 ];
@@ -83,19 +83,19 @@ function ProjectTile({ project, onOpen }) {
             onClick={openProject}
             onKeyDown={handleKeyDown}
         >
-            <img
-                className="project-tile-image"
-                src={buildFileImageUrl(project.imageFile)}
-                alt={`${project.title} location preview`}
-            />
-            <span className="project-tile-number" aria-hidden="true">
-                {project.number}
-            </span>
-            <span className="project-tile-type">{project.type}</span>
+            <div className="project-tile-media">
+                <img
+                    className="project-tile-image"
+                    src={buildFileImageUrl(project.imageFile)}
+                    alt={`${project.title} location preview`}
+                    loading="lazy"
+                />
+                <span className="project-tile-type">{project.type}</span>
+            </div>
 
             <div className="project-tile-content">
                 <p className="project-tile-org">
-                    {project.org || "NTS COMPUTERS SDN BHD"}
+                    {project.org || "NTS Computers SDN BHD"}
                 </p>
                 <h2>{project.title}</h2>
 
@@ -104,28 +104,31 @@ function ProjectTile({ project, onOpen }) {
                     <span>{project.floorLabel}</span>
                 </div>
 
-                <div className="project-tile-meta">
-                    <span>
-                        <CalendarTodayOutlinedIcon fontSize="inherit" />
-                        {project.date}
-                    </span>
-                    <span>
-                        <BusinessOutlinedIcon fontSize="inherit" />
-                        {project.buildingCount}
-                    </span>
-                </div>
+                <div className="project-tile-footer">
+                    <div className="project-tile-meta">
+                        <span>
+                            <CalendarTodayOutlinedIcon fontSize="inherit" />
+                            {project.date}
+                        </span>
+                        <span>
+                            <BusinessOutlinedIcon fontSize="inherit" />
+                            {project.buildingCount}
+                        </span>
+                    </div>
 
-                <button
-                    type="button"
-                    className="project-tile-open-button"
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        openProject();
-                    }}
-                >
-                    Open Location
-                    <ArrowForwardIcon fontSize="inherit" />
-                </button>
+                    <button
+                        type="button"
+                        className="project-tile-open-button"
+                        aria-label={`Open ${project.title}`}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            openProject();
+                        }}
+                    >
+                        Open
+                        <ArrowForwardIcon fontSize="inherit" />
+                    </button>
+                </div>
             </div>
         </article>
     );
@@ -165,20 +168,29 @@ export default function ProjectTileLanding() {
         <section className="project-tile-landing">
             <header className="project-tile-nav">
                 <div className="project-tile-brand">
-                    <strong>NTS Computers SDN BHD</strong>
-                    <span>Digital Twin Platform</span>
+                    <span className="project-tile-logo" aria-hidden="true">N</span>
+                    <div>
+                        <strong>NTS Computers SDN BHD</strong>
+                        <span>Digital Twin Platform</span>
+                    </div>
                 </div>
                 <div className="project-tile-status">
                     <span aria-hidden="true" />
-                    {PROJECTS.length} locations online
+                    All systems operational
                 </div>
             </header>
 
             <main className="project-tile-main">
                 <div className="project-tile-title">
-                    <p>SELECT A LOCATION</p>
-                    <h1>Property Locations</h1>
-                    <span>Choose a site to open its Digital Twin viewer</span>
+                    <div>
+                        <p>Locations</p>
+                        <h1>Select a property</h1>
+                        <span>Open a site to explore its digital twin, assets and live data.</span>
+                    </div>
+                    <div className="project-tile-count">
+                        <strong>{PROJECTS.length}</strong>
+                        <span>sites available</span>
+                    </div>
                 </div>
 
                 <div className="project-tile-grid">
