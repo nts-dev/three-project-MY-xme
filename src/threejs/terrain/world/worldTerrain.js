@@ -4,6 +4,7 @@ import { createImageQueue } from "./tileQueue";
 import { createElevationSource } from "./elevationSource";
 import { correctElevation } from "./regionOverlay";
 import { paintRoadSurfaces, prepareRoadSurfaces } from "./roadSurfaces";
+import { groundMaterial } from "./groundMaterial";
 
 // Endless terrain: map tiles (z/x/y, Web Mercator) chosen by distance to the camera, a quadtree.
 // Near the camera tiles split into four finer ones; far away they stay coarse, so only a few
@@ -524,8 +525,8 @@ export class WorldTerrain {
         geometry.computeBoundingSphere();
 
         const material = texture
-            ? new THREE.MeshStandardMaterial({ map: texture, roughness: 1, metalness: 0 })
-            : new THREE.MeshStandardMaterial({ color: "#7d8f5a", roughness: 1, metalness: 0 });
+            ? groundMaterial({ map: texture })
+            : groundMaterial({ color: "#7d8f5a" });
         const mesh = new THREE.Mesh(geometry, material);
         mesh.name = `terrain_${tile.key}`;
         mesh.position.set(tile.x0, 0, tile.z0);

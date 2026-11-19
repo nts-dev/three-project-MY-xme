@@ -5,8 +5,9 @@ import { geoToUnit } from "./webMercator";
 // straight and sharp at any zoom instead of following the photo.
 
 const METERS_PER_DEGREE_LAT = 110574;
-const ASPHALT = "#454644";
+const ASPHALT = "#5d5e5b";
 const MARKING = "rgba(238, 236, 228, 0.92)";
+const GRASS = "#5f8f3a";
 
 /** Region roads as geo polylines: [{ points: [{ lat, lon }], width, lanes, oneway }]. */
 export function roadSurfaceLines(regions) {
@@ -96,11 +97,22 @@ export function paintRoadSurfaces(context, tile, size, roads, metersPerUnit) {
     const pixelsPerUnit = size * n;
     const pixelsPerMeter = pixelsPerUnit / metersPerUnit;
     const toPixels = (road) => road.points.map((p) => [(p.u - u0) * pixelsPerUnit, (p.v - v0) * pixelsPerUnit]);
-    const visible = crossing.filter((road) => road.width * pixelsPerMeter >= 1.5); // too thin at this zoom: leave the photo
-    if (!visible.length) return;
+    const shown = crossing.filter((road) => road.width * pixelsPerMeter >= 1.5); // too thin at this zoom: leave the photo
+    if (!shown.length) return;
+    // Lawn strips (surface "grass") are painted green, without markings.
+    const lawns = shown.filter((road) => road.surface === "grass");
+    const visible = shown.filter((road) => road.surface !== "grass");
+    const marked = visible.filter((road) => !road.surface); // tarmac aprons (surface "paved") have no markings
 
     context.save();
     context.lineJoin = "round";
+    context.lineCap = "round";
+    context.strokeStyle = GRASS;
+    context.lineCap = "butt";
+    for (const lawn of lawns) {
+        context.lineWidth = lawn.width * pixelsPerMeter;
+        strokeLine(context, toPixels(lawn));
+    }
     context.lineCap = "round";
     context.strokeStyle = ASPHALT;
     for (const road of visible) {
@@ -113,7 +125,7 @@ export function paintRoadSurfaces(context, tile, size, roads, metersPerUnit) {
         context.strokeStyle = MARKING;
         context.lineCap = "butt";
         const markWidth = Math.max(1, 0.15 * pixelsPerMeter);
-        for (const road of visible) {
+        for (const road of marked) {
             const line = trimLine(toPixels(road), 7 * pixelsPerMeter);
             if (!line) continue;
             const half = (road.width / 2 - 0.5) * pixelsPerMeter;

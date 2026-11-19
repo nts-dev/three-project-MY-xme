@@ -9,6 +9,7 @@ import { WorldTerrain } from "./world/worldTerrain";
 import { loadRegions } from "./world/regionOverlay";
 import { bridgeImageryMasks, buildBridges } from "./world/bridgeMeshes";
 import { roadSurfaceLines } from "./world/roadSurfaces";
+import { buildGroundRoads } from "./world/groundRoads";
 import { resolveImageryProvider } from "./world/imageryProviders";
 import { ELEVATION_ATTRIBUTION } from "./world/elevationSource";
 
@@ -71,6 +72,7 @@ function WorldTerrainLayer({ configKey }) {
         const controller = new AbortController();
         let world = null;
         let bridges = null;
+        let groundRoads = null;
         let removeAttribution = () => {};
 
         Promise.all([
@@ -113,6 +115,16 @@ function WorldTerrainLayer({ configKey }) {
                     const { scene, camera } = getThree();
                     gl.compileAsync?.(bridges.group, camera, scene).catch(() => {});
                 }
+                if (regions.some((region) => region.roads?.length)) {
+                    // Roads as sharp 3D surfaces on the ground (the photo-painted roads stay for far views).
+                    groundRoads = buildGroundRoads({
+                        regions,
+                        frame: world.frame,
+                        anchorElevation: world.anchorElevation,
+                        maxAnisotropy: gl.capabilities.getMaxAnisotropy(),
+                    });
+                    world.group.add(groundRoads.group);
+                }
                 removeAttribution = showAttribution(gl.domElement, [
                     provider?.attribution,
                     ELEVATION_ATTRIBUTION,
@@ -129,6 +141,7 @@ function WorldTerrainLayer({ configKey }) {
             controller.abort();
             removeAttribution();
             bridges?.dispose();
+            groundRoads?.dispose();
             if (world) {
                 world.dispose();
                 clearActiveTerrain();

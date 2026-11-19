@@ -38,6 +38,8 @@ import ZoomSlider from "../threejs/hud/camera/ZoomSlider";
 import HomeViewButton from "../threejs/hud/camera/HomeViewButton";
 import TerrainGroundCollider from "../threejs/terrain/TerrainGroundCollider";
 import { sceneHasTerrain } from "../threejs/terrain/terrainData";
+import SunShadows from "../threejs/lighting/SunShadows";
+import DecorCulling from "../threejs/lighting/DecorCulling";
 import ViewportMouseCoordinates from "./ViewportMouseCoordinates.jsx";
 import PlayerHeightSlider from "../threejs/hud/playerControls/PlayerHeightSlider";
 import PlayerViewAngleSlider from "../threejs/hud/playerControls/PlayerViewAngleSlider";
@@ -597,7 +599,7 @@ export default function ThreeView() {
         cameraRef.current = camera;
         sceneRef.current = scene;
         // Dev-only handle for profiling scripts (draw calls, triangles, lights) from the console.
-        if (import.meta.env.DEV) window.__editorThree = { scene, gl, camera, get controls() { return orbitControls.current; } };
+        if (import.meta.env.DEV) window.__editorThree = { scene, gl, camera, game: useGame, get controls() { return orbitControls.current; } };
         // gl.lighting = lighting
         glRef.current = gl;
         gl.xr?.setFramebufferScaleFactor?.(0.55);
@@ -853,6 +855,10 @@ export default function ThreeView() {
                                                     enabled={false}
                                                     defaultPosition={projectBaseId === '153' ? PROJECT_153_SUN_POSITION : undefined}
                                                 />
+                                                {/* Sun shadows (cheap proxies for the heavy models), see SunShadows.jsx. */}
+                                                <SunShadows lightRef={directionalLightRef} orbitControls={orbitControls} enabled={projectBaseId === '153'} />
+                                                {/* Only near, in-view pines and street lights are drawn (DecorCulling.jsx). */}
+                                                <DecorCulling orbitControls={orbitControls} enabled={projectBaseId === '153'} />
                                                 <Ground />
                                                 <ambientLight intensity={String(projectId).includes('137') ? 3 : String(projectId).startsWith('153') ? 2.2 : 0.6} />
                                                 {/* Sky/ground fill: brightens walls while keeping directional shading, unlike flat ambient */}

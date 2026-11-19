@@ -94,7 +94,7 @@ function roadTexture(lanes, oneway, maxAnisotropy) {
     return texture;
 }
 
-function regionToScene(region, frame, anchorElevation) {
+export function regionToScene(region, frame, anchorElevation) {
     const yOffset = region.referenceElevation - anchorElevation;
     const toGeo = regionToGeo(region);
     return (x, z, y) => {
@@ -105,7 +105,7 @@ function regionToScene(region, frame, anchorElevation) {
 }
 
 /** Left/right edge points of a centreline at a half width (horizontal offsets only). */
-function edges(points, halfWidth) {
+export function edges(points, halfWidth) {
     const left = [];
     const right = [];
     points.forEach((p, i) => {
@@ -123,7 +123,7 @@ function edges(points, halfWidth) {
 }
 
 /** Accumulates triangle strips into one geometry. */
-class StripBuilder {
+export class StripBuilder {
     constructor() {
         this.positions = [];
         this.uvs = [];

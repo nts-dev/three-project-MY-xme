@@ -20,6 +20,9 @@ const REMOVE_GRACE_SECONDS = 1.5; // replaced tiles keep their collider until th
 // A wide slab under the character catches it if it ever slips through the thin terrain surface;
 // it is then lifted back on top. Follows the character, a few metres under the terrain.
 const SAFETY_FLOOR_DEPTH = 4;
+// The drawn roads, tarmac aprons and lawn strips lie up to ~0.06 m above the terrain mesh
+// (groundRoads.js); the walking surface is raised by this much so feet stand on them, not in them.
+const SURFACE_LIFT = 0.09;
 const SAFETY_FLOOR_HALF_SIZE = 400;
 
 const SINK_TOLERANCE = 0.5; // metres below the terrain before the character is lifted back up
@@ -70,7 +73,7 @@ function tileTrimesh(rapier, tile) {
     const desc = flags !== undefined
         ? rapier.ColliderDesc.trimesh(vertices, indices, flags)
         : rapier.ColliderDesc.trimesh(vertices, indices);
-    return { desc: desc.setTranslation(tile.x0, 0, tile.z0), low };
+    return { desc: desc.setTranslation(tile.x0, SURFACE_LIFT, tile.z0), low: low + SURFACE_LIFT };
 }
 
 /**
@@ -291,7 +294,7 @@ export default function TerrainGroundCollider() {
         );
         const ground = hitTerrain
             ? position.y + 500 - (hitTerrain.timeOfImpact ?? hitTerrain.toi)
-            : terrain.heightAt(position.x, position.z);
+            : terrain.heightAt(position.x, position.z) + SURFACE_LIFT;
         if (ground === null || !Number.isFinite(ground)) return;
         const offset = capsuleBottomOffset(body);
         const gap = position.y - offset - ground;

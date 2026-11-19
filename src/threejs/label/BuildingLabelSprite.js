@@ -30,6 +30,8 @@ const CATEGORY_STYLES = {
 
 const LABEL_FONT = "\"Plus Jakarta Sans\", \"Inter\", \"Segoe UI\", Arial, sans-serif";
 const LABEL_TOP_OFFSET = 0.3;
+const LABEL_WIDTH = 9.3 * 1.4 * 1.5;
+const LABEL_HEIGHT = 3.42 * 1.4;
 const labelLogoCache = new Map();
 
 const getFieldValue = (fields, names) => {
@@ -494,7 +496,7 @@ export const createBuildingLabelSprite = ({
         polygonOffsetUnits: -2,
     });
 
-    const sprite = new THREE.Mesh(new THREE.PlaneGeometry(9.3 * 1.4 * 1.5, 3.42 * 1.4), material);
+    const sprite = new THREE.Mesh(new THREE.PlaneGeometry(LABEL_WIDTH, LABEL_HEIGHT), material);
 
     const heightTop =  position.y + (Number(halfHeight)*2)/100 + 1;
     const labelAngle = THREE.MathUtils.degToRad(Number(angle) || 0);
@@ -511,6 +513,8 @@ export const createBuildingLabelSprite = ({
     sprite.rotation.set(0, labelAngle, 0);
     sprite.onBeforeRender = (_renderer, _scene, camera) => {
         sprite.position.copy(anchorPosition);
+        // BuildingLabelManager scales labels with distance and lifts them so they stay above the roof.
+        sprite.position.y += sprite.userData.lift || 0;
         sprite.quaternion.copy(camera.quaternion);
     };
     sprite.renderOrder = 10000;
