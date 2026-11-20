@@ -39,6 +39,7 @@ import HomeViewButton from "../threejs/hud/camera/HomeViewButton";
 import TerrainGroundCollider from "../threejs/terrain/TerrainGroundCollider";
 import { sceneHasTerrain } from "../threejs/terrain/terrainData";
 import SunShadows from "../threejs/lighting/SunShadows";
+import StreetViewInset from "./streetview/StreetViewInset";
 import DecorCulling from "../threejs/lighting/DecorCulling";
 import ViewportMouseCoordinates from "./ViewportMouseCoordinates.jsx";
 import PlayerHeightSlider from "../threejs/hud/playerControls/PlayerHeightSlider";
@@ -856,7 +857,12 @@ export default function ThreeView() {
                                                     defaultPosition={projectBaseId === '153' ? PROJECT_153_SUN_POSITION : undefined}
                                                 />
                                                 {/* Sun shadows (cheap proxies for the heavy models), see SunShadows.jsx. */}
-                                                <SunShadows lightRef={directionalLightRef} orbitControls={orbitControls} enabled={projectBaseId === '153'} />
+                                                <SunShadows
+                                                    lightRef={directionalLightRef}
+                                                    orbitControls={orbitControls}
+                                                    enabled={projectBaseId === '153'}
+                                                    limitCharacterUpdates={String(projectId).trim().toUpperCase() === '153_L2'}
+                                                />
                                                 {/* Only near, in-view pines and street lights are drawn (DecorCulling.jsx). */}
                                                 <DecorCulling orbitControls={orbitControls} enabled={projectBaseId === '153'} />
                                                 <Ground />
@@ -915,6 +921,7 @@ export default function ThreeView() {
             {!isXrPresenting && (!isPuzzleGame || character || firstPerson) && <PlayAssetInfoHud cameraRef={cameraRef} sceneRef={sceneRef} />}
             {isGameRuntime && <AvatarSetupConfirm />}
             {showAvatarLoadingOverlay && <AvatarLoadingOverlay />}
+            {!isXrPresenting && character && hasTerrain && <StreetViewInset cameraRef={cameraRef} />}
 
 
             {isPuzzleGame && <PuzzleAssetPlacementController scene={sceneRef.current} />}

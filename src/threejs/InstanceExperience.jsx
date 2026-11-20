@@ -1781,6 +1781,7 @@ const configureOriginalMeshMaterial = (material, mesh, keepDoubleSided = false) 
     const disposeScene = (SceneObj) => {
         // Traverse the existing SceneObj to dispose of its resources
         SceneObj.traverse((object) => {
+            if (object.isInstancedMesh) object.dispose();
             // Dispose geometry
             if (object.geometry) {
                 object.geometry.dispose();

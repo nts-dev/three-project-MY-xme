@@ -145,6 +145,7 @@ export default async function InstancedPattern(
     const lowerName = String(name || "").toLowerCase();
     const generatedAsset = isGeneratedAssetReference(fileName);
     const cleanKey = normalizeSceneAssetName(fileName || name || "")
+    const isXmeMap = String(projectID).trim().toUpperCase() === "153_L2";
     const assetCommandLines = [];
 
    
@@ -664,7 +665,14 @@ export default async function InstancedPattern(
         instancedMesh.computeBoundingBox?.();
         instancedMesh.computeBoundingSphere?.();
         const triangleCount = (object.geometry.index?.count || object.geometry.attributes.position.count) / 3;
-        if (String(projectID) === '153_L1' && triangleCount >= 100000) {
+        if (isXmeMap && /^(malaysiaenvironmentbuildings|xmegoldribbonfactory)/i.test(cleanKey)) {
+            const batches = enableSpatialInstanceCulling(instancedMesh, 64);
+            if (batches) {
+                instancedMesh.userData.xmeBuildingShadowProxy = true;
+                instancedMesh.castShadow = false;
+                for (const batch of batches) batch.castShadow = false;
+            }
+        } else if (String(projectID) === '153_L1' && triangleCount >= 100000) {
             // Each spatial batch is also hidden when far from the camera (see distanceCulling.js).
             const batches = enableSpatialInstanceCulling(instancedMesh);
             batches?.forEach(registerDistanceCulledMesh);

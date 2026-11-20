@@ -6,6 +6,7 @@ type Entry = {
     count: number;
     geometry: THREE.BufferGeometry;
     positionVersion: number;
+    boxes: THREE.Box3[];
     root?: Node;
 };
 
@@ -45,22 +46,29 @@ export function createGameplayRaycast() {
         instanceHits.length = 0;
     };
 
-    const visit = (node: Node, object: THREE.InstancedMesh, raycaster: THREE.Raycaster) => {
-        if (!localRay.intersectBox(node.bounds, point)) return;
+    const visit = (node: Node, boxes: THREE.Box3[], object: THREE.InstancedMesh, raycaster: THREE.Raycaster, farSq: number) => {
+        if (!canReach(node.bounds, farSq)) return;
         if (node.ids) {
-            for (const id of node.ids) intersectInstance(object, id, raycaster);
+            for (const id of node.ids) {
+                if (canReach(boxes[id], farSq)) intersectInstance(object, id, raycaster);
+            }
         } else {
-            if (node.left) visit(node.left, object, raycaster);
-            if (node.right) visit(node.right, object, raycaster);
+            if (node.left) visit(node.left, boxes, object, raycaster, farSq);
+            if (node.right) visit(node.right, boxes, object, raycaster, farSq);
         }
     };
+
+    const canReach = (bounds: THREE.Box3, farSq: number) => bounds.containsPoint(localRay.origin) ||
+        (localRay.intersectBox(bounds, point) !== null && point.distanceToSquared(localRay.origin) <= farSq);
 
     return (raycaster: THREE.Raycaster, targets: THREE.InstancedMesh[]) => {
         hits.length = 0;
         for (const object of targets) {
             if (!object.layers.test(raycaster.layers)) continue;
-            // Preserve custom raycasters and deforming geometry through the original path.
-            if (object.raycast !== THREE.InstancedMesh.prototype.raycast || object.geometry.morphAttributes.position?.length) {
+            // Spatial batches only change rendering and picking. Gameplay uses the original instances.
+            const hasCustomRaycast = object.raycast !== THREE.InstancedMesh.prototype.raycast &&
+                !object.userData.spatialInstanceCulling;
+            if (hasCustomRaycast || object.geometry.morphAttributes.position?.length) {
                 object.raycast(raycaster, hits);
                 continue;
             }
@@ -80,6 +88,7 @@ export function createGameplayRaycast() {
                     count: object.count,
                     geometry: object.geometry,
                     positionVersion,
+                    boxes,
                     root: object.count ? build(boxes.map((_, id) => id), boxes) : undefined,
                 };
                 entries.set(object, entry);
@@ -92,9 +101,13 @@ export function createGameplayRaycast() {
             }
             inverseWorld.copy(object.matrixWorld).invert();
             localRay.copy(raycaster.ray).applyMatrix4(inverseWorld);
+            // Transform the world ray's end point to account for non-uniform parent scaling.
+            const farSq = Number.isFinite(raycaster.far)
+                ? raycaster.ray.at(raycaster.far, point).applyMatrix4(inverseWorld).distanceToSquared(localRay.origin)
+                : Infinity;
             mesh.geometry = object.geometry;
             mesh.material = object.material;
-            visit(entry.root, object, raycaster);
+            visit(entry.root, entry.boxes, object, raycaster, farSq + 1e-10);
         }
         // Match Three's stable distance ordering, including equal-distance instances.
         hits.sort((a, b) => a.distance - b.distance ||

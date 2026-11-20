@@ -15,6 +15,7 @@ const HEAVY = 300000; // instanced meshes above this many vertices x instances g
 const BODY_MIN_HEIGHT = 5; // metres: geometry above this is the building body (fences/yards are lower)
 const MAP_SIZE = 2048;
 const SYNC_EVERY = 90; // frames between checks for added / moved instances
+const CHARACTER_SHADOW_INTERVAL = 1 / 30;
 const proxyMaterial = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
 const unitBox = new THREE.BoxGeometry(1, 1, 1);
 const unitCone = new THREE.ConeGeometry(0.5, 1, 7).translate(0, 0.5, 0);
@@ -103,9 +104,13 @@ function buildProxy(mesh) {
     return proxy;
 }
 
-export default function SunShadows({ lightRef, orbitControls, enabled = true }) {
+export default function SunShadows({ lightRef, orbitControls, enabled = true, limitCharacterUpdates = false }) {
     const { gl, scene, camera } = useThree();
-    const state = useRef({ frame: 0, proxies: new Map(), signatures: new Map(), group: null, target: null });
+    const state = useRef({
+        frame: 0, lastShadowUpdate: -Infinity, limited: false,
+        proxies: new Map(), signatures: new Map(), group: null, target: null,
+        focus: new THREE.Vector3(),
+    });
 
     useEffect(() => {
         if (!enabled) return undefined;
@@ -129,6 +134,7 @@ export default function SunShadows({ lightRef, orbitControls, enabled = true }) 
         scene.traverse((o) => { (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m) m.needsUpdate = true; }); });
         return () => {
             light.castShadow = false;
+            light.shadow.autoUpdate = true;
             gl.shadowMap.enabled = false;
             s.group?.removeFromParent();
             s.target?.removeFromParent();
@@ -138,7 +144,7 @@ export default function SunShadows({ lightRef, orbitControls, enabled = true }) 
         };
     }, [enabled, gl, lightRef, scene]);
 
-    useFrame(() => {
+    useFrame(({ clock }) => {
         const s = state.current;
         const light = lightRef?.current;
         if (!enabled || !light || !s.group) return;
@@ -148,13 +154,16 @@ export default function SunShadows({ lightRef, orbitControls, enabled = true }) 
 
         // Keep proxies in sync with the scene's instanced meshes; heavy ones stop casting themselves.
         if (s.frame % SYNC_EVERY === 1) {
+            const active = new Set();
             scene.traverse((o) => {
                 if (o.isSkinnedMesh) o.castShadow = true; // the avatar
                 if (!o.isInstancedMesh || o.userData.isShadowProxy || o.userData.isCullCompanion || !o.count) return;
+                if (o.parent?.userData.xmeBuildingShadowProxy) return;
                 const vertices = o.geometry.attributes.position.count * o.count;
-                if (vertices < HEAVY) return;
+                if (vertices < HEAVY && !o.userData.xmeBuildingShadowProxy) return;
                 o.castShadow = false;
                 if (/light|pavement|lawn/i.test(o.name)) return; // poles and lawns: no proxy
+                active.add(o);
                 const signature = `${o.count}:${o.instanceMatrix.version}`;
                 if (s.signatures.get(o) === signature) return;
                 s.signatures.set(o, signature);
@@ -164,12 +173,28 @@ export default function SunShadows({ lightRef, orbitControls, enabled = true }) 
                 s.proxies.set(o, proxy);
                 s.group.add(proxy);
             });
+            for (const [mesh, proxy] of s.proxies) {
+                if (active.has(mesh)) continue;
+                proxy.removeFromParent();
+                proxy.dispose();
+                s.proxies.delete(mesh);
+                s.signatures.delete(mesh);
+            }
         }
 
         // Focus: the avatar in character mode, else the orbit target.
-        const character = useGame.getState().character ? useGame.getState().characterRef : null;
-        const focus = new THREE.Vector3();
-        const body = character?.translation?.();
+        const { character, firstPerson, characterRef } = useGame.getState();
+        const walking = character || firstPerson;
+        const limited = limitCharacterUpdates && walking;
+        const time = clock.elapsedTime;
+        light.shadow.autoUpdate = !limited;
+        if (limited && s.limited && time - s.lastShadowUpdate < CHARACTER_SHADOW_INTERVAL) return;
+        s.limited = limited;
+        s.lastShadowUpdate = time;
+        // Keep the light-space transform in sync with the map while its render is throttled.
+        light.shadow.needsUpdate = true;
+        const focus = s.focus;
+        const body = (walking ? characterRef : null)?.translation?.();
         if (body) focus.set(body.x, body.y, body.z);
         else if (orbitControls?.current?.target) focus.copy(orbitControls.current.target);
         else camera.getWorldDirection(focus).multiplyScalar(50).add(camera.position);

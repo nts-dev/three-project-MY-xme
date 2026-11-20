@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
 import { test } from 'node:test';
 import * as THREE from 'three';
+import { enableSpatialInstanceCulling } from '../src/threejs/spatialInstanceCulling.js';
 
 const source = readFileSync(new URL('../src/threejs/player/gameplayRaycast.ts', import.meta.url), 'utf8');
 const compiled = stripTypeScriptTypes(source).replace('"three"', JSON.stringify(import.meta.resolve('three')));
@@ -78,4 +79,27 @@ test('indexed queries preserve Three raycast hits and invalidate changed instanc
     targets[0].layers.set(2);
     check();
     assert.ok(hitCount > 20, 'exercise successful hits as well as misses');
+});
+
+test('gameplay queries use original instances when a render batch is culled', () => {
+    const geometry = new THREE.BoxGeometry(2, 2, 2);
+    const source = new THREE.InstancedMesh(geometry, new THREE.MeshBasicMaterial(), 2);
+    source.setMatrixAt(0, new THREE.Matrix4().makeTranslation(0, 0, -4));
+    source.setMatrixAt(1, new THREE.Matrix4().makeTranslation(0, 0, -100));
+    source.scale.set(1, 2, 3);
+    const batches = enableSpatialInstanceCulling(source);
+    for (const batch of batches) {
+        batch.visible = false;
+        batch.raycast = () => {};
+    }
+    source.updateMatrixWorld(true);
+
+    const query = createGameplayRaycast();
+    const ray = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3(0, 0, -1), 0, 8.99);
+    assert.equal(query(ray, [source]), undefined);
+    ray.far = 9;
+    const hit = query(ray, [source]);
+    assert.equal(hit.object, source);
+    assert.equal(hit.instanceId, 0);
+    assert.equal(hit.distance, 9);
 });

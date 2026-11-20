@@ -60,6 +60,10 @@ export default function TerrainSystem({ sceneKey }) {
         : <RegionTerrainLayer configKey={configKey} />;
 }
 
+// Drawn roads, tarmac aprons and lawn strips (3D and painted into the photo) are off for now, to inspect
+// the raw Google map imagery; ?roads=on in the URL shows them.
+const showRoads = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("roads") === "on";
+
 /** Endless terrain: tiles load and unload as the camera moves. */
 function WorldTerrainLayer({ configKey }) {
     const gl = useThree((state) => state.gl);
@@ -89,7 +93,7 @@ function WorldTerrainLayer({ configKey }) {
                     imagery: provider ? { url: provider.url, maxZoom: provider.maxZoom } : null,
                     // Raised bridge decks are erased from the ground photo (the deck is built in 3D).
                     imageryMasks: bridgeImageryMasks(regions),
-                    roadSurfaces: roadSurfaceLines(regions),
+                    roadSurfaces: showRoads ? roadSurfaceLines(regions) : [],
                     maxAnisotropy: gl.capabilities.getMaxAnisotropy(),
                     ...(config.options || {}),
                 });
@@ -115,7 +119,7 @@ function WorldTerrainLayer({ configKey }) {
                     const { scene, camera } = getThree();
                     gl.compileAsync?.(bridges.group, camera, scene).catch(() => {});
                 }
-                if (regions.some((region) => region.roads?.length)) {
+                if (showRoads && regions.some((region) => region.roads?.length)) {
                     // Roads as sharp 3D surfaces on the ground (the photo-painted roads stay for far views).
                     groundRoads = buildGroundRoads({
                         regions,
