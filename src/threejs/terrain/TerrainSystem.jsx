@@ -7,11 +7,13 @@ import { applyTerrainTileTexture, buildTerrainGroup, disposeTerrainGroup } from 
 import { createTerrainImagery } from "./terrainImagery";
 import { WorldTerrain } from "./world/worldTerrain";
 import { loadRegions } from "./world/regionOverlay";
-import { bridgeImageryMasks, buildBridges } from "./world/bridgeMeshes";
+import { bridgeImageryMasks, buildBridges, regionToScene } from "./world/bridgeMeshes";
 import { roadSurfaceLines } from "./world/roadSurfaces";
 import { buildGroundRoads } from "./world/groundRoads";
 import { resolveImageryProvider } from "./world/imageryProviders";
 import { ELEVATION_ATTRIBUTION } from "./world/elevationSource";
+import { fitBridgesToGround, GOOGLE_ELEVATION_ATTRIBUTION, loadGoogleElevation } from "./world/googleElevation";
+import { createWorldFrame } from "./world/webMercator";
 
 const cameraPosition = new THREE.Vector3();
 
@@ -56,16 +58,16 @@ export default function TerrainSystem({ sceneKey }) {
     const configKey = terrainConfig ? JSON.stringify(terrainConfig) : "";
     if (!configKey) return null;
     return terrainConfig.mode === "world"
-        ? <WorldTerrainLayer configKey={configKey} />
+        ? <WorldTerrainLayer configKey={configKey} characterImagery={sameSceneKey(sceneKey, "153_L2")} />
         : <RegionTerrainLayer configKey={configKey} />;
 }
 
-// Drawn roads, tarmac aprons and lawn strips (3D and painted into the photo) are off for now, to inspect
-// the raw Google map imagery; ?roads=on in the URL shows them.
+// ?roads=on: tarmac aprons and roads painted into the photo too (the 3D streets and grass verges show
+// anyway with Google elevation).
 const showRoads = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("roads") === "on";
 
 /** Endless terrain: tiles load and unload as the camera moves. */
-function WorldTerrainLayer({ configKey }) {
+function WorldTerrainLayer({ configKey, characterImagery }) {
     const gl = useThree((state) => state.gl);
     const getThree = useThree((state) => state.get);
     const [terrain, setTerrain] = useState(null);
@@ -83,19 +85,38 @@ function WorldTerrainLayer({ configKey }) {
             loadRegions(config.regions || [], { signal: controller.signal }),
             resolveImageryProvider(config.imagery, { signal: controller.signal }),
         ])
-            .then(([regions, provider]) => {
+            .then(async ([regions, provider]) => {
+                // Default: the first region's reference height, so its ground stays at y = 0.
+                const anchorElevation = config.anchorElevation ?? regions[0]?.referenceElevation ?? 0;
+                let localElevation = null;
+                if (config.elevation) {
+                    try {
+                        const frame = createWorldFrame(config.anchor);
+                        localElevation = await loadGoogleElevation(config.elevation, frame, anchorElevation, { signal: controller.signal });
+                        // The ground keeps Google's heights; bridge decks (built for the old ground) are
+                        // moved so their ends meet the roads at the new ground.
+                        if (localElevation?.google) regions = fitBridgesToGround(regions, localElevation, frame, anchorElevation, regionToScene);
+                    } catch (error) {
+                        if (error.name === "AbortError") throw error;
+                        console.warn("[terrain] Google elevation unavailable; using the built-in elevation", error);
+                    }
+                }
+                return [regions, provider, anchorElevation, localElevation];
+            })
+            .then(([regions, provider, anchorElevation, localElevation]) => {
                 if (controller.signal.aborted) return;
                 world = new WorldTerrain({
                     anchor: config.anchor,
-                    // Default: the first region's reference height, so its ground stays at y = 0.
-                    anchorElevation: config.anchorElevation ?? regions[0]?.referenceElevation ?? 0,
+                    anchorElevation,
                     regions,
+                    localElevation,
                     imagery: provider ? { url: provider.url, maxZoom: provider.maxZoom } : null,
                     // Raised bridge decks are erased from the ground photo (the deck is built in 3D).
                     imageryMasks: bridgeImageryMasks(regions),
                     roadSurfaces: showRoads ? roadSurfaceLines(regions) : [],
                     maxAnisotropy: gl.capabilities.getMaxAnisotropy(),
                     ...(config.options || {}),
+                    characterImagery: characterImagery && provider?.name === "google",
                 });
                 // `world` / `getBridges` give the physics ground (TerrainGroundCollider) the loaded
                 // tiles and the raised bridge decks to build colliders from.
@@ -119,18 +140,29 @@ function WorldTerrainLayer({ configKey }) {
                     const { scene, camera } = getThree();
                     gl.compileAsync?.(bridges.group, camera, scene).catch(() => {});
                 }
-                if (showRoads && regions.some((region) => region.roads?.length)) {
-                    // Roads as sharp 3D surfaces on the ground (the photo-painted roads stay for far views).
+                // Streets as sharp 3D surfaces on the ground. With Google elevation they are always on
+                // (asphalt, markings and the grass verges) and follow that ground; ?roads=on adds the tarmac
+                // aprons and paints the roads into the photo.
+                const googleGround = localElevation?.google ? localElevation : null;
+                if ((showRoads || googleGround) && regions.some((region) => region.roads?.length)) {
+                    const base = regions[0];
                     groundRoads = buildGroundRoads({
                         regions,
                         frame: world.frame,
                         anchorElevation: world.anchorElevation,
                         maxAnisotropy: gl.capabilities.getMaxAnisotropy(),
+                        streetsOnly: !showRoads,
+                        // Scenes with Google elevation have their roads fitted in scene metres.
+                        sceneCoords: Boolean(googleGround),
+                        groundAt: googleGround
+                            ? (x, z) => googleGround.heightAt(x, z, base.terrain.heightAt(x, z) + base.referenceElevation) - world.anchorElevation
+                            : null,
                     });
                     world.group.add(groundRoads.group);
                 }
                 removeAttribution = showAttribution(gl.domElement, [
                     provider?.attribution,
+                    localElevation?.google ? GOOGLE_ELEVATION_ATTRIBUTION : null,
                     ELEVATION_ATTRIBUTION,
                     regions.length ? "© OpenStreetMap contributors" : null,
                 ].filter(Boolean).join(" · "));
@@ -153,7 +185,7 @@ function WorldTerrainLayer({ configKey }) {
             }
             setTerrain(null);
         };
-    }, [configKey, gl, getThree]);
+    }, [characterImagery, configKey, gl, getThree]);
 
     useFrame(({ camera, clock }) => {
         if (!terrain) return;
@@ -162,7 +194,12 @@ function WorldTerrainLayer({ configKey }) {
         const time = clock.getElapsedTime();
         if (time - lastUpdateRef.current < 0.15) return;
         lastUpdateRef.current = time;
-        terrain.update(camera);
+        let focus = null;
+        if (characterImagery) {
+            const { character, firstPerson, characterRef } = useGame.getState();
+            if ((character || firstPerson) && characterRef?.isValid?.()) focus = characterRef.translation();
+        }
+        terrain.update(camera, focus);
     });
 
     return terrain ? <primitive object={terrain.group} /> : null;

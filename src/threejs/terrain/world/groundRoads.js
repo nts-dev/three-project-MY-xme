@@ -141,7 +141,7 @@ function clearRuns(points, others) {
 }
 
 /** Builds the ground roads of all regions. Returns { group, dispose }. */
-export function buildGroundRoads({ regions, frame, anchorElevation, maxAnisotropy = 8 }) {
+export function buildGroundRoads({ regions, frame, anchorElevation, maxAnisotropy = 8, groundAt = null, sceneCoords = false, streetsOnly = false }) {
     const group = new THREE.Group();
     group.name = "world_ground_roads";
     group.userData.isTerrain = true;
@@ -166,10 +166,21 @@ export function buildGroundRoads({ regions, frame, anchorElevation, maxAnisotrop
         const roads = all.filter((road) => !road.surface);
         const lawns = all.filter((road) => road.surface === "grass");
         // Tarmac aprons (surface "paved"): plain asphalt from the kerb to the fences, under the roads.
-        const aprons = all.filter((road) => road.surface === "paved");
+        const aprons = streetsOnly ? [] : all.filter((road) => road.surface === "paved");
         const toScene = regionToScene(region, frame, anchorElevation);
         const ground = (x, z) => region.terrain.heightAt(x, z);
-        const point = ([x, z], lift) => toScene(x, z, ground(x, z) + lift);
+        // groundAt (scene x/z -> scene y): the rendered ground when it differs from the region's own
+        // heights (e.g. Google elevation); otherwise the region's heights.
+        // sceneCoords: the road points are already scene metres (roads fitted to the placed buildings);
+        // otherwise region metres, converted through lat/lon (which stretches north-south by ~0.7%,
+        // about 1 m per 150 m from the anchor).
+        const point = groundAt
+            ? ([x, z], lift) => {
+                const p = sceneCoords ? new THREE.Vector3(x, 0, z) : toScene(x, z, 0);
+                p.y = groundAt(p.x, p.z) + lift;
+                return p;
+            }
+            : ([x, z], lift) => toScene(x, z, ground(x, z) + lift);
 
         // Lawn strips: plain grass ribbons.
         for (const lawn of lawns) {

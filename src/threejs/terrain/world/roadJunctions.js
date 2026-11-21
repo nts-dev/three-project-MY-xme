@@ -2,9 +2,9 @@
 // roads that meet, and a filled disc in the middle so L corners have no notch. All in region
 // metres [x, z]; returns polygons as { centre, ring } fans (ring points in order).
 
-const NEAR = 2; // a road end within this of another road's edge joins it
+const NEAR = 3; // a road end within this of another road's edge joins it
 const ARM_PROBE = 10; // metres along an arm to take its direction (curved roads)
-const MAX_RADIUS = 9; // kerb corner radius
+const MAX_RADIUS = 12; // kerb corner radius (flared estate corners, as on the aerial photo)
 const ARC_STEPS = 8;
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1]];
@@ -67,8 +67,13 @@ export function findJunctions(roads) {
             const end = a.m.at(endS);
             for (const b of measured) {
                 if (b === a) continue;
-                const hit = b.m.closest(end);
+                let hit = b.m.closest(end);
                 if (hit.d > b.road.width / 2 + NEAR) continue;
+                // Anchor where a's centreline (continued past its end) crosses b's centreline, so the
+                // corners line up with both ribbons also when a meets b at an angle.
+                const inward = unit(sub(end, a.m.at(endS === 0 ? ARM_PROBE : a.m.total - ARM_PROBE)));
+                const crossing = rayHit(end, inward, b.road.points, b.road.width + NEAR);
+                if (crossing) hit = { ...b.m.closest(crossing), q: crossing };
                 const armsA = armsAt(a.road, a.m, endS);
                 const armsB = armsAt(b.road, b.m, hit.s);
                 // Roads running on along each other (shared stretches) are not a junction.
@@ -95,6 +100,22 @@ export function findJunctions(roads) {
         }
     }
     return junctions;
+}
+
+/** Where the ray from p along dir (both ways, within maxDist) crosses polyline `points`, nearest p. */
+function rayHit(p, dir, points, maxDist) {
+    let best = null;
+    for (let i = 1; i < points.length; i++) {
+        const c = points[i - 1];
+        const s = sub(points[i], c);
+        const den = dir[0] * s[1] - dir[1] * s[0];
+        if (Math.abs(den) < 1e-9) continue;
+        const t = ((c[0] - p[0]) * s[1] - (c[1] - p[1]) * s[0]) / den;
+        const u = ((c[0] - p[0]) * dir[1] - (c[1] - p[1]) * dir[0]) / den;
+        if (u < 0 || u > 1 || Math.abs(t) > maxDist) continue;
+        if (!best || Math.abs(t) < best.t) best = { t: Math.abs(t), q: add(p, mul(dir, t)) };
+    }
+    return best ? best.q : null;
 }
 
 function intersect(a, b, c, d) {

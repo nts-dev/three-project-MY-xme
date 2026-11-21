@@ -9,7 +9,8 @@ import PlayersGridView from "./popup/grid/PlayersGridView";
 import useGame from "../hooks/useGame";
 import Player from "../threejs/player/Player.tsx";
 import SpeedMeter from '../threejs/hud/playerControls/SpeedMeter';
-import { EcctrlJoystick } from "../threejs/player/EcctrlJoyStick";
+import { FaSlidersH } from "react-icons/fa";
+import TouchControls from "./touch-controls/TouchControls";
 import Channels2 from "./popup/sideBar/Channels2";
 import VideoPopup from "./popup/sideBar/VideoPopup";
 import ZoomAsset from "../threejs/scene/ZoomAsset.jsx";
@@ -274,6 +275,7 @@ export default function ThreeView() {
    
     const currentMenu = useRef([]);
     const [isTouchScreen, setIsTouchScreen] = useState(false)
+    const [showPlayerMeters, setShowPlayerMeters] = useState(false)
     const [isLowGpu, setIsLowGpu] = useState(null)
     // Renderer chosen for this project ('webgpu' | 'webgl'), and which one has finished initialising.
     const [rendererKind, setRendererKind] = useState(null)
@@ -788,7 +790,7 @@ export default function ThreeView() {
     return (
 
         <>
-            {!isXrPresenting && ((character || firstPerson) && isTouchScreen) && <EcctrlJoystick buttonNumber={2} />}
+            {!isXrPresenting && ((character || firstPerson) && isTouchScreen) && <TouchControls />}
             <Toast ref={toast} />
             {!isXrPresenting && !character && !firstPerson && <BuildingSearch />}
             <div
@@ -921,7 +923,7 @@ export default function ThreeView() {
             {!isXrPresenting && (!isPuzzleGame || character || firstPerson) && <PlayAssetInfoHud cameraRef={cameraRef} sceneRef={sceneRef} />}
             {isGameRuntime && <AvatarSetupConfirm />}
             {showAvatarLoadingOverlay && <AvatarLoadingOverlay />}
-            {!isXrPresenting && character && hasTerrain && <StreetViewInset cameraRef={cameraRef} />}
+            {!isXrPresenting && (character || firstPerson) && hasTerrain && <StreetViewInset cameraRef={cameraRef} />}
 
 
             {isPuzzleGame && <PuzzleAssetPlacementController scene={sceneRef.current} />}
@@ -983,8 +985,20 @@ export default function ThreeView() {
                     onToggleHud={() => setIsHudMinimized((prev) => !prev)}
                 />
             )} */}
+            {/* Phones: the meters sit behind a preferences button (PlayMobileSplit.css hides the button on wider screens). */}
             {!isXrPresenting && showPlayerRuntimeControls && (
-                <div className="player-slider-stack">
+                <button
+                    type="button"
+                    className={`player-prefs-button${showPlayerMeters ? " is-open" : ""}`}
+                    aria-label={showPlayerMeters ? "Hide height and angle" : "Show height and angle"}
+                    aria-expanded={showPlayerMeters}
+                    onClick={() => setShowPlayerMeters((open) => !open)}
+                >
+                    <FaSlidersH aria-hidden="true" />
+                </button>
+            )}
+            {!isXrPresenting && showPlayerRuntimeControls && (
+                <div className={`player-slider-stack${showPlayerMeters ? "" : " is-collapsed"}`}>
                     {!isPuzzleGame && <PlayerHeightSlider direction='vertical' classIndenfier='height-meter' height='10rem' />}
                     <PlayerViewAngleSlider />
                 </div>

@@ -16,7 +16,9 @@ const TURN_DEG = 25;
 const RADIUS_M = 60;
 const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY;
 
-const angleDiff = (a, b) => Math.abs(((a - b) % 360 + 540) % 360 - 180);
+const WALK_SPLIT_CLASS = "play-mobile-walk-split";
+
+const angleDiff =(a, b) => Math.abs(((a - b) % 360 + 540) % 360 - 180);
 
 function sample(cameraRef) {
     const terrain = getActiveTerrain();
@@ -42,6 +44,14 @@ export default function StreetViewInset({ cameraRef }) {
     const [view, setView] = useState({ status: "idle" });
     const shown = useRef(null); // last requested sample
     const pending = useRef({ sample: null, since: 0 });
+
+    // Phones: the walking view splits like free navigation, with this panel (or the company
+    // details sheet) in the bottom third (PlayMobileSplit.css).
+    useEffect(() => {
+        if (!key) return undefined;
+        document.body.classList.add(WALK_SPLIT_CLASS);
+        return () => document.body.classList.remove(WALK_SPLIT_CLASS);
+    }, []);
 
     useEffect(() => {
         if (!open || !key) return undefined;

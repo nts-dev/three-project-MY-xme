@@ -45,6 +45,9 @@ export default function CharacterModel({charModel}: any) {
     // there the model is lifted to put the feet on the capsule bottom.
     const onTerrain = useGame((state: any) => sceneHasTerrain(state, state.projectID));
     const modelOffsetY = onTerrain ? -1.1 : -1.4;
+    // On the real-world map the avatar is real size, about 1.75 m (unscaled it stood ~3.1 m), to
+    // match people and cars in Street View.
+    const avatarScale = onTerrain ? 0.57 : 1;
 
     const animationSet = {
         idle: "Idle",
@@ -135,7 +138,10 @@ export default function CharacterModel({charModel}: any) {
             <group ref={groupRef} key={projectID} >
                 <group name="Scene"  position={[0, modelOffsetY, 0]} >
                     <group key={"char"} name="KayKit_Animated_Character">
-                        <primitive object={scene} position-y={charYPosOffset}/>
+                        {/* Scaled about the feet (the model origin), so they stay on the ground. */}
+                        <group position-y={charYPosOffset} scale={avatarScale}>
+                            <primitive object={scene} />
+                        </group>
                     </group>
                 </group>
             </group>

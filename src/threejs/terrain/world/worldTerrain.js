@@ -25,9 +25,13 @@ const DEFAULTS = {
     imageryMaxZoom: 18,
 };
 
+const DETAIL_RADIUS = 75;
+const DETAIL_TILE_LIMIT = 2;
+const DETAIL_HYSTERESIS = 15;
+const DETAIL_RETRY_MS = 30_000;
 
 export class WorldTerrain {
-    constructor({ anchor, anchorElevation = 0, regions = [], imagery, imageryMasks = [], roadSurfaces = [], maxAnisotropy = 8, ...options }) {
+    constructor({ anchor, anchorElevation = 0, regions = [], localElevation = null, imagery, imageryMasks = [], roadSurfaces = [], maxAnisotropy = 8, ...options }) {
         this.options = { ...DEFAULTS, ...options };
         this.frame = createWorldFrame(anchor);
         // Roads painted over the photo (straight asphalt and markings), see roadSurfaces.js.
@@ -48,12 +52,17 @@ export class WorldTerrain {
         });
         this.anchorElevation = anchorElevation;
         this.regions = regions;
+        // Optional finer ground for part of the scene (Google Elevation API, see googleElevation.js):
+        // { heightAt(x, z, baseElevation) } in scene metres -> metres above sea level.
+        this.localElevation = localElevation;
         this.imagery = imagery; // { url, maxZoom } or null
         this.maxAnisotropy = maxAnisotropy;
         this.queue = createImageQueue({ concurrency: 12 });
         this.elevation = createElevationSource(this.queue);
         this.tiles = new Map();
         this.finishing = []; // downloaded tiles waiting for finishTiles: { tile, controller, sample, texture }
+        this.detailedTiles = new Set();
+        this.detailTask = null;
         this.group = new THREE.Group();
         this.group.name = "world_terrain";
         this.group.userData.isTerrain = true;
@@ -85,7 +94,7 @@ export class WorldTerrain {
     }
 
     /** Re-selects, loads, shows and unloads tiles for the camera. Call a few times per second. */
-    update(camera) {
+    update(camera, characterPosition = null) {
         if (this.disposed) return;
         const { rootZoom, rootRadius, maxZoom, splitFactor } = this.options;
         const now = performance.now();
@@ -178,12 +187,13 @@ export class WorldTerrain {
             }
             if (tile.state === "idle" && !wanted.has(tile) && now - tile.lastUsed > 5000) this.tiles.delete(tile.key);
         }
+        if (this.options.characterImagery) this.updateCharacterImagery(shown, characterPosition, now);
         this.queue.prune();
         if (evictable.length > this.options.cacheSize) {
             evictable.sort((a, b) => a.lastUsed - b.lastUsed);
             for (const tile of evictable.slice(0, evictable.length - this.options.cacheSize)) this.unload(tile);
         }
-        this.stats = { visible: shown.size, loaded, loading, wanted: leaves.length };
+        this.stats = { visible: shown.size, loaded, loading, wanted: leaves.length, detailed: this.detailedTiles.size };
     }
 
     /**
@@ -194,7 +204,7 @@ export class WorldTerrain {
      * each 512² photo with mipmaps, which does not show in JavaScript time.
      */
     finishTiles(renderer, maxTiles = 1) {
-        if (!this.finishing.length || this.disposed) return;
+        if (this.disposed) return;
         let finished = 0;
         this.finishing.sort((a, b) => a.tile.distance - b.tile.distance);
         while (this.finishing.length && finished < maxTiles) {
@@ -212,6 +222,71 @@ export class WorldTerrain {
             tile.state = "ready";
             finished++;
         }
+        const detail = this.detailTask;
+        if (finished < maxTiles && detail?.texture) {
+            const { tile, texture } = detail;
+            const material = tile.mesh.material;
+            renderer?.initTexture?.(texture);
+            tile.baseTexture = material.map;
+            material.map = texture;
+            material.emissiveMap = texture;
+            this.detailedTiles.add(tile);
+            this.detailTask = null;
+        }
+    }
+
+    /** Upgrade only the closest visible terrain tiles, keeping their geometry and base photos. */
+    updateCharacterImagery(shown, focus, now) {
+        const candidates = [];
+        if (focus) {
+            for (const tile of shown) {
+                if (tile.z !== this.options.maxZoom || !tile.mesh.material.map) continue;
+                if (this.detailZoom(tile) <= this.imageryZoom(tile)) continue;
+                const dx = Math.max(tile.x0 - focus.x, 0, focus.x - tile.x0 - tile.size);
+                const dz = Math.max(tile.z0 - focus.z, 0, focus.z - tile.z0 - tile.size);
+                const current = this.detailedTiles.has(tile) || this.detailTask?.tile === tile;
+                const distance = Math.hypot(dx, dz) - (current ? DETAIL_HYSTERESIS : 0);
+                if (distance <= DETAIL_RADIUS) candidates.push({ tile, distance });
+            }
+        }
+        candidates.sort((a, b) => a.distance - b.distance);
+        const wanted = candidates.slice(0, DETAIL_TILE_LIMIT).map(({ tile }) => tile);
+        if (this.detailTask && !wanted.includes(this.detailTask.tile)) this.cancelDetail();
+        for (const tile of this.detailedTiles) {
+            if (!wanted.includes(tile)) this.restoreBaseTexture(tile);
+        }
+        if (this.detailTask) return;
+        const tile = wanted.find((candidate) => !this.detailedTiles.has(candidate) && now >= (candidate.detailRetryAfter ?? 0));
+        if (!tile) return;
+
+        const task = { tile, controller: new AbortController(), texture: null };
+        this.detailTask = task;
+        const retryLater = () => {
+            if (this.detailTask !== task) return;
+            tile.detailRetryAfter = performance.now() + DETAIL_RETRY_MS;
+            this.detailTask = null;
+        };
+        this.loadImagery(tile, task.controller.signal, () => tile.distance + DETAIL_RADIUS, this.detailZoom(tile), true)
+            .then((texture) => {
+                if (this.detailTask !== task) texture?.dispose();
+                else if (texture) task.texture = texture;
+                else retryLater();
+            }, retryLater);
+    }
+
+    cancelDetail() {
+        this.detailTask?.controller.abort();
+        this.detailTask?.texture?.dispose();
+        this.detailTask = null;
+    }
+
+    restoreBaseTexture(tile) {
+        const material = tile.mesh.material;
+        material.map.dispose();
+        material.map = tile.baseTexture;
+        material.emissiveMap = tile.baseTexture;
+        delete tile.baseTexture;
+        this.detailedTiles.delete(tile);
     }
 
     async load(tile) {
@@ -251,16 +326,28 @@ export class WorldTerrain {
                     const { lat, lon } = unitToGeo(u, v);
                     elevation = correctElevation(this.regions, lat, lon, elevation);
                 }
+                if (this.localElevation) {
+                    const { x, z } = this.frame.unitToScene(u, v);
+                    elevation = this.localElevation.heightAt(x, z, elevation);
+                }
                 heights[r * (segments + 1) + c] = elevation - this.anchorElevation;
             }
         }
         return heights;
     }
 
-    async loadImagery(tile, signal, priority) {
-        if (!this.imagery) return null;
+    imageryZoom(tile) {
         const { imageryBoostFromZoom, imageryMaxZoom } = this.options;
-        const zoom = Math.min(this.imagery.maxZoom ?? imageryMaxZoom, imageryMaxZoom, tile.z + (tile.z >= imageryBoostFromZoom ? 1 : 0));
+        return Math.min(this.imagery?.maxZoom ?? imageryMaxZoom, imageryMaxZoom, tile.z + (tile.z >= imageryBoostFromZoom ? 1 : 0));
+    }
+
+    detailZoom(tile) {
+        const base = this.imageryZoom(tile);
+        return Math.min(this.imagery?.maxZoom ?? base, base + 1, tile.z + 2);
+    }
+
+    async loadImagery(tile, signal, priority, zoom = this.imageryZoom(tile), requireComplete = false) {
+        if (!this.imagery) return null;
         const per = 2 ** Math.max(0, zoom - tile.z);
         const size = 256 * per;
         // Download first, then create and paint the canvas: creating and filling a new canvas up
@@ -274,7 +361,7 @@ export class WorldTerrain {
                 const url = this.imagery.url.replace("{z}", zoom).replace("{x}", x).replace("{y}", y);
                 parts.push(this.queue.load(url, { signal, priority }).then((bitmap) => ({ i, j, bitmap })).catch((error) => {
                     if (error.name === "AbortError") throw error;
-                    console.warn(`[terrain] imagery ${zoom}/${x}/${y} failed`, error);
+                    if (!requireComplete) console.warn(`[terrain] imagery ${zoom}/${x}/${y} failed`, error);
                     return null;
                 }));
             }
@@ -290,6 +377,10 @@ export class WorldTerrain {
         if (signal?.aborted) {
             images.forEach((image) => image?.bitmap.close());
             throw new DOMException("Aborted", "AbortError");
+        }
+        if (requireComplete && images.some((image) => !image)) {
+            images.forEach((image) => image?.bitmap.close());
+            return null;
         }
         const canvas = document.createElement("canvas");
         canvas.width = size;
@@ -539,6 +630,8 @@ export class WorldTerrain {
     }
 
     unload(tile) {
+        if (this.detailTask?.tile === tile) this.cancelDetail();
+        if (this.detailedTiles.has(tile)) this.restoreBaseTexture(tile);
         if (tile.mesh) {
             tile.mesh.removeFromParent();
             tile.mesh.geometry.dispose();

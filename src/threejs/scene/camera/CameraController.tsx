@@ -414,9 +414,11 @@ export default function CameraController(props: any) {
             MIDDLE: THREE.MOUSE.DOLLY,
             RIGHT: THREE.MOUSE.PAN,
         };
+        // Phones/tablets, like a map app: one finger drags the map (pans over the ground); two
+        // fingers pinch to zoom, twist to turn and move up/down together to tilt (handled below).
         const previousTouches = controls.touches;
         controls.touches = {
-            ONE: THREE.TOUCH.ROTATE,
+            ONE: THREE.TOUCH.PAN,
         };
 
         onControlsChange();
@@ -447,7 +449,25 @@ export default function CameraController(props: any) {
             event.stopPropagation();
             event.stopImmediatePropagation();
             pinchDistanceRef.current = getTouchDistance(event);
-            getTouchCenter(event);
+            twistRef.current = { angle: getTouchAngle(event), centerY: getTouchCenter(event).y };
+            retargetToGround();
+        };
+
+        // Two-finger twist (turn around the view centre) and vertical drag (tilt).
+        const twistRef = { current: { angle: 0, centerY: 0 } };
+        const getTouchAngle = (event: TouchEvent) => Math.atan2(
+            event.touches[1].clientY - event.touches[0].clientY,
+            event.touches[1].clientX - event.touches[0].clientX
+        );
+        const orbitBy = (deltaAzimuth: number, deltaPolar: number) => {
+            const camera = controls.object;
+            const offset = camera.position.clone().sub(controls.target);
+            const spherical = new THREE.Spherical().setFromVector3(offset);
+            spherical.theta += deltaAzimuth;
+            spherical.phi = Math.min(MAX_POLAR_ANGLE, Math.max(0.05, spherical.phi + deltaPolar));
+            camera.position.copy(controls.target).add(offset.setFromSpherical(spherical));
+            camera.lookAt(controls.target);
+            controls.update();
         };
 
         const handleTouchMove = (event: TouchEvent) => {
@@ -470,7 +490,18 @@ export default function CameraController(props: any) {
             }
 
             pinchDistanceRef.current = nextDistance;
-            getTouchCenter(event);
+            const angle = getTouchAngle(event);
+            const centerY = getTouchCenter(event).y;
+            let deltaAngle = angle - twistRef.current.angle;
+            if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
+            if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
+            const deltaY = centerY - twistRef.current.centerY;
+            twistRef.current = { angle, centerY };
+            const height = domElement.clientHeight || 800;
+            // Ignore jitter; fingers moving up tilt towards the horizon.
+            const turn = Math.abs(deltaAngle) > 0.004 ? deltaAngle : 0;
+            const tilt = Math.abs(deltaY) > 0.5 ? (-deltaY / height) * Math.PI * 0.8 : 0;
+            if (turn || tilt) orbitBy(turn, tilt);
         };
 
         const handleTouchEnd = (event: TouchEvent) => {
