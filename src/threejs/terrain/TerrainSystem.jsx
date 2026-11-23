@@ -93,9 +93,8 @@ function WorldTerrainLayer({ configKey, characterImagery }) {
                     try {
                         const frame = createWorldFrame(config.anchor);
                         localElevation = await loadGoogleElevation(config.elevation, frame, anchorElevation, { signal: controller.signal });
-                        // The ground keeps Google's heights; bridge decks (built for the old ground) are
-                        // moved so their ends meet the roads at the new ground.
-                        if (localElevation?.google) regions = fitBridgesToGround(regions, localElevation, frame, anchorElevation, regionToScene);
+                        // Match bridge approaches to the terrain, including scene grades on fallback elevation.
+                        if (localElevation) regions = fitBridgesToGround(regions, localElevation, frame, anchorElevation, regionToScene);
                     } catch (error) {
                         if (error.name === "AbortError") throw error;
                         console.warn("[terrain] Google elevation unavailable; using the built-in elevation", error);

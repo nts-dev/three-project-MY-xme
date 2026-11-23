@@ -6,6 +6,7 @@ import projectFilesSlice from './Redux/ProjectFilesSlice';
 import selectedItemSlice from './Redux/SelectedItemSlice';
 import { buildApiSceneProject } from './util/ApiSceneAdapter';
 import { applySceneGridVisibility } from '../utils/gridVisibility';
+import { loadProjectTerrainConfig } from '../threejs/terrain/terrainData';
 
 const DEFAULT_LEVEL_CODE = 0;
 
@@ -100,7 +101,8 @@ const ApiSceneLoader = ({ enabled }) => {
                     return;
                 }
 
-                const response = await fetch(`${import.meta.env.VITE_API_URL}/project-scene/${sceneKey}_L${selectedLevel?.code}`, {
+                const requestKey = /_L\d+$/i.test(sceneKey) ? sceneKey : `${sceneKey}_L${selectedLevel?.code}`;
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/project-scene/${requestKey}`, {
                     signal: controller.signal,
                 });
 
@@ -109,7 +111,9 @@ const ApiSceneLoader = ({ enabled }) => {
                 }
 
                 const data = await response.json();
-                setProjectSceneData(data, sceneKey);
+                const terrain = await loadProjectTerrainConfig(requestKey, data.terrain, { signal: controller.signal });
+                if (controller.signal.aborted) return;
+                setProjectSceneData(terrain ? { ...data, terrain } : data, sceneKey);
                 applySceneData(data);
             } catch (error) {
                 if (error.name === 'AbortError') {

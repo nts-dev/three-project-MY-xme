@@ -9,6 +9,20 @@ export function resolveTerrainUrl(manifestPath) {
     return `${apiBase}/files/${String(manifestPath).replace(/^\/+/, "")}`;
 }
 
+export async function loadProjectTerrainConfig(projectId, legacyTerrain, { signal } = {}) {
+    if (String(projectId).trim().toUpperCase() !== "153_L2") return legacyTerrain;
+    try {
+        const response = await fetch(resolveTerrainUrl("terrain/153_L2/terrain.json"), { signal, cache: "no-cache" });
+        if (response.status === 404) return legacyTerrain;
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        if (error.name === "AbortError") throw error;
+        console.warn("[terrain] Could not load 153_L2 terrain configuration", error);
+        return legacyTerrain;
+    }
+}
+
 export async function loadTerrain(manifestUrl, { signal, onProgress } = {}) {
     const manifestResponse = await fetch(manifestUrl, { signal, cache: "no-cache" });
     if (!manifestResponse.ok) throw new Error(`Terrain manifest ${manifestUrl}: HTTP ${manifestResponse.status}`);

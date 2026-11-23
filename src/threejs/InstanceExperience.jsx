@@ -24,6 +24,7 @@ import Materials from "./rack/Materials";
 import AddLabels from "./rack/AddLabels";
 import Building from "./environment/Building1";
 import TerrainSystem from "./terrain/TerrainSystem";
+import { loadProjectTerrainConfig } from "./terrain/terrainData";
 import { getProjectOptimizeOptions, optimizeModel } from "./scene/optimize/modelOptimizer";
 import { AnnotationData } from "./label/AttachLabel";
 import { disposeBuildingLabelSprite } from "./label/BuildingLabelSprite";
@@ -1099,6 +1100,12 @@ const configureOriginalMeshMaterial = (material, mesh, keepDoubleSided = false) 
                 return loaded;
             });
             modelCacheRef.current.set(descriptor.cacheKey, loaderPromise);
+            loaderPromise.catch(() => {
+                // A failed download can be retried on the next scene sync.
+                if (modelCacheRef.current.get(descriptor.cacheKey) === loaderPromise) {
+                    modelCacheRef.current.delete(descriptor.cacheKey);
+                }
+            });
         }
         return modelCacheRef.current.get(descriptor.cacheKey);
     };
@@ -1360,7 +1367,8 @@ const configureOriginalMeshMaterial = (material, mesh, keepDoubleSided = false) 
             const data = await response.json();
             
             if (data) {
-                setProjectSceneData(data, requestKey);
+                const terrain = await loadProjectTerrainConfig(requestKey, data.terrain);
+                setProjectSceneData(terrain ? { ...data, terrain } : data, requestKey);
                 applySceneGridVisibility(data, setGrid);
                 return data;
             }
@@ -1416,9 +1424,15 @@ const configureOriginalMeshMaterial = (material, mesh, keepDoubleSided = false) 
         const sceneObj = ensureSceneObject();
         const nextCategoryKeys = new Set();
         const nextFloorsMap = new Map();
+        const prioritizeEstateBuildings = String(projectIdRef.current).trim().toUpperCase() === "153_L2";
+        const isEstateBuilding = (category) => /^MalaysiaEnvironmentBuildings/i.test(normalizeSceneAssetName(category.fbx));
         const orderedCategories = [...(Array.isArray(categories) ? categories : [])].sort((left, right) => {
             const leftRaw = getCategoryRaw(left) || {};
             const rightRaw = getCategoryRaw(right) || {};
+            if (prioritizeEstateBuildings) {
+                const priority = Number(isEstateBuilding(rightRaw)) - Number(isEstateBuilding(leftRaw));
+                if (priority) return priority;
+            }
             const leftIndex = Number.parseInt(leftRaw.category_index ?? leftRaw.category ?? leftRaw.id ?? "", 10);
             const rightIndex = Number.parseInt(rightRaw.category_index ?? rightRaw.category ?? rightRaw.id ?? "", 10);
 

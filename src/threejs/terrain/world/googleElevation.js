@@ -2,7 +2,8 @@ import { loadGoogleMaps } from "../../../components/project-map/ProjectGoogleWeb
 
 // Ground heights from the Google Elevation API for a scene area (scene JSON `terrain.elevation`):
 //   { provider: "google", bounds: { minX, maxX, minZ, maxZ }, spacing: 10, blend: 80,
-//     pads: [{ c: [x, z], a: angleDeg, s: [along, depth], h }], roads: [{ w: width, p: [[x, z], ...], h?: [y, ...] }],
+//     pads: [{ c: [x, z], a: angleDeg, s: [along, depth], h, blend? } or { p: [[x, z], ...], h, blend? }],
+//     roads: [{ w: width, p: [[x, z], ...], h?: [y, ...] }],
 //     platform: { p: [[x, z], ...], h, blend }, platforms: [{ p, h, blend }, ...] }
 // Bounds are scene metres (x east, z south). Heights are sampled on a `spacing` grid, fetched when the
 // scene loads and kept in memory only (Google's terms do not allow storing them). Inside the bounds they
@@ -53,9 +54,10 @@ async function fetchHeights(points, signal) {
                     await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
                 }
             }
-            results.forEach((result, k) => {
-                heights[start + k] = result.elevation;
-            });
+            if (results.length !== locations.length || results.some((result) => !Number.isFinite(result?.elevation))) {
+                throw new Error("Google elevation returned incomplete height samples");
+            }
+            results.forEach((result, k) => { heights[start + k] = result.elevation; });
         }
     };
     // A key the Maps JavaScript API rejects (e.g. ApiTargetBlockedMapError) never answers: give up
@@ -73,23 +75,54 @@ async function fetchHeights(points, signal) {
 }
 
 function preparePads(pads = []) {
-    return pads.map(({ c, a, s, h }) => {
+    return pads.map(({ c, a, s, h, p, blend = PAD_BLEND }) => {
+        if (p?.length >= 3) {
+            const xs = p.map(([x]) => x);
+            const zs = p.map(([, z]) => z);
+            return {
+                p, h, blend,
+                minX: Math.min(...xs) - blend, maxX: Math.max(...xs) + blend,
+                minZ: Math.min(...zs) - blend, maxZ: Math.max(...zs) + blend,
+            };
+        }
         const t = (a * Math.PI) / 180;
         const halfAlong = s[0] / 2 + PAD_MARGIN;
         const halfDepth = s[1] / 2 + PAD_MARGIN;
-        const reach = Math.hypot(halfAlong, halfDepth) + PAD_BLEND;
+        const reach = Math.hypot(halfAlong, halfDepth) + blend;
         // Along-row axis [cos t, -sin t], depth axis [sin t, cos t] (scene x/z).
-        return { x: c[0], z: c[1], cos: Math.cos(t), sin: Math.sin(t), halfAlong, halfDepth, h, reach };
+        return {
+            x: c[0], z: c[1], cos: Math.cos(t), sin: Math.sin(t), halfAlong, halfDepth, h, blend,
+            minX: c[0] - reach, maxX: c[0] + reach, minZ: c[1] - reach, maxZ: c[1] + reach,
+        };
     });
 }
+
+function polygonDistance(poly, x, z) {
+    let inside = false;
+    let nearest = Infinity;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const [xi, zi] = poly[i];
+        const [xj, zj] = poly[j];
+        if ((zi > z) !== (zj > z) && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
+        const dx = xj - xi;
+        const dz = zj - zi;
+        const t = Math.max(0, Math.min(1, ((x - xi) * dx + (z - zi) * dz) / (dx * dx + dz * dz || 1)));
+        nearest = Math.min(nearest, Math.hypot(x - xi - t * dx, z - zi - t * dz));
+    }
+    return inside ? 0 : nearest;
+}
+
+const featherWeight = (distance, blend) => distance <= 0 ? 1 : distance >= blend ? 0 : 1 - smoothstep(distance / blend);
 
 /** Road polylines -> short segments carrying smoothed centreline heights (metres above sea level). */
 function prepareRoads(roads = [], natural, anchorElevation = 0) {
     const segments = [];
     for (const road of roads) {
+        if (road.p.length < 2) continue;
         // Heights at the given points: the road's own (`h`, scene y: estate streets get the level of
         // the lots beside them) or else Google's.
-        const given = road.p.map(([x, z], i) => (road.h?.[i] != null ? road.h[i] + anchorElevation : natural(x, z)));
+        const given = road.p.map((_, i) => (Number.isFinite(road.h?.[i]) ? road.h[i] + anchorElevation : null));
+        const fixedGrade = given.every((value) => value !== null);
         // Resample the centreline every ROAD_STEP metres.
         const pts = [];
         let h = [];
@@ -98,18 +131,25 @@ function prepareRoads(roads = [], natural, anchorElevation = 0) {
             const [bx, bz] = road.p[i + 1];
             const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / ROAD_STEP));
             for (let k = 0; k < n; k++) {
-                pts.push([ax + ((bx - ax) * k) / n, az + ((bz - az) * k) / n]);
-                h.push(given[i] + ((given[i + 1] - given[i]) * k) / n);
+                const x = ax + ((bx - ax) * k) / n;
+                const z = az + ((bz - az) * k) / n;
+                const start = given[i];
+                const end = given[i + 1];
+                pts.push([x, z]);
+                if (start !== null && end !== null) h.push(start + ((end - start) * k) / n);
+                else h.push((k === 0 ? start : null) ?? natural(x, z));
             }
         }
         pts.push(road.p[road.p.length - 1]);
-        h.push(given[given.length - 1]);
+        h.push(given.at(-1) ?? natural(...road.p.at(-1)));
         // Moving average of the heights along the road (±ROAD_SMOOTH samples, a few passes).
         for (let pass = 0; pass < 3; pass++) {
-            h = h.map((_, i) => {
+            h = h.map((value, i) => {
+                if (value === null) return null;
                 let sum = 0;
                 let count = 0;
                 for (let j = Math.max(0, i - ROAD_SMOOTH); j <= Math.min(h.length - 1, i + ROAD_SMOOTH); j++) {
+                    if (h[j] === null) continue;
                     sum += h[j];
                     count++;
                 }
@@ -119,12 +159,13 @@ function prepareRoads(roads = [], natural, anchorElevation = 0) {
         const half = road.w / 2;
         const reach = half + ROAD_BLEND;
         for (let i = 0; i < pts.length - 1; i++) {
+            if (h[i] === null || h[i + 1] === null) continue;
             const [ax, az] = pts[i];
             const [bx, bz] = pts[i + 1];
             const dx = bx - ax;
             const dz = bz - az;
             segments.push({
-                ax, az, dx, dz, lengthSq: dx * dx + dz * dz || 1, ha: h[i], hb: h[i + 1], half,
+                ax, az, dx, dz, lengthSq: dx * dx + dz * dz || 1, ha: h[i], hb: h[i + 1], half, fixedGrade,
                 minX: Math.min(ax, bx) - reach, maxX: Math.max(ax, bx) + reach,
                 minZ: Math.min(az, bz) - reach, maxZ: Math.max(az, bz) + reach,
             });
@@ -142,7 +183,6 @@ export async function loadGoogleElevation(config, frame, anchorElevation, { sign
     if (config?.provider !== "google" || !config.bounds) return null;
     const { minX, maxX, minZ, maxZ } = config.bounds;
     const spacing = config.spacing ?? 10;
-    const blend = config.blend ?? 80;
     const nx = Math.ceil((maxX - minX) / spacing) + 1;
     const nz = Math.ceil((maxZ - minZ) / spacing) + 1;
 
@@ -164,12 +204,30 @@ export async function loadGoogleElevation(config, frame, anchorElevation, { sign
         // Buildings stand at their pad levels, so keep the pads on the built-in ground.
         console.warn("[terrain] Google elevation unavailable; building pads on the built-in elevation", error);
     }
+    return createLocalElevation(config, anchorElevation, grid);
+}
+
+/** Combines the sampled elevation grid with the scene's graded surfaces. */
+export function createLocalElevation(config, anchorElevation, grid = null) {
+    const { minX, maxX, minZ, maxZ } = config.bounds;
+    const spacing = config.spacing ?? 10;
+    const blend = config.blend ?? 80;
+    const nx = Math.ceil((maxX - minX) / spacing) + 1;
+    const nz = Math.ceil((maxZ - minZ) / spacing) + 1;
+    const influence = { minX, maxX, minZ, maxZ };
+    const include = (minX, maxX, minZ, maxZ) => {
+        influence.minX = Math.min(influence.minX, minX);
+        influence.maxX = Math.max(influence.maxX, maxX);
+        influence.minZ = Math.min(influence.minZ, minZ);
+        influence.maxZ = Math.max(influence.maxZ, maxZ);
+    };
     // Pads bucketed on a coarse grid, so each height query only checks the few pads nearby.
     const BUCKET = 50;
     const buckets = new Map();
     for (const pad of preparePads(config.pads)) {
-        for (let bx = Math.floor((pad.x - pad.reach) / BUCKET); bx <= Math.floor((pad.x + pad.reach) / BUCKET); bx++) {
-            for (let bz = Math.floor((pad.z - pad.reach) / BUCKET); bz <= Math.floor((pad.z + pad.reach) / BUCKET); bz++) {
+        include(pad.minX, pad.maxX, pad.minZ, pad.maxZ);
+        for (let bx = Math.floor(pad.minX / BUCKET); bx <= Math.floor(pad.maxX / BUCKET); bx++) {
+            for (let bz = Math.floor(pad.minZ / BUCKET); bz <= Math.floor(pad.maxZ / BUCKET); bz++) {
                 const k = `${bx},${bz}`;
                 if (!buckets.has(k)) buckets.set(k, []);
                 buckets.get(k).push(pad);
@@ -179,8 +237,9 @@ export async function loadGoogleElevation(config, frame, anchorElevation, { sign
     const NO_PADS = [];
 
     const natural = (x, z) => {
-        const fx = Math.min(nx - 1, Math.max(0, (x - minX) / spacing));
-        const fz = Math.min(nz - 1, Math.max(0, (z - minZ) / spacing));
+        if (!grid || x < minX || x > maxX || z < minZ || z > maxZ) return null;
+        const fx = (x - minX) / spacing;
+        const fz = (z - minZ) / spacing;
         const c = Math.min(nx - 2, Math.floor(fx));
         const r = Math.min(nz - 2, Math.floor(fz));
         const tx = fx - c;
@@ -195,44 +254,32 @@ export async function loadGoogleElevation(config, frame, anchorElevation, { sign
     // the ground eases back to the natural heights over `blend` metres outside it.
     // More level areas can be given as config.platforms (same shape); later ones go on top.
     const platforms = [config.platform, ...(config.platforms || [])].filter((p) => p?.p?.length >= 3);
-    const platformWeight = (platform, x, z) => {
-        const poly = platform.p;
-        let inside = false;
-        let nearest = Infinity;
-        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-            const [xi, zi] = poly[i];
-            const [xj, zj] = poly[j];
-            if ((zi > z) !== (zj > z) && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
-            const dx = xj - xi;
-            const dz = zj - zi;
-            const t = Math.max(0, Math.min(1, ((x - xi) * dx + (z - zi) * dz) / (dx * dx + dz * dz || 1)));
-            nearest = Math.min(nearest, Math.hypot(x - xi - t * dx, z - zi - t * dz));
-        }
-        if (inside) return 1;
-        const blendDistance = platform.blend ?? 60;
-        return nearest >= blendDistance ? 0 : 1 - smoothstep(nearest / blendDistance);
-    };
+    for (const platform of platforms) {
+        const reach = platform.blend ?? 60;
+        for (const [x, z] of platform.p) include(x - reach, x + reach, z - reach, z + reach);
+    }
 
     const roadBuckets = new Map();
-    if (grid) {
-        for (const segment of prepareRoads(config.roads, natural, anchorElevation)) {
-            for (let bx = Math.floor(segment.minX / BUCKET); bx <= Math.floor(segment.maxX / BUCKET); bx++) {
-                for (let bz = Math.floor(segment.minZ / BUCKET); bz <= Math.floor(segment.maxZ / BUCKET); bz++) {
-                    const k = `${bx},${bz}`;
-                    if (!roadBuckets.has(k)) roadBuckets.set(k, []);
-                    roadBuckets.get(k).push(segment);
-                }
+    for (const segment of prepareRoads(config.roads, natural, anchorElevation)) {
+        if (segment.fixedGrade) include(segment.minX, segment.maxX, segment.minZ, segment.maxZ);
+        for (let bx = Math.floor(segment.minX / BUCKET); bx <= Math.floor(segment.maxX / BUCKET); bx++) {
+            for (let bz = Math.floor(segment.minZ / BUCKET); bz <= Math.floor(segment.maxZ / BUCKET); bz++) {
+                const k = `${bx},${bz}`;
+                if (!roadBuckets.has(k)) roadBuckets.set(k, []);
+                roadBuckets.get(k).push(segment);
             }
         }
     }
 
-    /** Ground in metres above sea level; `base` (the other elevation sources) outside the bounds. */
+    /** Ground in metres above sea level, with site grading independent of the sampled grid edge. */
     const heightAt = (x, z, base) => {
+        if (x < influence.minX || x > influence.maxX || z < influence.minZ || z > influence.maxZ) return base;
         const edge = Math.min(x - minX, maxX - x, z - minZ, maxZ - z);
-        if (edge <= 0) return base;
-        let ground = grid ? natural(x, z) : base;
+        const gridWeight = grid && edge > 0 ? (blend > 0 ? smoothstep(Math.min(1, edge / blend)) : 1) : 0;
+        let ground = base;
+        if (gridWeight > 0) ground += (natural(x, z) - ground) * gridWeight;
         for (const platform of platforms) {
-            const w = platformWeight(platform, x, z);
+            const w = featherWeight(polygonDistance(platform.p, x, z), platform.blend ?? 60);
             if (w > 0) ground = ground * (1 - w) + (platform.h + anchorElevation) * w;
         }
         // Where roads meet (ramps, merges, the median between carriageways) their levels are mixed,
@@ -245,7 +292,7 @@ export async function loadGoogleElevation(config, frame, anchorElevation, { sign
             const t = Math.max(0, Math.min(1, ((x - s.ax) * s.dx + (z - s.az) * s.dz) / s.lengthSq));
             const distance = Math.hypot(x - (s.ax + t * s.dx), z - (s.az + t * s.dz)) - s.half;
             if (distance >= ROAD_BLEND) continue;
-            const weight = distance <= 0 ? 1 : 1 - smoothstep(distance / ROAD_BLEND);
+            const weight = featherWeight(distance, ROAD_BLEND) * (s.fixedGrade ? 1 : gridWeight);
             const w4 = weight ** 4;
             mixWeight += w4;
             mixHeight += w4 * (s.ha + (s.hb - s.ha) * t);
@@ -256,22 +303,24 @@ export async function loadGoogleElevation(config, frame, anchorElevation, { sign
         let padWeight = 0;
         let padHeight = 0;
         for (const pad of buckets.get(`${Math.floor(x / BUCKET)},${Math.floor(z / BUCKET)}`) ?? NO_PADS) {
-            const dx = x - pad.x;
-            const dz = z - pad.z;
-            if (Math.abs(dx) > pad.reach || Math.abs(dz) > pad.reach) continue;
-            const along = Math.abs(dx * pad.cos - dz * pad.sin) - pad.halfAlong;
-            const depth = Math.abs(dx * pad.sin + dz * pad.cos) - pad.halfDepth;
-            const outside = Math.hypot(Math.max(0, along), Math.max(0, depth));
-            if (outside >= PAD_BLEND) continue;
-            const weight = 1 - smoothstep(outside / PAD_BLEND);
+            if (x < pad.minX || x > pad.maxX || z < pad.minZ || z > pad.maxZ) continue;
+            let outside;
+            if (pad.p) outside = polygonDistance(pad.p, x, z);
+            else {
+                const dx = x - pad.x;
+                const dz = z - pad.z;
+                const along = Math.abs(dx * pad.cos - dz * pad.sin) - pad.halfAlong;
+                const depth = Math.abs(dx * pad.sin + dz * pad.cos) - pad.halfDepth;
+                outside = Math.hypot(Math.max(0, along), Math.max(0, depth));
+            }
+            const weight = featherWeight(outside, pad.blend);
             if (weight > padWeight) {
                 padWeight = weight;
                 padHeight = pad.h + anchorElevation;
             }
         }
         if (padWeight > 0) ground = ground * (1 - padWeight) + padHeight * padWeight;
-        const weight = smoothstep(Math.min(1, edge / blend));
-        return base * (1 - weight) + ground * weight;
+        return ground;
     };
 
     return { heightAt, bounds: config.bounds, google: Boolean(grid) };
@@ -297,6 +346,7 @@ export function fitBridgesToGround(regions, localElevation, frame, anchorElevati
                 const p = toScene(x, z, 0);
                 return localElevation.heightAt(p.x, p.z, oldGround + ref) - ref;
             });
+            if (ground.every((height, i) => Math.abs(height - points[i][3]) < 0.001)) return bridge;
             const along = [0];
             for (let i = 1; i < points.length; i++) along.push(along[i - 1] + Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]));
             const length = along[along.length - 1] || 1;
