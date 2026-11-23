@@ -1,5 +1,7 @@
-import React from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
@@ -67,6 +69,14 @@ function buildFileImageUrl(fileName) {
     return `/files/${encodedFileName}`;
 }
 
+/** "11/17/2026" (month/day/year) -> "17 Nov 2026"; anything else unchanged. */
+function formatDate(value) {
+    const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(value || ""));
+    if (!match) return value;
+    const date = new Date(Number(match[3]), Number(match[1]) - 1, Number(match[2]));
+    return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
 function ProjectTile({ project, onOpen }) {
     const openProject = () => onOpen(project.id);
 
@@ -97,7 +107,7 @@ function ProjectTile({ project, onOpen }) {
                 <p className="project-tile-org">
                     {project.org || "NTS Computers SDN BHD"}
                 </p>
-                <h2>{project.title}</h2>
+                <h2 title={project.title}>{project.title}</h2>
 
                 <div className="project-tile-location">
                     <LocationOnOutlinedIcon fontSize="inherit" />
@@ -106,9 +116,9 @@ function ProjectTile({ project, onOpen }) {
 
                 <div className="project-tile-footer">
                     <div className="project-tile-meta">
-                        <span>
+                        <span title="Last updated">
                             <CalendarTodayOutlinedIcon fontSize="inherit" />
-                            {project.date}
+                            {formatDate(project.date)}
                         </span>
                         <span>
                             <BusinessOutlinedIcon fontSize="inherit" />
@@ -131,6 +141,113 @@ function ProjectTile({ project, onOpen }) {
                 </div>
             </div>
         </article>
+    );
+}
+
+/**
+ * The project tiles in one horizontally scrolling row (swipe, trackpad, Shift+wheel or the arrow
+ * buttons), so any number of sites fits. Cards snap into place; the buttons scroll about one view
+ * and are disabled at either end. Arrow keys work while the row has focus.
+ */
+function ProjectCarousel({ children, count }) {
+    const trackRef = useRef(null);
+    const [edges, setEdges] = useState({ start: true, end: true, first: 1, last: count, progress: 1 });
+
+    const updateEdges = useCallback(() => {
+        const track = trackRef.current;
+        if (!track) return;
+        const max = track.scrollWidth - track.clientWidth;
+        const card = track.firstElementChild;
+        const gap = parseFloat(getComputedStyle(track).columnGap || "0") || 0;
+        const step = card ? card.getBoundingClientRect().width + gap : track.clientWidth;
+        const perView = Math.max(1, Math.floor((track.clientWidth + gap + 1) / step));
+        const first = Math.min(count, Math.round(track.scrollLeft / step) + 1);
+        const last = Math.min(count, first + perView - 1);
+        setEdges({
+            start: track.scrollLeft <= 2,
+            end: track.scrollLeft >= max - 2,
+            first,
+            last,
+            // Share of the row in view, and how far along it is (for the progress bar).
+            view: max > 0 ? track.clientWidth / track.scrollWidth : 1,
+            progress: max > 0 ? track.scrollLeft / max : 0,
+        });
+    }, [count]);
+
+    useEffect(() => {
+        const track = trackRef.current;
+        if (!track) return undefined;
+        updateEdges();
+        track.addEventListener("scroll", updateEdges, { passive: true });
+        const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateEdges) : null;
+        observer?.observe(track);
+        window.addEventListener("resize", updateEdges);
+        return () => {
+            track.removeEventListener("scroll", updateEdges);
+            observer?.disconnect();
+            window.removeEventListener("resize", updateEdges);
+        };
+    }, [updateEdges, count]);
+
+    const scrollByPage = (direction) => {
+        const track = trackRef.current;
+        if (!track) return;
+        // As many whole cards as fit in the view (at least one), so cards stay aligned to the snap points.
+        const card = track.firstElementChild;
+        const gap = parseFloat(getComputedStyle(track).columnGap || "0") || 0;
+        const step = card ? card.getBoundingClientRect().width + gap : track.clientWidth;
+        const cards = Math.max(1, Math.floor((track.clientWidth + gap + 1) / step));
+        track.scrollBy({ left: direction * cards * step, behavior: "smooth" });
+    };
+
+    const onKeyDown = (event) => {
+        if (event.key === "ArrowRight") { event.preventDefault(); scrollByPage(1); }
+        if (event.key === "ArrowLeft") { event.preventDefault(); scrollByPage(-1); }
+    };
+
+    const scrollable = !(edges.start && edges.end);
+
+    return (
+        <>
+        <div className={`project-tile-carousel${scrollable ? " is-scrollable" : ""}${edges.start ? " at-start" : ""}${edges.end ? " at-end" : ""}`}>
+            <button
+                type="button"
+                className="project-tile-scroll project-tile-scroll--prev"
+                aria-label="Previous sites"
+                onClick={() => scrollByPage(-1)}
+                disabled={edges.start}
+            >
+                <ChevronLeftIcon fontSize="inherit" />
+            </button>
+            <div
+                ref={trackRef}
+                className="project-tile-grid"
+                role="region"
+                aria-label="Sites"
+                tabIndex={0}
+                onKeyDown={onKeyDown}
+            >
+                {children}
+            </div>
+            <button
+                type="button"
+                className="project-tile-scroll project-tile-scroll--next"
+                aria-label="More sites"
+                onClick={() => scrollByPage(1)}
+                disabled={edges.end}
+            >
+                <ChevronRightIcon fontSize="inherit" />
+            </button>
+        </div>
+        {scrollable && (
+            <div className="project-tile-pager" aria-live="polite">
+                <span>{edges.first === edges.last ? edges.first : `${edges.first}–${edges.last}`} of {count}</span>
+                <div className="project-tile-progress" aria-hidden="true">
+                    <i style={{ width: `${Math.max(8, (edges.view ?? 1) * 100)}%`, left: `${(edges.progress ?? 0) * (100 - Math.max(8, (edges.view ?? 1) * 100))}%` }} />
+                </div>
+            </div>
+        )}
+        </>
     );
 }
 
@@ -189,11 +306,11 @@ export default function ProjectTileLanding() {
                     </div>
                     <div className="project-tile-count">
                         <strong>{PROJECTS.length}</strong>
-                        <span>sites available</span>
+                        <span>{PROJECTS.length === 1 ? "site" : "sites"} available</span>
                     </div>
                 </div>
 
-                <div className="project-tile-grid">
+                <ProjectCarousel count={PROJECTS.length}>
                     {PROJECTS.map((project) => (
                         <ProjectTile
                             key={project.id}
@@ -201,7 +318,7 @@ export default function ProjectTileLanding() {
                             onOpen={openProject}
                         />
                     ))}
-                </div>
+                </ProjectCarousel>
             </main>
         </section>
     );

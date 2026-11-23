@@ -159,18 +159,137 @@
     font-size: 13px;
 }
 
-/* Cards */
-.project-tile-grid {
-    display: grid;
-    /* Tiles grow with the window: as many columns of at least 380px as fit, filling the full width. */
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
-    gap: clamp(16px, 1.6vw, 32px);
+/* Carousel: one scrolling row of cards; 4 / 3 / 2 in view by width, ~1.15 on phones. */
+.project-tile-carousel {
+    --carousel-gap: clamp(16px, 1.6vw, 28px);
+    --cards-in-view: 4;
+    position: relative;
 }
 
+.project-tile-grid {
+    display: flex;
+    gap: var(--carousel-gap);
+    /* Room for the hover lift and focus ring, which a scroll container would otherwise clip. */
+    margin: -10px calc(-1 * clamp(4px, 0.4vw, 8px)) 0;
+    padding: 10px clamp(4px, 0.4vw, 8px) 16px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: clamp(4px, 0.4vw, 8px);
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    outline: none;
+}
+
+.project-tile-grid::-webkit-scrollbar {
+    display: none;
+}
+
+.project-tile-grid:focus-visible {
+    box-shadow: inset 0 0 0 2px rgba(45, 212, 191, 0.45);
+    border-radius: 16px;
+}
+
+/* Soft edges where more cards continue. */
+.project-tile-carousel.is-scrollable:not(.at-start) .project-tile-grid {
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 56px);
+    mask-image: linear-gradient(90deg, transparent 0, #000 56px);
+}
+
+.project-tile-carousel.is-scrollable:not(.at-end) .project-tile-grid {
+    -webkit-mask-image: linear-gradient(270deg, transparent 0, #000 56px);
+    mask-image: linear-gradient(270deg, transparent 0, #000 56px);
+}
+
+.project-tile-carousel.is-scrollable:not(.at-start):not(.at-end) .project-tile-grid {
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 56px, #000 calc(100% - 56px), transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 56px, #000 calc(100% - 56px), transparent 100%);
+}
+
+/* Previous / next: round buttons on the row's edges, level with the photos; hidden at the ends. */
+.project-tile-scroll {
+    position: absolute;
+    top: calc(10px + (100% - 26px) * 0.27);
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    border: 1px solid var(--landing-border-strong);
+    border-radius: 50%;
+    background: rgba(18, 25, 34, 0.92);
+    color: var(--landing-text);
+    font-size: 26px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(10px);
+    cursor: pointer;
+    transform: translateY(-50%);
+    transition: opacity 180ms ease, background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.project-tile-scroll--prev {
+    left: -23px;
+}
+
+.project-tile-scroll--next {
+    right: -23px;
+}
+
+.project-tile-scroll:hover,
+.project-tile-scroll:focus-visible {
+    border-color: rgba(45, 212, 191, 0.6);
+    background: var(--landing-surface-raised);
+    color: var(--landing-accent);
+    outline: none;
+    transform: translateY(-50%) scale(1.06);
+}
+
+.project-tile-scroll:disabled,
+.project-tile-carousel:not(.is-scrollable) .project-tile-scroll {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* "1–4 of 6" and a thin progress bar under the row. */
+.project-tile-pager {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    margin-top: 6px;
+    color: var(--landing-text-muted);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
+.project-tile-progress {
+    position: relative;
+    width: 120px;
+    height: 3px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: var(--landing-border);
+}
+
+.project-tile-progress i {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: 3px;
+    background: var(--landing-accent);
+    transition: left 200ms ease, width 200ms ease;
+}
+
+/* Cards */
 .project-tile-card {
     display: flex;
+    flex: 0 0 calc((100% - (var(--cards-in-view) - 1) * var(--carousel-gap)) / var(--cards-in-view));
     flex-direction: column;
     min-width: 0;
+    scroll-snap-align: start;
     overflow: hidden;
     border: 1px solid var(--landing-border);
     border-radius: 14px;
@@ -232,12 +351,14 @@
     align-items: center;
     height: clamp(24px, 1.8vw, 32px);
     padding: 0 clamp(10px, 0.8vw, 14px);
-    border-radius: 6px;
-    background: rgba(11, 16, 22, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    background: rgba(11, 16, 22, 0.72);
     color: var(--landing-text);
-    font-size: clamp(12px, 0.8vw, 14px);
+    font-size: clamp(11px, 0.75vw, 13px);
     font-weight: 600;
-    backdrop-filter: blur(6px);
+    letter-spacing: 0.01em;
+    backdrop-filter: blur(8px);
 }
 
 .project-tile-content {
@@ -248,14 +369,24 @@
 }
 
 .project-tile-org {
-    margin: 0 0 6px;
+    margin: 0 0 8px;
+    overflow: hidden;
     color: var(--landing-text-subtle);
-    font-size: clamp(12px, 0.8vw, 14px);
-    font-weight: 500;
+    font-size: clamp(11px, 0.7vw, 12px);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
 }
 
 .project-tile-content h2 {
-    margin: 0 0 8px;
+    display: -webkit-box;
+    min-height: calc(2 * 1.3em);
+    margin: 0 0 10px;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
     color: var(--landing-text);
     font-size: clamp(18px, 1.35vw, 26px);
     font-weight: 650;
@@ -291,7 +422,13 @@
 }
 
 .project-tile-location {
-    margin-bottom: 16px;
+    margin-bottom: 18px;
+}
+
+.project-tile-location span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .project-tile-meta {
@@ -357,7 +494,43 @@
     color: #0391ae;
 }
 
+@media (max-width: 1599px) {
+    .project-tile-carousel {
+        --cards-in-view: 3;
+    }
+}
+
+@media (max-width: 1199px) {
+    .project-tile-carousel {
+        --cards-in-view: 2;
+    }
+}
+
 @media (max-width: 760px) {
+    /* Phones keep the stacked list scrolling top to bottom (no side-scrolling row, arrows or pager). */
+    .project-tile-grid {
+        flex-direction: column;
+        gap: 16px;
+        margin: 0;
+        padding: 0;
+        overflow: visible;
+        scroll-snap-type: none;
+    }
+
+    .project-tile-carousel .project-tile-grid {
+        -webkit-mask-image: none !important;
+        mask-image: none !important;
+    }
+
+    .project-tile-card {
+        flex: 0 0 auto;
+    }
+
+    .project-tile-scroll,
+    .project-tile-pager {
+        display: none;
+    }
+
     .project-tile-nav {
         height: 56px;
         padding: 0 16px;
@@ -381,8 +554,10 @@
         font-size: 26px;
     }
 
+}
+
+@media (prefers-reduced-motion: reduce) {
     .project-tile-grid {
-        grid-template-columns: minmax(0, 1fr);
-        gap: 16px;
+        scroll-behavior: auto;
     }
 }
