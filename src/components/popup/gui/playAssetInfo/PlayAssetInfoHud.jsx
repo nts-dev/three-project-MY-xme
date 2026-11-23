@@ -7,7 +7,6 @@ import {
     FaDownload,
     FaEnvelope,
     FaGlobe,
-    FaHotel,
     FaLock,
     FaMapMarkerAlt,
     FaPhoneAlt,
@@ -23,7 +22,10 @@ import {
 import useGame from "../../../../hooks/useGame";
 import PlayAssetInfoFrame from "./PlayAssetInfoFrame";
 import { loadPlayAssetInfo } from "./assetInfoData";
-import { GALLERY_UPDATED_EVENT, firstRealPhotoUrl, getGalleryCacheKey, isPlaceholderImage, loadAssetGalleryImages } from "./galleryImages";
+import { formatStreetAddress, getBusinessKind } from "./businessKind";
+import { GALLERY_UPDATED_EVENT, firstRealPhotoUrl, getGalleryCacheKey, isPlaceholderImage, loadAssetGalleryImages, photoCredit } from "./galleryImages";
+
+const firstPhotoCredit = (images) => photoCredit((images || []).find((image) => !isPlaceholderImage(image)));
 import { usePlayAssetInfo } from "./usePlayAssetInfo";
 import SystemBuilderPopup from "../systemBuilder/SystemBuilderPopup";
 import { updateBuildingLabelSpriteLogo } from "../../../../threejs/label/BuildingLabelSprite";
@@ -70,12 +72,15 @@ const normalizeSpriteFields = (fields) => {
 };
 
 const getSpriteFieldValue = (fields, names, fallback = "") => {
-    const wanted = names.map((name) => String(name).trim().toLowerCase());
-    const field = normalizeSpriteFields(fields).find((item) => (
-        wanted.includes(String(item?.name || item?.label || "").trim().toLowerCase())
-    ));
-    const value = field?.value;
-    return value === undefined || value === null || String(value).trim() === "" ? fallback : String(value);
+    // Names in priority order: "Company Name" wins over "AssetName" whatever the record's field order.
+    const list = normalizeSpriteFields(fields);
+    for (const name of names) {
+        const wanted = String(name).trim().toLowerCase();
+        const field = list.find((item) => String(item?.name || item?.label || "").trim().toLowerCase() === wanted);
+        const value = field?.value;
+        if (value !== undefined && value !== null && String(value).trim() !== "") return String(value);
+    }
+    return fallback;
 };
 
 const getRatingStars = (rating) => {
@@ -217,11 +222,20 @@ const buildSpritePopupInfo = (instanceId, projectId) => {
     if (!sceneAsset && !fieldList.some((field) => String(field?.value ?? "").trim())) return null;
 
     const title = getSpriteFieldValue(fields, ["Company Name", "AssetName", "Asset Name"], sceneAsset?.name || `Asset ${instanceId}`);
-    const businessType = getSpriteFieldValue(fields, ["Business Type", "Type"], "N/A");
-    const streetNumber = getSpriteFieldValue(fields, ["Street Number", "Street No.", "Building Number", "Building No"], "N/A");
+    const companyName = getSpriteFieldValue(fields, ["Company Name"], "");
+    const businessKind = getBusinessKind(
+        getSpriteFieldValue(fields, ["Business Type", "Kind of Business", "Type"], ""),
+        companyName,
+        getSpriteFieldValue(fields, ["Business Description", "Description"], ""),
+        getSpriteFieldValue(fields, ["Comments"], ""),
+    );
+    const businessType = businessKind.label;
+    const streetNumber = getSpriteFieldValue(fields, ["Building Number", "Building No", "Street Number", "Street No."], "");
+    const streetName = getSpriteFieldValue(fields, ["Street Name", "Street"], "");
+    const streetAddress = formatStreetAddress(streetNumber, streetName);
     const floors = getSpriteFieldValue(fields, ["Floors", "Floor", "Level"], sceneAsset?.floor || "N/A");
     const status = getSpriteFieldValue(fields, ["Status"], sceneAsset?.inUse ? "Active" : "Active");
-    const area = String(projectId) === "153_L1"
+    const area = String(projectId).startsWith("153")
         ? "XME Business Park, Nilai Impian, 71800 Nilai, Negeri Sembilan, Malaysia"
         : getSpriteFieldValue(fields, ["City", "Area", "Location"], "Seri Kembangan, Selangor, Malaysia");
     const coordinates = getSpriteFieldValue(fields, ["Cordinates", "Coordinates"], "");
@@ -246,7 +260,10 @@ const buildSpritePopupInfo = (instanceId, projectId) => {
         title,
         assetID,
         businessType,
+        businessKind,
         streetNumber,
+        streetName,
+        streetAddress,
         floors,
         status,
         area,
@@ -353,7 +370,7 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
         setGalleryPhoto((current) => (current?.instanceId === String(instanceId) && current.url ? current : { instanceId: String(instanceId), url: "", loading: true }));
         loadAssetGalleryImages({ instanceId, assetID, apiImages: Array.isArray(loadedInfo?.images) ? loadedInfo.images : [] })
             .then((images) => {
-                if (!cancelled) setGalleryPhoto({ instanceId: String(instanceId), url: firstRealPhotoUrl(images), loading: false });
+                if (!cancelled) setGalleryPhoto({ instanceId: String(instanceId), url: firstRealPhotoUrl(images), credit: firstPhotoCredit(images), loading: false });
             })
             .catch(() => {
                 if (!cancelled) setGalleryPhoto({ instanceId: String(instanceId), url: "", loading: false });
@@ -362,7 +379,7 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
         // Uploads in the sidebar update the shared cache; follow them here.
         const handleGalleryUpdate = (event) => {
             if (event?.detail?.cacheKey !== cacheKey) return;
-            setGalleryPhoto({ instanceId: String(instanceId), url: firstRealPhotoUrl(event.detail.images), loading: false });
+            setGalleryPhoto({ instanceId: String(instanceId), url: firstRealPhotoUrl(event.detail.images), credit: firstPhotoCredit(event.detail.images), loading: false });
         };
         window.addEventListener(GALLERY_UPDATED_EVENT, handleGalleryUpdate);
         return () => {
@@ -408,8 +425,13 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
     if (!popup?.info) return null;
 
     const { info } = popup;
-    const left = Math.min(Math.max((popup.clientX || window.innerWidth / 2) + 16, 26), window.innerWidth - 314);
-    const top = Math.min(Math.max((popup.clientY || window.innerHeight / 2) - 34, 42), window.innerHeight - 396);
+    // Docked on the left of the screen, under the top bar (mobile CSS moves it to the bottom sheet).
+    const left = 16;
+    const top = 68;
+    const KindIcon = info.businessKind?.Icon || FaBuilding;
+    const initials = String(info.title || "")
+        .replace(/\(.*?\)|\b(sdn|bhd)\b|[^\p{L}\p{N}\s]/giu, " ")
+        .split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0].toUpperCase()).join("");
     // Only reuse sidebar image data when it belongs to this exact instance ID.
     // Matching by title can accidentally reuse the previous asset's image when
     // two assets have the same/fallback title.
@@ -443,9 +465,19 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
     const resolvedCoordinates = findAssetInfoValue(resolvedPopupInfo, ["Cordinates", "Coordinates"], info.coordinates);
     const displayTitle = googlePlace?.title || resolvedPopupInfo?.title || info.title;
     const isWaitingForGooglePlace = Boolean(resolvedCoordinates) && googlePlaceStatus === "loading";
-    const displayAddress = isWaitingForGooglePlace ? "Loading address..." : googlePlace?.address || resolvedAddress;
+    // Street number and name first (from the unit record), then the area.
+    const displayStreet = info.streetAddress || "";
+    const displayAddress = displayStreet
+        ? info.area
+        : isWaitingForGooglePlace ? "Loading address..." : googlePlace?.address || resolvedAddress;
     const displayRating = isWaitingForGooglePlace ? "..." : googlePlace?.rating || resolvedRating;
     const displayReviews = isWaitingForGooglePlace ? "..." : googlePlace?.reviews || resolvedReviews;
+    const hasValue = (value) => isUsableContactValue(value) && !/^loading/i.test(String(value));
+    const hasRating = hasValue(displayRating) && displayRating !== "..." && Number.parseFloat(displayRating) > 0;
+    // "Mon–Fri 9 AM–6 PM; Sat 9 AM–1 PM; Sun Closed" -> one line per part.
+    const hoursLines = hasValue(displayOpeningHours)
+        ? String(displayOpeningHours).split(/\s*[;\n]\s*/).map((line) => line.trim()).filter(Boolean)
+        : [];
     const phoneHref = buildPhoneHref(displayPhone);
     const whatsAppHref = buildWhatsAppHref(displayWhatsApp);
     const websiteHref = buildWebsiteHref(displayWebsite);
@@ -509,140 +541,128 @@ function BuildingLabelPopup({ popup, onClose, activeAssetInfo }) {
 
     return (
         <div
-            className="play-building-label-popup"
-            style={{ left, top }}
+            className="play-building-label-popup blp"
+            style={{ left, top, "--blp-accent": info.businessKind?.color || "#10b981" }}
             role="dialog"
             aria-label={`${displayTitle} marker details`}
         >
-            <div className="play-building-label-popup__head">
-                <span className="play-building-label-popup__icon"><FaHotel aria-hidden="true" /></span>
-                <strong>{info.businessType}</strong>
-                <button type="button" aria-label="Close marker details" onClick={onClose}>
-                    <FaTimes aria-hidden="true" />
-                </button>
-            </div>
-            <div className="play-building-label-popup__summary">
-                <label className="play-building-label-popup__logo" aria-label="Upload logo">
-                    {info.logoUrl ? <img src={info.logoUrl} alt="" /> : <FaBuilding aria-hidden="true" />}
-                    <input type="file" accept="image/*" onChange={uploadLogo} />
-                </label>
-                <div className="play-building-label-popup__title-block">
-                    <h2>{displayTitle}</h2>
-                    <div className="play-building-label-popup__rating">
-                        <span className="play-building-label-popup__stars" aria-label={`${displayRating} out of 5 stars`}>
-                            
-                            {getRatingStars(displayRating).map((star) => (
-                                star.type === "half"
-                                    ? <FaStarHalfAlt key={star.key} aria-hidden="true" />
-                                    : star.type === "empty"
-                                        ? <FaRegStar key={star.key} aria-hidden="true" />
-                                        : <FaStar key={star.key} aria-hidden="true" />
-                            ))}
-                        </span>
-                        <strong>{displayRating}</strong>
-                        <span>{displayReviews} reviews</span>
-                    </div>
-                    <p>{displayAddress}</p>
-                </div>
-            </div>
-            <div className="play-building-label-popup__cards">
-                <div className="play-building-label-popup__card play-building-label-popup__card--hours">
-                    <FaClock aria-hidden="true" />
-                    <div>
-                        <span>Opening Hours</span>
-                        <strong><i aria-hidden="true" />Open</strong>
-                        <p>{displayOpeningHours}</p>
-                        <p>{info.saturdayHours}</p>
-                        <p>{info.sundayHours}</p>
-                    </div>
-                </div>
-                <div className="play-building-label-popup__card">
-                    {phoneHref ? (
-                        <a className="play-building-label-popup__card-icon" href={phoneHref} aria-label={`Call ${displayPhone}`}>
-                            <FaPhoneAlt aria-hidden="true" />
-                        </a>
-                    ) : (
-                        <span className="play-building-label-popup__card-icon" aria-hidden="true"><FaPhoneAlt aria-hidden="true" /></span>
-                    )}
-                    <div>
-                        <span>Phone Number</span>
-                        <button type="button" className="play-building-label-popup__value-button" onClick={() => openWhatsAppChat(displayPhone)}>
-                            {displayPhone}
-                        </button>
-                    </div>
-                </div>
-                <div className="play-building-label-popup__card">
-                    {whatsAppHref ? (
-                        <a className="play-building-label-popup__card-icon" href={whatsAppHref} target="_blank" rel="noreferrer" aria-label={`Open WhatsApp for ${displayWhatsApp}`}>
-                            <FaWhatsapp aria-hidden="true" />
-                        </a>
-                    ) : (
-                        <span className="play-building-label-popup__card-icon" aria-hidden="true"><FaWhatsapp aria-hidden="true" /></span>
-                    )}
-                    <div>
-                        <span>Whatsapp</span>
-                        <button type="button" className="play-building-label-popup__value-button" onClick={() => openWhatsAppChat(displayWhatsApp)}>
-                            {displayWhatsApp}
-                        </button>
-                    </div>
-                </div>
-                <div className="play-building-label-popup__card">
-                    {websiteHref ? (
-                        <a className="play-building-label-popup__card-icon" href={websiteHref} target="_blank" rel="noreferrer" aria-label={`Open website ${displayWebsite}`}>
-                            <FaGlobe aria-hidden="true" />
-                        </a>
-                    ) : (
-                        <span className="play-building-label-popup__card-icon" aria-hidden="true"><FaGlobe aria-hidden="true" /></span>
-                    )}
-                    <div>
-                        <span>Website</span>
-                        <strong>{displayWebsite}</strong>
-                    </div>
-                </div>
-                <div className="play-building-label-popup__card">
-                    {mailHref ? (
-                        <a className="play-building-label-popup__card-icon" href={mailHref} aria-label={`Email ${displayEmail}`}>
-                            <FaEnvelope aria-hidden="true" />
-                        </a>
-                    ) : (
-                        <span className="play-building-label-popup__card-icon" aria-hidden="true"><FaEnvelope aria-hidden="true" /></span>
-                    )}
-                    <div>
-                        <span>Email</span>
-                        <strong>{displayEmail}</strong>
-                    </div>
-                </div>
-            </div>
-            <div className="play-building-label-popup__photo">
+            <div className="blp__hero">
                 {popupPhotoUrl ? (
-                    <img
-                        key={`${info.instanceId}-${popupPhotoUrl}`}
-                        src={popupPhotoUrl}
-                        alt=""
-                    />
+                    <img key={`${info.instanceId}-${popupPhotoUrl}`} src={popupPhotoUrl} alt="" referrerPolicy="no-referrer" />
                 ) : popupPhotoLoading ? (
                     <div className="play-asset-info__skeleton play-asset-info__skeleton--photo" role="status" aria-label="Loading photo" />
                 ) : (
-                    <div className="play-asset-info__photo-empty">
-                        <span>No photos yet</span>
-                    </div>
+                    <div className="blp__hero-empty"><KindIcon aria-hidden="true" /></div>
                 )}
+                <span className="blp__industry">
+                    <KindIcon aria-hidden="true" />
+                    {info.businessType}
+                </span>
+                {popupPhotoUrl && popupPhotoUrl === matchingGalleryPhoto?.url && matchingGalleryPhoto?.credit && (
+                    <span className="blp__credit">{matchingGalleryPhoto.credit}</span>
+                )}
+                <button type="button" className="blp__close" aria-label="Close marker details" onClick={onClose}>
+                    <FaTimes aria-hidden="true" />
+                </button>
             </div>
-            <dl className="play-building-label-popup__rows">
-                <div><dt>Business Type</dt><dd>{info.businessType}</dd></div>
-                <div><dt>Street Number</dt><dd>{info.streetNumber}</dd></div>
-                <div><dt>Floors</dt><dd>{info.floors}</dd></div>
-                <div><dt>Status</dt><dd className="is-active">• {info.status}</dd></div>
-            </dl>
-            <div className="play-building-label-popup__place">
-                <strong>{displayTitle}</strong>
-                <span>{info.area}</span>
+
+            <header className="blp__header">
+                <label className="blp__logo" title="Upload logo">
+                    {info.logoUrl ? <img src={info.logoUrl} alt="" /> : <span>{initials || <FaBuilding aria-hidden="true" />}</span>}
+                    <input type="file" accept="image/*" onChange={uploadLogo} aria-label="Upload logo" />
+                </label>
+                <div className="blp__heading">
+                    <h2 title={displayTitle}>{displayTitle}</h2>
+                    {hasRating ? (
+                        <div className="blp__rating" aria-label={`${displayRating} out of 5 stars, ${displayReviews} reviews`}>
+                            <strong>{displayRating}</strong>
+                            <span className="blp__stars" aria-hidden="true">
+                                {getRatingStars(displayRating).map((star) => (
+                                    star.type === "half"
+                                        ? <FaStarHalfAlt key={star.key} />
+                                        : star.type === "empty"
+                                            ? <FaRegStar key={star.key} />
+                                            : <FaStar key={star.key} />
+                                ))}
+                            </span>
+                            <span>({displayReviews})</span>
+                        </div>
+                    ) : (
+                        <div className="blp__rating blp__rating--empty">No reviews yet</div>
+                    )}
+                </div>
+            </header>
+
+            <div className="blp__address">
+                <FaMapMarkerAlt aria-hidden="true" />
+                <div>
+                    {displayStreet && <strong>{displayStreet}</strong>}
+                    {displayAddress && <span>{displayAddress}</span>}
+                </div>
             </div>
-            <label className="play-building-label-popup__upload">
-                <FaUpload aria-hidden="true" />
-                <span>Upload Logo</span>
-                <input type="file" accept="image/*" onChange={uploadLogo} />
-            </label>
+
+            <nav className="blp__actions" aria-label="Contact">
+                <a className={phoneHref ? "" : "is-disabled"} href={phoneHref || undefined} aria-disabled={!phoneHref}>
+                    <span><FaPhoneAlt aria-hidden="true" /></span>Call
+                </a>
+                <button type="button" className={whatsAppHref ? "" : "is-disabled"} disabled={!whatsAppHref} onClick={() => openWhatsAppChat(displayWhatsApp)}>
+                    <span><FaWhatsapp aria-hidden="true" /></span>WhatsApp
+                </button>
+                <a className={websiteHref ? "" : "is-disabled"} href={websiteHref || undefined} target="_blank" rel="noreferrer" aria-disabled={!websiteHref}>
+                    <span><FaGlobe aria-hidden="true" /></span>Website
+                </a>
+                <a className={mailHref ? "" : "is-disabled"} href={mailHref || undefined} aria-disabled={!mailHref}>
+                    <span><FaEnvelope aria-hidden="true" /></span>Email
+                </a>
+            </nav>
+
+            <ul className="blp__list">
+                {hoursLines.length > 0 && (
+                    <li>
+                        <FaClock aria-hidden="true" />
+                        <div>
+                            <span className="blp__list-label">Opening hours</span>
+                            {hoursLines.map((line) => <strong key={line}>{line}</strong>)}
+                        </div>
+                    </li>
+                )}
+                {hasValue(displayPhone) && (
+                    <li>
+                        <FaPhoneAlt aria-hidden="true" />
+                        <div>
+                            <span className="blp__list-label">Phone</span>
+                            <a href={phoneHref || undefined}>{displayPhone}</a>
+                        </div>
+                    </li>
+                )}
+                {hasValue(displayWebsite) && (
+                    <li>
+                        <FaGlobe aria-hidden="true" />
+                        <div>
+                            <span className="blp__list-label">Website</span>
+                            <a href={websiteHref || undefined} target="_blank" rel="noreferrer">{displayWebsite.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "")}</a>
+                        </div>
+                    </li>
+                )}
+                {hasValue(displayEmail) && (
+                    <li>
+                        <FaEnvelope aria-hidden="true" />
+                        <div>
+                            <span className="blp__list-label">Email</span>
+                            <a href={mailHref || undefined}>{displayEmail}</a>
+                        </div>
+                    </li>
+                )}
+            </ul>
+
+            <footer className="blp__footer">
+                <span className={`blp__status${/^(?!.*\bnot\b).*(in use|active|open)/i.test(String(info.status)) ? " is-on" : ""}`}><i aria-hidden="true" />{info.status}</span>
+                <label className="blp__upload">
+                    <FaUpload aria-hidden="true" />
+                    Upload logo
+                    <input type="file" accept="image/*" onChange={uploadLogo} />
+                </label>
+            </footer>
             {uploadStatus && <span className="play-building-label-popup__status">{uploadStatus}</span>}
             {whatsAppChat && (
                 <div className="play-building-label-whatsapp" role="dialog" aria-label={`WhatsApp chat for ${whatsAppChat.phoneNumber}`}>

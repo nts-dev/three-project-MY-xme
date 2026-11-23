@@ -79,11 +79,11 @@ export default function BuildingLabelManager() {
             const scale = THREE.MathUtils.clamp(distance / REFERENCE_DISTANCE, MIN_SCALE, MAX_SCALE);
             label.scale.setScalar(scale);
             const params = label.geometry?.parameters || { width: 19.5, height: 4.8 };
-            label.userData.lift = (scale - 1) * params.height / 2; // keep the label's bottom above the roof
             // On-screen box: world size x scale, projected at the label's distance.
             const pixelsPerMeter = pixelsPerMeterAtRef * REFERENCE_DISTANCE / Math.max(distance, 1);
             const w = params.width * scale * pixelsPerMeter, h = params.height * scale * pixelsPerMeter;
-            const box = { x0: candidate.sx - w / 2, x1: candidate.sx + w / 2, y0: candidate.sy - h / 2, y1: candidate.sy + h / 2 };
+            // The label stands on its anchor (the pin), so its box is mostly above the anchor point.
+            const box = { x0: candidate.sx - w / 2, x1: candidate.sx + w / 2, y0: candidate.sy - h * 0.86, y1: candidate.sy + h * 0.14 };
             const overlaps = shown.length >= MAX_VISIBLE || shown.some((other) =>
                 box.x0 < other.x1 + SCREEN_GAP && box.x1 > other.x0 - SCREEN_GAP && box.y0 < other.y1 + SCREEN_GAP && box.y1 > other.y0 - SCREEN_GAP);
             label.visible = !overlaps;

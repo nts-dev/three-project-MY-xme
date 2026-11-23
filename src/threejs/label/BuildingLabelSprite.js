@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { getBusinessKind } from "../../components/popup/gui/playAssetInfo/businessKind";
 
 const META_FIELD_NAMES = [
     "Company Name",
@@ -18,15 +19,6 @@ const LABEL_FIELD_NAMES = [
     "Name",
     "Business Type",
 ];
-
-const CATEGORY_STYLES = {
-    food: { color: "#f5a33d", label: "Food" },
-    education: { color: "#6f9bff", label: "Education" },
-    health: { color: "#54e8a8", label: "Health" },
-    auto: { color: "#38bdf8", label: "Auto" },
-    retail: { color: "#c772ff", label: "Shop" },
-    service: { color: "#23f4f8", label: "Service" },
-};
 
 const LABEL_FONT = "\"Plus Jakarta Sans\", \"Inter\", \"Segoe UI\", Arial, sans-serif";
 const LABEL_TOP_OFFSET = 0.3;
@@ -115,216 +107,6 @@ const roundRect = (context, x, y, width, height, radius) => {
     context.closePath();
 };
 
-const drawPin = (context, x, y, color) => {
-    context.save();
-    context.translate(x, y);
-
-    context.shadowColor = color;
-    context.shadowBlur = 18;
-    context.fillStyle = "rgba(0, 0, 0, 0.32)";
-    context.beginPath();
-    context.ellipse(0, 35, 18, 6, 0, 0, Math.PI * 2);
-    context.fill();
-
-    context.shadowColor = color;
-    context.shadowBlur = 16;
-    context.fillStyle = color;
-    context.strokeStyle = "rgba(255, 255, 255, 0.96)";
-    context.lineWidth = 5;
-    context.beginPath();
-    context.arc(0, -12, 27, Math.PI * 0.12, Math.PI * 1.88);
-    context.quadraticCurveTo(0, 35, 0, 35);
-    context.closePath();
-    context.fill();
-    context.stroke();
-
-    context.shadowBlur = 0;
-    context.fillStyle = "rgba(12, 18, 20, 0.92)";
-    context.beginPath();
-    context.arc(0, -12, 18, 0, Math.PI * 2);
-    context.fill();
-    context.restore();
-};
-
-const drawMapChipPin = (context, x, y, color) => {
-    context.save();
-    context.translate(x, y);
-    context.shadowColor = color;
-    context.shadowBlur = 10;
-    context.strokeStyle = color;
-    context.lineWidth = 3;
-    context.beginPath();
-    context.moveTo(0, 14);
-    context.lineTo(0, 42);
-    context.stroke();
-
-    context.fillStyle = color;
-    context.beginPath();
-    context.arc(0, 46, 6, 0, Math.PI * 2);
-    context.fill();
-
-    context.shadowBlur = 0;
-    context.fillStyle = "rgba(5, 18, 17, 0.96)";
-    context.strokeStyle = color;
-    context.lineWidth = 2.5;
-    roundRect(context, -20, -20, 40, 40, 10);
-    context.fill();
-    context.stroke();
-    context.restore();
-};
-
-const drawLabelTileIcon = (context, x, y, color) => {
-    context.save();
-    context.translate(x, y);
-    context.strokeStyle = color;
-    context.fillStyle = color;
-    context.lineWidth = 2.4;
-    context.lineCap = "round";
-    context.lineJoin = "round";
-
-    roundRect(context, -7, -10, 14, 20, 2.5);
-    context.stroke();
-
-    for (const rowY of [-5, 0, 5]) {
-        context.beginPath();
-        context.moveTo(-3, rowY);
-        context.lineTo(3, rowY);
-        context.stroke();
-    }
-
-    context.beginPath();
-    context.moveTo(-2, 10);
-    context.lineTo(-2, 6);
-    context.lineTo(2, 6);
-    context.lineTo(2, 10);
-    context.stroke();
-    context.restore();
-};
-
-const drawLogoImage = (context, image, x, y, size, color) => {
-    context.save();
-    context.translate(x, y);
-    context.shadowColor = color;
-    context.shadowBlur = 16;
-    context.fillStyle = "rgba(255, 255, 255, 0.96)";
-    context.strokeStyle = "rgba(35, 244, 248, 0.68)";
-    context.lineWidth = 2;
-    roundRect(context, -size / 2, -size / 2, size, size, 13);
-    context.fill();
-    context.stroke();
-
-    context.shadowBlur = 0;
-    context.clip();
-
-    const padding = Math.max(5, size * 0.12);
-    const drawSize = size - padding * 2;
-    const imageRatio = image.naturalWidth && image.naturalHeight
-        ? image.naturalWidth / image.naturalHeight
-        : 1;
-    const targetRatio = 1;
-    let drawWidth = drawSize;
-    let drawHeight = drawSize;
-
-    if (imageRatio > targetRatio) {
-        drawHeight = drawSize / imageRatio;
-    } else {
-        drawWidth = drawSize * imageRatio;
-    }
-
-    context.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
-    context.restore();
-};
-
-const drawIcon = (context, kind, x, y, color) => {
-    context.save();
-    context.strokeStyle = color;
-    context.fillStyle = color;
-    context.lineWidth = 5;
-    context.lineCap = "round";
-    context.lineJoin = "round";
-    context.translate(x, y);
-    context.shadowColor = "rgba(0, 0, 0, 0.9)";
-    context.shadowBlur = 3;
-
-    if (kind === "food") {
-        context.beginPath();
-        context.moveTo(-9, -16);
-        context.lineTo(-9, 14);
-        context.moveTo(-16, -16);
-        context.lineTo(-16, -3);
-        context.moveTo(-2, -16);
-        context.lineTo(-2, -3);
-        context.moveTo(10, -15);
-        context.quadraticCurveTo(20, -6, 11, 6);
-        context.lineTo(11, 14);
-        context.stroke();
-    } else if (kind === "education") {
-        context.beginPath();
-        context.moveTo(-19, -4);
-        context.lineTo(0, -15);
-        context.lineTo(19, -4);
-        context.lineTo(0, 8);
-        context.closePath();
-        context.fill();
-        context.strokeStyle = "rgba(12, 18, 20, 0.92)";
-        context.lineWidth = 2;
-        context.stroke();
-        context.strokeStyle = color;
-        context.lineWidth = 5;
-        context.beginPath();
-        context.moveTo(13, 1);
-        context.lineTo(13, 15);
-        context.stroke();
-    } else if (kind === "health") {
-        context.fillRect(-5, -18, 10, 36);
-        context.fillRect(-18, -5, 36, 10);
-    } else if (kind === "auto") {
-        roundRect(context, -20, -7, 40, 18, 6);
-        context.fill();
-        context.strokeStyle = "rgba(12, 18, 20, 0.92)";
-        context.lineWidth = 2;
-        context.stroke();
-        context.beginPath();
-        context.arc(-12, 13, 4, 0, Math.PI * 2);
-        context.arc(12, 13, 4, 0, Math.PI * 2);
-        context.fill();
-    } else if (kind === "retail") {
-        roundRect(context, -17, -9, 34, 26, 5);
-        context.fill();
-        context.strokeStyle = "rgba(12, 18, 20, 0.92)";
-        context.lineWidth = 2;
-        context.stroke();
-        context.strokeStyle = color;
-        context.lineWidth = 5;
-        context.beginPath();
-        context.moveTo(-9, -9);
-        context.quadraticCurveTo(0, -20, 9, -9);
-        context.stroke();
-    } else {
-        context.beginPath();
-        context.moveTo(-17, 16);
-        context.lineTo(-17, -6);
-        context.lineTo(0, -18);
-        context.lineTo(17, -6);
-        context.lineTo(17, 16);
-        context.closePath();
-        context.fill();
-        context.strokeStyle = "rgba(12, 18, 20, 0.92)";
-        context.lineWidth = 2;
-        context.stroke();
-        context.strokeStyle = color;
-        context.lineWidth = 5;
-        context.beginPath();
-        context.moveTo(-6, 16);
-        context.lineTo(-6, 5);
-        context.lineTo(6, 5);
-        context.lineTo(6, 16);
-        context.stroke();
-    }
-
-    context.restore();
-};
-
 const loadLogoImage = (logoUrl) => new Promise((resolve) => {
     if (!logoUrl) {
         resolve(null);
@@ -347,6 +129,24 @@ const loadLogoImage = (logoUrl) => new Promise((resolve) => {
     image.src = logoUrl;
 });
 
+// Canvas layout units (the canvas itself is drawn at LABEL_PIXEL_RATIO for sharp text).
+const LABEL_CANVAS_WIDTH = 768;
+const LABEL_CANVAS_HEIGHT = 188;
+const LABEL_PIXEL_RATIO = 2;
+const LABEL_PIN_Y = 162; // canvas y of the pin dot's bottom: the point that touches the roof
+const LABEL_ROOF_GAP = 0.25; // metres between the roof and the pin
+
+const labelInitials = (title) => String(title || "")
+    .replace(/\(.*?\)|\b(sdn|bhd)\b|[^\p{L}\p{N}\s]/giu, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0].toUpperCase())
+    .join("");
+
+// A compact map label: a dark pill sized to its text, with the company logo (or initials on the
+// industry colour) on the left, the name, and "No. 122 · Food & Beverage" under it. A short stem
+// and dot under the pill mark the building.
 const drawBuildingLabelCanvas = (canvas, {
     fields,
     fallbackName,
@@ -358,72 +158,112 @@ const drawBuildingLabelCanvas = (canvas, {
     }
 
     const title = getFieldValue(fields, LABEL_FIELD_NAMES) || fallbackName;
-    const kind = detectCategory(fields, title);
-    const style = CATEGORY_STYLES[kind] || CATEGORY_STYLES.service;
+    const kind = getBusinessKind(
+        getFieldValue(fields, ["Business Type", "Kind of Business"]),
+        title,
+        getFieldValue(fields, ["Business Description"]),
+        getFieldValue(fields, ["Comments"]),
+    );
+    const accent = kind.color || "#10b981";
+    const number = getFieldValue(fields, ["Building Number", "Building No", "Street Number", "Unit"]);
+    const subtitleText = [number && `No. ${number}`, kind.label].filter(Boolean).join("  ·  ");
 
+    const W = LABEL_CANVAS_WIDTH;
+    const ratio = canvas.width / W;
+    context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, canvas.width, canvas.height);
-    context.font = `800 28px ${LABEL_FONT}`;
-    const hasLogo = Boolean(logoImage);
-    const textX = hasLogo ? 178 : 160;
-    const cardWidth = canvas.width - 162;
-    const pointerX = 70 + cardWidth / 2;
-    const textMaxWidth = 70 + cardWidth - textX - 10;
-    const labelText = truncateText(context, title, textMaxWidth);
-    const building = getFieldValue(fields, ["Building Number", "Building No", "Unit"]);
-    const floor = getFieldValue(fields, ["Floor", "Level"]);
-    const subtitle = truncateText(context, [building, floor].filter(Boolean).join(" - ") || style.label, textMaxWidth);
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
 
+    const cardH = 84;
+    const cardY = 20;
+    const avatar = 60;
+    const padL = 12;
+    const gap = 16;
+    const padR = 30;
+    const maxCardW = W - 24;
+    const maxTextW = maxCardW - padL - avatar - gap - padR;
+
+    context.font = `700 29px ${LABEL_FONT}`;
+    const titleText = truncateText(context, title, maxTextW);
+    const titleW = context.measureText(titleText).width;
+    context.font = `500 21px ${LABEL_FONT}`;
+    const subText = truncateText(context, subtitleText, maxTextW);
+    const subW = context.measureText(subText).width;
+
+    const cardW = Math.min(maxCardW, padL + avatar + gap + Math.max(titleW, subW) + padR);
+    const cardX = (W - cardW) / 2;
+    const centerX = W / 2;
+
+    // Card with soft shadow.
     context.save();
-    context.shadowColor = "rgba(4, 87, 69, 0.58)";
-    context.shadowBlur = 18;
-    context.shadowOffsetY = 8;
-    context.fillStyle = "#253630";
-    context.strokeStyle = "rgba(75, 255, 226, 0.16)";
-    context.lineWidth = 1;
-    roundRect(context, 70, 20, cardWidth, 96, 14);
+    context.shadowColor = "rgba(0, 0, 0, 0.45)";
+    context.shadowBlur = 16;
+    context.shadowOffsetY = 6;
+    context.fillStyle = "rgba(17, 20, 24, 0.94)";
+    roundRect(context, cardX, cardY, cardW, cardH, cardH / 2);
     context.fill();
+    context.restore();
+    context.strokeStyle = "rgba(255, 255, 255, 0.12)";
+    context.lineWidth = 1.5;
+    roundRect(context, cardX + 0.75, cardY + 0.75, cardW - 1.5, cardH - 1.5, cardH / 2);
     context.stroke();
 
-    context.shadowBlur = 0;
-    context.shadowOffsetY = 0;
-    if (logoImage) {
-        drawLogoImage(context, logoImage, 120, 65, 58, style.color);
-    } else {
-        context.fillStyle = "rgba(16, 98, 91, 0.42)";
-        context.strokeStyle = "rgba(35, 244, 248, 0.34)";
-        context.lineWidth = 1.5;
-        roundRect(context, 96, 42, 46, 46, 10);
-        context.fill();
-        context.stroke();
-        drawLabelTileIcon(context, 119, 65, "#23f4f8");
-    }
-
-    context.shadowBlur = 0;
-    context.fillStyle = "#f8fbfc";
-    context.font = `800 28px ${LABEL_FONT}`;
-    context.fillText(labelText, textX, 60);
-
-    context.fillStyle = "rgba(203, 218, 214, 0.58)";
-    context.font = `500 17px ${LABEL_FONT}`;
-    context.fillText(subtitle, textX, 88);
-
-    context.strokeStyle = "rgba(35, 244, 248, 0.38)";
-    context.lineWidth = 3;
+    // Pointer: small notch under the card, a thin stem and a dot on the building.
+    context.fillStyle = "rgba(17, 20, 24, 0.94)";
     context.beginPath();
-    context.moveTo(pointerX, 118);
-    context.lineTo(pointerX, 150);
-    context.stroke();
-
-    context.shadowColor = "#23f4f8";
-    context.shadowBlur = 10;
-    context.fillStyle = "rgba(35, 244, 248, 0.54)";
-    context.strokeStyle = "rgba(35, 244, 248, 0.46)";
+    context.moveTo(centerX - 11, cardY + cardH - 1);
+    context.lineTo(centerX + 11, cardY + cardH - 1);
+    context.lineTo(centerX, cardY + cardH + 12);
+    context.closePath();
+    context.fill();
+    context.strokeStyle = "rgba(255, 255, 255, 0.55)";
     context.lineWidth = 2;
     context.beginPath();
-    context.arc(pointerX, 158, 9, 0, Math.PI * 2);
+    context.moveTo(centerX, cardY + cardH + 12);
+    context.lineTo(centerX, 152);
+    context.stroke();
+    context.fillStyle = accent;
+    context.strokeStyle = "#ffffff";
+    context.lineWidth = 3;
+    context.beginPath();
+    context.arc(centerX, 158, 7, 0, Math.PI * 2);
     context.fill();
     context.stroke();
+
+    // Logo, or initials on the industry colour.
+    const ax = cardX + padL + avatar / 2;
+    const ay = cardY + cardH / 2;
+    context.save();
+    context.beginPath();
+    context.arc(ax, ay, avatar / 2, 0, Math.PI * 2);
+    context.fillStyle = logoImage ? "#ffffff" : accent;
+    context.fill();
+    if (logoImage) {
+        context.clip();
+        const inner = avatar * 0.72;
+        const r = logoImage.naturalWidth && logoImage.naturalHeight ? logoImage.naturalWidth / logoImage.naturalHeight : 1;
+        const dw = r >= 1 ? inner : inner * r;
+        const dh = r >= 1 ? inner / r : inner;
+        context.drawImage(logoImage, ax - dw / 2, ay - dh / 2, dw, dh);
+    } else {
+        context.fillStyle = "#ffffff";
+        context.font = `800 24px ${LABEL_FONT}`;
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.fillText(labelInitials(title) || "•", ax, ay + 1);
+    }
     context.restore();
+
+    // Name and subtitle.
+    const textX = cardX + padL + avatar + gap;
+    context.textAlign = "left";
+    context.textBaseline = "alphabetic";
+    context.fillStyle = "#f8fafc";
+    context.font = `700 29px ${LABEL_FONT}`;
+    context.fillText(titleText, textX, cardY + 39);
+    context.fillStyle = "#94a3b8";
+    context.font = `500 21px ${LABEL_FONT}`;
+    context.fillText(subText, textX, cardY + 67);
 
     return true;
 };
@@ -453,8 +293,9 @@ export const createBuildingLabelSprite = ({
     position,
     angle = 0,
     halfHeight = 0,
-    halfLength = 0,
     topY,
+    center = null,
+    labelOffset = 0,
     instanceId,
     name,
     projectID
@@ -471,8 +312,8 @@ export const createBuildingLabelSprite = ({
     }
 
     const canvas = document.createElement("canvas");
-    canvas.width = 768;
-    canvas.height = 188;
+    canvas.width = LABEL_CANVAS_WIDTH * LABEL_PIXEL_RATIO;
+    canvas.height = LABEL_CANVAS_HEIGHT * LABEL_PIXEL_RATIO;
     const kind = detectCategory(fields, title);
 
     if (!drawBuildingLabelCanvas(canvas, { fields, fallbackName })) {
@@ -496,25 +337,33 @@ export const createBuildingLabelSprite = ({
         polygonOffsetUnits: -2,
     });
 
-    const sprite = new THREE.Mesh(new THREE.PlaneGeometry(LABEL_WIDTH, LABEL_HEIGHT), material);
+    // The plane's origin is the pin dot, so the label stands on its anchor and grows upwards when
+    // BuildingLabelManager scales it (scaling about the middle pushed the pin into the roof up close).
+    const geometry = new THREE.PlaneGeometry(LABEL_WIDTH, LABEL_HEIGHT);
+    geometry.translate(0, (LABEL_PIN_Y / LABEL_CANVAS_HEIGHT - 0.5) * LABEL_HEIGHT, 0);
+    const sprite = new THREE.Mesh(geometry, material);
 
-    const heightTop =  position.y + (Number(halfHeight)*2)/100 + 1;
     const labelAngle = THREE.MathUtils.degToRad(Number(angle) || 0);
-    const xOffset = (Number(halfHeight) * 2) / 200;
-    const localXOffset = String(projectID).includes('153')
-        ? (String(name || '').includes('ShortLeft') ? -xOffset : xOffset)
-        : 0;
-    const rotatedOffset = new THREE.Vector3(localXOffset, 0, 0)
-        .applyAxisAngle(new THREE.Vector3(0, 1, 0), labelAngle);
-
-    const anchorPosition = new THREE.Vector3(position.x, heightTop, position.z)
-        .add(rotatedOffset);
+    let anchorPosition;
+    if (center && Number.isFinite(topY)) {
+        // On the roof, over the footprint centre (or over this company's half of a shared unit).
+        const rotatedOffset = new THREE.Vector3(Number(labelOffset) || 0, 0, 0)
+            .applyAxisAngle(new THREE.Vector3(0, 1, 0), labelAngle);
+        anchorPosition = new THREE.Vector3(center.x, topY + LABEL_ROOF_GAP, center.z).add(rotatedOffset);
+    } else {
+        const heightTop = position.y + (Number(halfHeight) * 2) / 100 + 1;
+        const xOffset = (Number(halfHeight) * 2) / 200;
+        const localXOffset = String(projectID).includes('153')
+            ? (String(name || '').includes('ShortLeft') ? -xOffset : xOffset)
+            : 0;
+        const rotatedOffset = new THREE.Vector3(localXOffset, 0, 0)
+            .applyAxisAngle(new THREE.Vector3(0, 1, 0), labelAngle);
+        anchorPosition = new THREE.Vector3(position.x, heightTop, position.z).add(rotatedOffset);
+    }
     sprite.position.copy(anchorPosition);
     sprite.rotation.set(0, labelAngle, 0);
     sprite.onBeforeRender = (_renderer, _scene, camera) => {
         sprite.position.copy(anchorPosition);
-        // BuildingLabelManager scales labels with distance and lifts them so they stay above the roof.
-        sprite.position.y += sprite.userData.lift || 0;
         sprite.quaternion.copy(camera.quaternion);
     };
     sprite.renderOrder = 10000;

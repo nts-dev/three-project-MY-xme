@@ -25,6 +25,7 @@ const DEFAULTS = {
     imageryMaxZoom: 18,
 };
 
+const ALL_ROUND_RADIUS = 450; // metres: tiles this close are split whichever way the camera looks
 const DETAIL_RADIUS = 75;
 const DETAIL_TILE_LIMIT = 2;
 const DETAIL_HYSTERESIS = 15;
@@ -111,8 +112,10 @@ export class WorldTerrain {
             const dz = Math.max(tile.z0 - position.z, 0, position.z - (tile.z0 + tile.size));
             tile.distance = Math.hypot(dx, dz, height);
             let split = tile.z < maxZoom && tile.distance < splitFactor * tile.size;
-            if (split && tile.z >= rootZoom + 2) {
-                // Off-screen areas stay coarse.
+            if (split && tile.z >= rootZoom + 2 && tile.distance > ALL_ROUND_RADIUS) {
+                // Off-screen areas stay coarse, except close by: there the tiles do not depend on the
+                // view direction, so turning (the avatar's follow camera swings round with it) does not
+                // rebuild and re-upload the nearby tiles over and over.
                 this.box.min.set(tile.x0, ground - 500, tile.z0);
                 this.box.max.set(tile.x0 + tile.size, ground + 3000, tile.z0 + tile.size);
                 split = this.frustum.intersectsBox(this.box);

@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState, useCallback, useSyncExternalStore }
 import { createPortal } from 'react-dom';
 import { Canvas, extend, useThree } from '@react-three/fiber';
 import { useDrop } from 'react-dnd';
-import { AdaptiveDpr, KeyboardControls, MapControls, Stats, useHelper } from "@react-three/drei";
+import { AdaptiveDpr, KeyboardControls, MapControls, useHelper } from "@react-three/drei";
+import FpsCounter from "./FpsCounter.jsx";
 import Hud from "../threejs/hud/Hud";
 import Events from "../threejs/events/Events.jsx";
 import PlayersGridView from "./popup/grid/PlayersGridView";
@@ -828,7 +829,10 @@ export default function ThreeView() {
                                 </PhysicsProvider>
                             ) : (
                                 <>
-                                    <Physics debug={false} gravity={[0, -9.81, 0]}>
+                                    {/* One physics step per rendered frame (with that frame's time): a fixed 1/60 s step
+                                        moved the avatar 0, 1 or 2 steps per frame whenever the frame rate was not
+                                        exactly 60, which made walking and running jerky. */}
+                                    <Physics debug={false} gravity={[0, -9.81, 0]} timeStep="vary">
                                         {/*<Bvh  firstHitOnly>*/}
                                         <KeyboardControls map={keyboardMap}>
 
@@ -904,7 +908,7 @@ export default function ThreeView() {
 
                     <MapControls ref={orbitControls} enabled={!isXrPresenting} />
                     <AdaptiveDpr />
-                    {!isXrPresenting && !packageControl && !isPackage && <Stats className="r3f-stats" showPanel={0} />}
+                    {!isXrPresenting && !packageControl && !isPackage && <FpsCounter />}
                    
                     </XrSceneRoot>}
                 </Canvas>

@@ -466,6 +466,8 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     const moveAccNeeded = useMemo(() => new THREE.Vector3(), []);
     const currentVel = useMemo(() => new THREE.Vector3(), []);
     const currentPos = useMemo(() => new THREE.Vector3(), []);
+    const followFocusVec = useMemo(() => new THREE.Vector3(), []);
+    const cameraFollowYRef = useRef<number | null>(null);
     const dragForce = useMemo(() => new THREE.Vector3(), []);
     const dragAngForce = useMemo(() => new THREE.Vector3(), []);
     const wantToMoveVel = useMemo(() => new THREE.Vector3(), []);
@@ -1071,8 +1073,18 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
             const heightAbove = targetHeight + Math.sin(viewElevation) * cameraRadius;
             followOffsetVec.copy(followForwardVec).multiplyScalar(distanceBehind);
             followOffsetVec.y = heightAbove;
-            followCameraPosVec.copy(currentPos).add(followOffsetVec);
-            cameraTargetVec.copy(currentPos);
+            // Height followed smoothly (~0.08 s): small ground corrections (terrain colliders being
+            // swapped as tiles load, kerbs) would otherwise jolt the whole view up and down.
+            // Big changes (jumps, stairs, respawn) are followed at once.
+            const smoothY = cameraFollowYRef.current;
+            if (smoothY === null || Math.abs(currentPos.y - smoothY) > 1.5) {
+                cameraFollowYRef.current = currentPos.y;
+            } else {
+                cameraFollowYRef.current = smoothY + (currentPos.y - smoothY) * (1 - Math.exp(-12 * Math.max(delta, 1 / 240)));
+            }
+            followFocusVec.set(currentPos.x, cameraFollowYRef.current, currentPos.z);
+            followCameraPosVec.copy(followFocusVec).add(followOffsetVec);
+            cameraTargetVec.copy(followFocusVec);
             cameraTargetVec.y += targetHeight;
             resolveCameraCollision(followCameraPosVec, cameraTargetVec);
             const cameraSpringAlpha = 1 - Math.exp(-CAMERA_COLLISION_SPRING * Math.max(delta, 1 / 240));
@@ -1210,7 +1222,10 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
                 collisionResolvedVelocityVec.multiplyScalar(allowedScale);
             }
 
-            collisionResolvedPositionVec.copy(currentPos).addScaledVector(collisionResolvedVelocityVec, safeDelta);
+            // Only the push out of the wall is applied here; the movement itself comes from the returned
+            // velocity in the physics step. (Adding velocity x delta here as well moved the avatar twice
+            // per frame while it slid along walls and fences, a lurch at each contact.)
+            collisionResolvedPositionVec.copy(currentPos);
             characterBody.setTranslation({
                 x: collisionResolvedPositionVec.x,
                 y: currentPos.y,

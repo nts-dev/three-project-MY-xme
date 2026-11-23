@@ -332,6 +332,13 @@ const fetchAssetData = async (instanceId) => {
 export const hasPlaySceneMetadata = (instanceId) => {
     const sceneMatch = findSceneAssetByInstanceId(instanceId);
     const sceneFields = getSceneAssetFields(sceneMatch?.asset);
+    // Business units (records with a Company Name field) open only when a company is filled in:
+    // an empty unit has just its internal placement note ("XME south partner row 6") to show.
+    const fieldList = normalizeFields(sceneFields);
+    if (fieldList.some((field) => /^company name$/i.test(normalizeFieldName(field?.name)))) {
+        const company = findFieldValue(sceneFields, ["Company Name"]);
+        return isUsefulValue(company) && !/^n\/?a$/i.test(String(company).trim());
+    }
     const groups = buildSpecGroups({
         instanceId,
         assetName: "",

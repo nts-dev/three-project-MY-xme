@@ -3,26 +3,21 @@ import {
     FaArrowLeft,
     FaBuilding,
     FaCamera,
-    FaCar,
     FaChevronLeft,
     FaChevronRight,
     FaDownload,
     FaEdit,
     FaGlobe,
     FaHeart,
-    FaHospital,
     FaMapMarkerAlt,
     FaPhoneAlt,
     FaRegClock,
     FaRegImage,
     FaRegStar,
-    FaSchool,
     FaShareAlt,
     FaStar,
     FaStarHalfAlt,
-    FaStore,
     FaTimes,
-    FaUtensils,
 } from "react-icons/fa";
 import { Q } from "@nozbe/watermelondb";
 import database from "../../../../database";
@@ -31,8 +26,9 @@ import { sceneAssets } from "../../../../threejs/player/puzzle/character/Constan
 import { publicAssetCssUrl } from "../../../../puzzleUi/publicAssetUrl";
 import SaveFromTemplate from "../../form/SaveFromTemplate.jsx";
 import { isBusinessMetadataField } from "./assetInfoData";
+import { getBusinessKind } from "./businessKind";
 import SidebarImageUpload from "./SidebarImageUpload.jsx";
-import { getAssetImageUrl, getGalleryCacheKey, imageObject, loadAssetGalleryImages, mediaCache, setGalleryCache } from "./galleryImages";
+import { getAssetImageUrl, getGalleryCacheKey, imageObject, loadAssetGalleryImages, mediaCache, photoCredit, setGalleryCache } from "./galleryImages";
 
 const leftAnchorUrl = publicAssetCssUrl("left.svg");
 const rightAnchorUrl = publicAssetCssUrl("right.svg");
@@ -648,28 +644,6 @@ const getRatingStars = (rating) => {
     ];
 };
 
-const getBusinessKind = (businessType, title, description) => {
-    const text = `${businessType || ""} ${title || ""} ${description || ""}`.toLowerCase();
-
-    if (/restaurant|food|cafe|coffee|dining|tomyam|kitchen|catering|bistro|bakery/.test(text)) {
-        return { label: businessType || "Restaurant", Icon: FaUtensils, className: "restaurant" };
-    }
-    if (/school|education|academy|college|university|tuition|training/.test(text)) {
-        return { label: businessType || "School", Icon: FaSchool, className: "school" };
-    }
-    if (/clinic|hospital|medical|pharmacy|health|dental/.test(text)) {
-        return { label: businessType || "Healthcare", Icon: FaHospital, className: "healthcare" };
-    }
-    if (/car|auto|vehicle|garage|workshop|tyre|parking/.test(text)) {
-        return { label: businessType || "Automotive", Icon: FaCar, className: "automotive" };
-    }
-    if (/store|shop|retail|market|mall|mart|trading/.test(text)) {
-        return { label: businessType || "Store", Icon: FaStore, className: "store" };
-    }
-
-    return { label: businessType || "Company", Icon: FaBuilding, className: "company" };
-};
-
 const linkWithProtocol = (url) => {
     const text = valueText(url);
     if (!text) return "";
@@ -926,7 +900,10 @@ const PlaySidebarGallery = ({ assetInfo }) => {
                 {loading ? (
                     <div className="play-asset-info__skeleton play-asset-info__skeleton--photo" role="status" aria-label="Loading photos" />
                 ) : hasPhoto ? (
-                    <img src={activeImage.itemImageSrc} alt={activeImage.alt || ""} />
+                    <>
+                        <img src={activeImage.itemImageSrc} alt={activeImage.alt || ""} referrerPolicy="no-referrer" />
+                        {photoCredit(activeImage) && <span className="play-asset-info__photo-credit">{photoCredit(activeImage)}</span>}
+                    </>
                 ) : (
                     <div className="play-asset-info__photo-empty">
                         <FaRegImage aria-hidden="true" />

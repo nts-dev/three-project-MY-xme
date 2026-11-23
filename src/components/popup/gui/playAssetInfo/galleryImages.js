@@ -1,6 +1,8 @@
 // Asset photos shared by the sidebar gallery (PlayAssetInfoFrame.jsx) and the building label popup
 // (PlayAssetInfoHud.jsx), so both show the same picture from one cache.
 
+import { sceneAssets } from "../../../../threejs/player/puzzle/character/Constants.jsx";
+
 export const GALLERY_UPDATED_EVENT = "play-asset-info-gallery-updated";
 
 /** Gallery images per `${instanceId}:${assetID}` (see getGalleryCacheKey). */
@@ -74,11 +76,54 @@ export async function loadAssetGalleryImages({ instanceId, assetID, apiImages = 
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const allImages = await response.json();
-    const imageList = allImages?.images?.length ? allImages.images : allImages?.category_images;
-    const nextImages = imageObject(imageList);
+    // The asset's own uploads first; else Google Maps photos of the business; else category images.
+    let nextImages = imageObject(allImages?.images);
+    if (nextImages.every(isPlaceholderImage)) {
+        const googlePhotos = await loadGooglePlacePhotos(instanceId);
+        nextImages = googlePhotos.length ? googlePhotos : imageObject(allImages?.category_images);
+    }
     setGalleryCache(cacheKey, instanceId, nextImages);
     return nextImages;
 }
+
+const sceneFieldValue = (fields, name) => {
+    const field = fields?.[name] ?? Object.values(fields || {}).find((item) => String(item?.name || "").toLowerCase() === name.toLowerCase());
+    const value = field?.value ?? (typeof field === "string" ? field : "");
+    return String(value || "").trim();
+};
+
+/**
+ * Google Maps photos of the asset's business (Company Name + Cordinates fields), through the
+ * backend's /place-photos (no API key in the browser). Each image carries its attribution, which
+ * must be shown with it. [] when the asset has no business or Google has no photos.
+ */
+export async function loadGooglePlacePhotos(instanceId, max = 6) {
+    const fields = sceneAssets?.[instanceId]?.instanceData?.assetObject?.fields;
+    const companyName = sceneFieldValue(fields, "Company Name");
+    const coordinates = sceneFieldValue(fields, "Cordinates") || sceneFieldValue(fields, "Coordinates");
+    if (!companyName || /^n\/?a$/i.test(companyName) || !/^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/.test(coordinates)) return [];
+    try {
+        const url = `${import.meta.env.VITE_API_URL}/place-photos?cordinates=${encodeURIComponent(coordinates.replace(/\s+/g, ""))}&companyName=${encodeURIComponent(companyName)}&max=${max}`;
+        const response = await fetch(url);
+        if (!response.ok) return [];
+        const data = await response.json();
+        return (data?.photos || []).filter((photo) => photo?.url).map((photo, index) => ({
+            itemImageSrc: photo.url,
+            thumbnailImageSrc: photo.url,
+            alt: `${companyName} photo ${index + 1} (Google Maps)`,
+            source: "google",
+            attributions: photo.attributions || [],
+        }));
+    } catch (error) {
+        console.warn("Google place photos failed:", error);
+        return [];
+    }
+}
+
+/** "Photo: Name · Google Maps" credit for a Google photo, or "" for the project's own photos. */
+export const photoCredit = (image) => (image?.source === "google"
+    ? `Photo: ${(image.attributions || []).map((a) => a.displayName).filter(Boolean).join(", ") || "Google user"} · Google Maps`
+    : "");
 
 /** First real (non-placeholder) photo URL of a gallery image list, or "". */
 export const firstRealPhotoUrl = (images) => (images || []).find((image) => !isPlaceholderImage(image))?.itemImageSrc || "";

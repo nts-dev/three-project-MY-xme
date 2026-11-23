@@ -1,4 +1,18 @@
 import * as THREE from "three";
+import { MeshBVH, acceleratedRaycast } from "three-mesh-bvh";
+
+// Triangle BVH per geometry, built once on first use. "indirect" keeps the geometry's index (and its
+// material groups) untouched, so rendering is unaffected. Without it each ray tested every triangle of
+// a ~15k-triangle building, ~8 ms a frame while running past them (uneven, so movement felt jerky).
+const geometryBvh = new WeakMap<THREE.BufferGeometry, MeshBVH>();
+const ensureBvh = (geometry: THREE.BufferGeometry) => {
+    let bvh = geometryBvh.get(geometry);
+    if (!bvh) {
+        bvh = new MeshBVH(geometry, { indirect: true } as any);
+        geometryBvh.set(geometry, bvh);
+    }
+    (geometry as any).boundsTree = bvh;
+};
 
 type Node = { bounds: THREE.Box3; ids?: number[]; left?: Node; right?: Node };
 type Entry = {
@@ -19,6 +33,7 @@ export function createGameplayRaycast() {
     const localRay = new THREE.Ray();
     const point = new THREE.Vector3();
     const mesh = new THREE.Mesh();
+    mesh.raycast = acceleratedRaycast as any;
     const instanceHits: THREE.Intersection[] = [];
     const hits: THREE.Intersection[] = [];
 
@@ -63,6 +78,8 @@ export function createGameplayRaycast() {
 
     return (raycaster: THREE.Raycaster, targets: THREE.InstancedMesh[]) => {
         hits.length = 0;
+        const firstHitOnly = (raycaster as any).firstHitOnly;
+        (raycaster as any).firstHitOnly = true;
         for (const object of targets) {
             if (!object.layers.test(raycaster.layers)) continue;
             // Spatial batches only change rendering and picking. Gameplay uses the original instances.
@@ -105,6 +122,7 @@ export function createGameplayRaycast() {
             const farSq = Number.isFinite(raycaster.far)
                 ? raycaster.ray.at(raycaster.far, point).applyMatrix4(inverseWorld).distanceToSquared(localRay.origin)
                 : Infinity;
+            ensureBvh(object.geometry);
             mesh.geometry = object.geometry;
             mesh.material = object.material;
             visit(entry.root, entry.boxes, object, raycaster, farSq + 1e-10);
@@ -113,6 +131,7 @@ export function createGameplayRaycast() {
         hits.sort((a, b) => a.distance - b.distance ||
             (a.object === b.object ? (a.instanceId ?? 0) - (b.instanceId ?? 0) :
                 targets.indexOf(a.object as THREE.InstancedMesh) - targets.indexOf(b.object as THREE.InstancedMesh)));
+        (raycaster as any).firstHitOnly = firstHitOnly;
         return hits[0];
     };
 }

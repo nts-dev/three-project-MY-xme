@@ -4175,3 +4175,20 @@ MuiButton-textSizeMedium{
     from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* FPS readout (FpsCounter.jsx): a small number instead of the stats graph. */
+.fps-counter {
+    position: fixed !important;
+    top: 64px;
+    left: 16px;
+    z-index: 1000005;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(15, 20, 26, 0.72);
+    color: #4ade80;
+    font: 600 12px/1.4 ui-monospace, "SFMono-Regular", Consolas, monospace;
+    pointer-events: none;
+    user-select: none;
+}
+.fps-counter[data-level="ok"] { color: #facc15; }
+.fps-counter[data-level="low"] { color: #f87171; }

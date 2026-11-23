@@ -228,6 +228,9 @@ export default async function InstancedPattern(
     const material = object.material;
 
     const pivotBox = new Box3().setFromObject(object);
+    // Geometry-space box: with an instance matrix applied it gives that instance's world box (labels).
+    if (!object.geometry.boundingBox) object.geometry.computeBoundingBox();
+    const geometryBox = object.geometry.boundingBox.clone();
     const pivotSize = pivotBox.getSize(new Vector3());
     const hasVerticalCollisionSurface = pivotSize.y >= MIN_GAMEPLAY_COLLIDER_HEIGHT;
 
@@ -572,7 +575,7 @@ export default async function InstancedPattern(
 
         matrixTmp.compose(position, finalQuaternion, absScale);
         instancedMesh.setMatrixAt(index, matrixTmp);
-        labelBoxTmp.copy(pivotBox).applyMatrix4(matrixTmp);
+        labelBoxTmp.copy(geometryBox).applyMatrix4(matrixTmp);
 
         const assetOjb = { description, assetId: instanceId, fields, categoryIndex: raw.category_index, content };
 
@@ -622,6 +625,11 @@ export default async function InstancedPattern(
             commandLine: assetCommandLines[assetCommandLines.length - 1] || "",
         };
 
+        // Labels sit on the roof (top of the placed model's box), over the footprint centre. A full-width
+        // unit shared by two companies has asset.tenants: one more label each, over its own half
+        // (labelOffset, metres along the building's local x), with its own fields for the popup.
+        const labelCenter = labelBoxTmp.getCenter(new THREE.Vector3());
+        const labelTop = labelBoxTmp.max.y;
         const buildingLabel = createBuildingLabelSprite({
             fields,
             fallbackName: name,
@@ -629,11 +637,12 @@ export default async function InstancedPattern(
             angle,
             halfHeight: height ? parseFloat(height) / 2 : halfHeight,
             halfLength: l,
-            topY: labelBoxTmp.max.y,
+            topY: labelTop,
+            center: labelCenter,
+            labelOffset: Number(raw.labelOffset ?? asset.labelOffset) || 0,
             instanceId,
             name,
             projectID
-            
         });
 
         if (buildingLabel) {
@@ -645,6 +654,46 @@ export default async function InstancedPattern(
                 fallbackName: name,
                 instanceId,
             });
+        }
+
+        const tenants = raw.tenants || asset.tenants;
+        if (Array.isArray(tenants)) {
+            for (const tenant of tenants) {
+                const tenantId = tenant?.instanceId;
+                if (!tenantId || !tenant.fields) continue;
+                const tenantLabel = createBuildingLabelSprite({
+                    fields: tenant.fields,
+                    fallbackName: name,
+                    position,
+                    angle,
+                    topY: labelTop,
+                    center: labelCenter,
+                    labelOffset: Number(tenant.labelOffset) || 0,
+                    instanceId: tenantId,
+                    name,
+                    projectID
+                });
+                sceneAssets[tenantId] = {
+                    ...sceneAssets[instanceId],
+                    instanceData: {
+                        ...instanceData,
+                        assetId: tenantId,
+                        assetObject: { ...assetOjb, assetId: tenantId, fields: tenant.fields },
+                    },
+                    isTenant: true,
+                    hostInstanceId: instanceId,
+                    buildingLabel: tenantLabel,
+                };
+                if (tenantLabel) {
+                    scene.add(tenantLabel);
+                    applySavedBuildingLabelLogo({
+                        buildingLabel: tenantLabel,
+                        fields: tenant.fields,
+                        fallbackName: name,
+                        instanceId: tenantId,
+                    });
+                }
+            }
         }
 
         index++;
@@ -666,7 +715,9 @@ export default async function InstancedPattern(
         instancedMesh.computeBoundingSphere?.();
         const triangleCount = (object.geometry.index?.count || object.geometry.attributes.position.count) / 3;
         if (isXmeMap && /^(malaysiaenvironmentbuildings|xmegoldribbonfactory)/i.test(cleanKey)) {
-            const batches = enableSpatialInstanceCulling(instancedMesh, 64);
+            // Units are ~40 m apart and have ~20 materials: every batch costs ~20 draw calls, so cells are
+            // large (a dozen batches over the estate) while still culling what is off screen.
+            const batches = enableSpatialInstanceCulling(instancedMesh, 160);
             if (batches) {
                 instancedMesh.userData.xmeBuildingShadowProxy = true;
                 instancedMesh.castShadow = false;
