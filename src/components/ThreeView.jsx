@@ -4,6 +4,7 @@ import { Canvas, extend, useThree } from '@react-three/fiber';
 import { useDrop } from 'react-dnd';
 import { AdaptiveDpr, KeyboardControls, MapControls, useHelper } from "@react-three/drei";
 import FpsCounter from "./FpsCounter.jsx";
+import { useGame1 } from "../hooks/useGame1";
 import Hud from "../threejs/hud/Hud";
 import Events from "../threejs/events/Events.jsx";
 import PlayersGridView from "./popup/grid/PlayersGridView";
@@ -603,7 +604,7 @@ export default function ThreeView() {
         cameraRef.current = camera;
         sceneRef.current = scene;
         // Dev-only handle for profiling scripts (draw calls, triangles, lights) from the console.
-        if (import.meta.env.DEV) window.__editorThree = { scene, gl, camera, game: useGame, get controls() { return orbitControls.current; } };
+        if (import.meta.env.DEV) window.__editorThree = { scene, gl, camera, game: useGame, animation: useGame1, get controls() { return orbitControls.current; } };
         // gl.lighting = lighting
         glRef.current = gl;
         gl.xr?.setFramebufferScaleFactor?.(0.55);

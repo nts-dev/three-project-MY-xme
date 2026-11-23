@@ -1,6 +1,7 @@
 import {useAnimations} from "@react-three/drei";
 import * as React from "react";
 import {useEffect,  useRef, useState} from "react";
+import {useFrame} from "@react-three/fiber";
 import * as THREE from "three";
 import {useGame1} from "../../hooks/useGame1";
 import useGame from "../../hooks/useGame";
@@ -9,6 +10,15 @@ import { sceneHasTerrain } from "../terrain/terrainData";
 // Run = the walk cycle played this much faster (the model has no run clip).
 // (1/3 of the earlier 2.6: legs at ~1.3x the clip; movement speed is set separately in Ecctrl.)
 const RUN_ANIMATION_RATE = 2.6 / 3;
+
+// Walk and run legs follow the avatar's real ground speed, so the feet plant instead of sliding.
+// The walk clip at normal speed covers WALK_CLIP_SPEED m/s at full model size (measured: planted
+// foot travel x step rate); scaled avatars take proportionally shorter steps. Above MAX_LEG_RATE
+// the walk cycle stops looking like walking (there is no run clip), so faster runs glide a little.
+const WALK_CLIP_SPEED = 2.5;
+const MIN_LEG_RATE = 0.6;
+const MAX_LEG_RATE = 3.2;
+const LEG_RATE_RESPONSE = 8; // 1/s: how quickly the leg rate follows speed changes
 
 export default function CharacterModel({charModel}: any) {
     const groupRef: any = useRef<THREE.Group>();
@@ -72,6 +82,23 @@ export default function CharacterModel({charModel}: any) {
     }, [projectID]);
 
     const {actions} = useAnimations(animations, groupRef);
+    const legActionRef = useRef<any>(null);
+    const legRateRef = useRef(1);
+
+    useFrame((_, delta) => {
+        const action = legActionRef.current;
+        if (!action) return;
+        let speed = 0;
+        try {
+            const velocity = useGame.getState().characterRef?.linvel?.();
+            if (velocity) speed = Math.hypot(velocity.x, velocity.z);
+        } catch {
+            return; // body being replaced
+        }
+        const target = THREE.MathUtils.clamp(speed / (WALK_CLIP_SPEED * avatarScale), MIN_LEG_RATE, MAX_LEG_RATE);
+        legRateRef.current += (target - legRateRef.current) * (1 - Math.exp(-LEG_RATE_RESPONSE * Math.min(delta, 0.1)));
+        action.timeScale = legRateRef.current;
+    });
 
     useEffect(() => {
         const speed = 1 + (playerSpeed / 100) *5
@@ -115,11 +142,14 @@ export default function CharacterModel({charModel}: any) {
                 .fadeIn(0.2)
                 .setDuration(action.getClip().duration / rate)
                 .play();
+            legActionRef.current = action;
+            legRateRef.current = rate;
         }
         // When any action is clamp and finished reset animation
         action._mixer.addEventListener("finished", () => resetAnimation());
 
         return () => {
+            if (legActionRef.current === action) legActionRef.current = null;
             action.fadeOut(0.2);
             action._mixer.removeEventListener("finished", () =>
                 resetAnimation()
@@ -134,7 +164,7 @@ export default function CharacterModel({charModel}: any) {
     }, [projectID]);
 
     return (
-        <>d
+        <>
             <group ref={groupRef} key={projectID} >
                 <group name="Scene"  position={[0, modelOffsetY, 0]} >
                     <group key={"char"} name="KayKit_Animated_Character">

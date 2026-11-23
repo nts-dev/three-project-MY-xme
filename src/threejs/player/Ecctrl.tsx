@@ -1840,7 +1840,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
             if (!forward && !backward && !leftward && !rightward && !jump &&
                 !button1Pressed && (joystickDis === 0 || joystickTurnOnly) &&
                 !isPointMoving &&
-                !gamepadKeys.forward   &&
+                !gamepadKeys.forward && !gamepadKeys.backward && !gamepadKeys.leftward && !gamepadKeys.rightward &&
                 canJump &&
                 idleAnimation && !hasDied && !isRecovering
             ) {
@@ -1852,15 +1852,12 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
                 playAnimationCommand("Jump", jumpAnimation);
             } else if (canJump &&
                 (
-                    forward  ||
-                    // backward||
-                    // leftward||
-                    // rightward||
-
-                    (joystickDis > 0.05 && !joystickTurnOnly)  ||
-                     isPointMoving ||
-
-                    gamepadKeys.forward
+                    // Every direction that moves the avatar walks/runs; with forward only, moving
+                    // sideways or backwards slid the avatar along in the standing pose.
+                    forward || backward || leftward || rightward ||
+                    (joystickDis > 0.05 && !joystickTurnOnly) ||
+                    isPointMoving ||
+                    gamepadKeys.forward || gamepadKeys.backward || gamepadKeys.leftward || gamepadKeys.rightward
                 ) && walkAnimation && !hasDied && !isRecovering) {
 
                 (run || runState) && runAnimation
