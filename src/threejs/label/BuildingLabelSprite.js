@@ -329,6 +329,7 @@ export const createBuildingLabelSprite = ({
         transparent: true,
         depthTest: true,
         depthWrite: false,
+        fog: false, // labels stay crisp in rain haze / fog
         side: THREE.DoubleSide,
         // Billboard planes have no volume; a second transparent pass adds no detail.
         forceSinglePass: true,

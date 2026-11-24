@@ -17,6 +17,11 @@ import Channels2 from "./popup/sideBar/Channels2";
 import VideoPopup from "./popup/sideBar/VideoPopup";
 import ZoomAsset from "../threejs/scene/ZoomAsset.jsx";
 import BuildingSearch from './BuildingSearch.jsx';
+import WeatherChip from './weather/WeatherChip.jsx';
+import RainEffect from './weather/RainEffect.jsx';
+import CelestialSky from './weather/CelestialSky.jsx';
+import WindSway from './weather/WindSway.jsx';
+import StreetLights from './weather/StreetLights.jsx';
 import Roof from "../threejs/scene/Roof";
 import { GameExperience } from "../threejs/GameExperience.jsx";
 import SceneGrid from './popup/grid/SceneGrid';
@@ -795,6 +800,7 @@ export default function ThreeView() {
             {!isXrPresenting && ((character || firstPerson) && isTouchScreen) && <TouchControls />}
             <Toast ref={toast} />
             {!isXrPresenting && !character && !firstPerson && <BuildingSearch />}
+            {!isXrPresenting && <WeatherChip />}
             <div
                 ref={setCanvasHostNode}
                 className={`canvas-element${isAssetOver ? ' is-asset-drop-target' : ''}`}
@@ -910,6 +916,10 @@ export default function ThreeView() {
                     <MapControls ref={orbitControls} enabled={!isXrPresenting} />
                     <AdaptiveDpr />
                     {!isXrPresenting && !packageControl && !isPackage && <FpsCounter />}
+                    <RainEffect />
+                    <CelestialSky />
+                    <WindSway />
+                    <StreetLights />
                    
                     </XrSceneRoot>}
                 </Canvas>

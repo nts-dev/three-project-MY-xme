@@ -173,6 +173,15 @@ const findSceneAssetByInstanceId = (instanceId) => {
                     assetKey,
                 };
             }
+            // Second company of a shared full-width unit (asset.tenants, own label and fields).
+            const tenant = (getRawAsset(asset).tenants || []).find((item) => String(item?.instanceId) === targetId);
+            if (tenant) {
+                return {
+                    asset: { instanceId: tenant.instanceId, fields: tenant.fields },
+                    category,
+                    assetKey: String(tenant.instanceId),
+                };
+            }
         }
     }
 

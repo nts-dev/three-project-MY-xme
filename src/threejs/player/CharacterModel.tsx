@@ -1,8 +1,10 @@
 import {useAnimations} from "@react-three/drei";
 import * as React from "react";
-import {useEffect,  useRef, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import {useFrame} from "@react-three/fiber";
 import * as THREE from "three";
+import { applyStreetLampLight, updateStreetLampLight } from "../../components/weather/streetLampLight";
+import { createAvatarLampShadows, updateAvatarLampShadows } from "../../components/weather/avatarLampShadow";
 import {useGame1} from "../../hooks/useGame1";
 import useGame from "../../hooks/useGame";
 import { sceneHasTerrain } from "../terrain/terrainData";
@@ -28,16 +30,32 @@ export default function CharacterModel({charModel}: any) {
     const [charYPosOffset, setcharYPosOffset] = useState(0.35)
     const {animations, scene} = charModel
 
-    if (scene.children[0].children[0]) {
-        const person: any = scene.children[0].children[0]
-        if(person.material){
-            person.material.map.colorSpace = THREE.SRGBColorSpace;
-            person.material = new THREE.MeshPhongMaterial({
-                map: person.material.map,
-                color: personColor
-            })
-        }
-    }
+    // The avatar's material: made once per model / colour (it used to be rebuilt, and the old one
+    // leaked, on every re-render, e.g. each idle / walk / run switch), with the street-lamp light
+    // added (streetLampLight.js: the lamps light the avatar at night without real lights).
+    const person: any = scene.children[0]?.children[0];
+    const avatarLook = useMemo(() => {
+        if (!person?.material) return null;
+        const map = person.material.map;
+        if (map) map.colorSpace = THREE.SRGBColorSpace;
+        const material = new THREE.MeshPhongMaterial({ map, color: personColor });
+        return { material, lampUniforms: applyStreetLampLight(material) };
+    }, [person, personColor]);
+    if (avatarLook && person.material !== avatarLook.material) person.material = avatarLook.material;
+    useEffect(() => () => avatarLook?.material.dispose(), [avatarLook]);
+    const avatarWorld = useMemo(() => new THREE.Vector3(), []);
+    const avatarFeet = useMemo(() => new THREE.Vector3(), []);
+    // Street-lamp shadows of the avatar at night (avatarLampShadow.js: projected, no shadow maps).
+    const lampShadowsRef = useRef<any>(null);
+    useEffect(() => {
+        if (!person?.isSkinnedMesh || !person.parent) return undefined;
+        const handle = createAvatarLampShadows(person);
+        lampShadowsRef.current = handle;
+        return () => {
+            handle.dispose();
+            if (lampShadowsRef.current === handle) lampShadowsRef.current = null;
+        };
+    }, [person]);
 
     /**
      * Character animations setup
@@ -85,7 +103,17 @@ export default function CharacterModel({charModel}: any) {
     const legActionRef = useRef<any>(null);
     const legRateRef = useRef(1);
 
-    useFrame((_, delta) => {
+    useFrame(({ camera }, delta) => {
+        // Street-lamp light on the avatar from the lamps around it (zero when they are off).
+        if (avatarLook && groupRef.current) {
+            groupRef.current.getWorldPosition(avatarWorld);
+            avatarWorld.y += 1; // about chest height
+            updateStreetLampLight(avatarLook.lampUniforms, avatarWorld, camera);
+        }
+        if (lampShadowsRef.current) {
+            scene.getWorldPosition(avatarFeet); // the model stands on its origin
+            updateAvatarLampShadows(lampShadowsRef.current, avatarFeet);
+        }
         const action = legActionRef.current;
         if (!action) return;
         let speed = 0;

@@ -5,6 +5,7 @@ import { createElevationSource } from "./elevationSource";
 import { correctElevation } from "./regionOverlay";
 import { paintRoadSurfaces, prepareRoadSurfaces } from "./roadSurfaces";
 import { groundMaterial } from "./groundMaterial";
+import { applyWetSurface } from "./wetSurface";
 
 // Endless terrain: map tiles (z/x/y, Web Mercator) chosen by distance to the camera, a quadtree.
 // Near the camera tiles split into four finer ones; far away they stay coarse, so only a few
@@ -619,8 +620,8 @@ export class WorldTerrain {
         geometry.computeBoundingSphere();
 
         const material = texture
-            ? groundMaterial({ map: texture })
-            : groundMaterial({ color: "#7d8f5a" });
+            ? applyWetSurface(groundMaterial({ map: texture }), { puddles: false, strength: 0.5 }) // rain: darker, damp sheen
+            : applyWetSurface(groundMaterial({ color: "#7d8f5a" }), { puddles: false, strength: 0.5 });
         const mesh = new THREE.Mesh(geometry, material);
         mesh.name = `terrain_${tile.key}`;
         mesh.position.set(tile.x0, 0, tile.z0);

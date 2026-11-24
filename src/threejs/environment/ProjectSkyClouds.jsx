@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo } from "react";
-import { useThree } from "@react-three/fiber";
+import React, { useEffect, useMemo, useRef } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
 import { Cloud, Clouds, Sky } from "@react-three/drei";
+import { overcastLevel, rainIntensity, useSkyStore, useWeatherStore } from "../../components/weather/weatherStore";
 import * as THREE from "three";
 import { SkyMesh } from "three/examples/jsm/objects/SkyMesh.js";
 
@@ -46,6 +47,26 @@ function WebGPUSky({ distance }) {
 
 export default function ProjectSkyClouds({ projectBaseId }) {
     const isWebGPU = useThree((state) => Boolean(state.gl.isWebGPURenderer));
+    // Live weather (weatherStore): an overcast sky turns grey and hazy; rain darkens the clouds further.
+    const overcast = useWeatherStore((state) => overcastLevel(state.weather, state.preview));
+    const wet = useWeatherStore((state) => rainIntensity(state.weather, state.preview));
+    const mix = (clear, grey) => clear + (grey - clear) * overcast;
+    // Time of day (CelestialSky): the sky shader follows the real sun; clouds darken at night.
+    const daylight = useSkyStore((state) => state.daylight);
+    // Clouds also lose light as the sun sinks through the afternoon (0 high sun .. 1 at the horizon).
+    const lowSun = useSkyStore((state) => (state.ready ? Number((1 - THREE.MathUtils.smoothstep(state.sun.altitude, -0.02, 0.6)).toFixed(2)) : 0));
+    const cloudColor = useMemo(
+        () => new THREE.Color("#f8fbff").lerp(new THREE.Color("#a9b1b9"), overcast).lerp(new THREE.Color("#6f7882"), wet)
+            .lerp(new THREE.Color("#5d6570"), 0.45 * lowSun * daylight)
+            .lerp(new THREE.Color("#252c38"), 1 - daylight).getStyle(),
+        [overcast, wet, daylight, lowSun]
+    );
+    const skyRef = useRef(null);
+    useFrame(() => {
+        const uniform = skyRef.current?.material?.uniforms?.sunPosition;
+        const sky = useSkyStore.getState();
+        if (uniform && sky.ready) uniform.value.fromArray(sky.sun.direction);
+    });
     const isProject153 = projectBaseId === "153";
     const shouldRender = isProject153 || ["144", "145", "147"].includes(projectBaseId);
 
@@ -58,11 +79,12 @@ export default function ProjectSkyClouds({ projectBaseId }) {
     return (
         <>
             <Sky
+                ref={skyRef}
                 distance={isProject153 ? PROJECT_153_SKY_DISTANCE : undefined}
                 sunPosition={SUN_POSITION}
-                turbidity={4}
-                rayleigh={1.2}
-                mieCoefficient={0.01}
+                turbidity={mix(4, 18)}
+                rayleigh={mix(1.2, 0.25)}
+                mieCoefficient={mix(0.01, 0.045)}
                 mieDirectionalG={0.98}
                 inclination={0.9}
             />
@@ -73,7 +95,7 @@ export default function ProjectSkyClouds({ projectBaseId }) {
                             key={cloud.seed}
                             seed={cloud.seed}
                             position={cloud.position}
-                            opacity={cloud.opacity}
+                            opacity={Math.min(0.95, cloud.opacity + 0.2 * overcast)}
                             speed={0.08}
                             bounds={cloud.bounds}
                             segments={16}
@@ -83,7 +105,7 @@ export default function ProjectSkyClouds({ projectBaseId }) {
                             growth={4.5}
                             fade={260}
                             concentrate="random"
-                            color="#f8fbff"
+                            color={cloudColor}
                         />
                     ))}
                 </Clouds>

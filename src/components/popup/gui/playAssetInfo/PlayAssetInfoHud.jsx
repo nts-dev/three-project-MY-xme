@@ -787,25 +787,22 @@ export default function PlayAssetInfoHud({ cameraRef, sceneRef }) {
     });
 
     useEffect(() => {
+        // A building label opens the side panel (PlayAssetInfoFrame), like clicking the building;
+        // the floating label card is no longer used.
         const handleBuildingLabelClick = (event) => {
             const instanceId = event.detail?.instanceId;
-            const info = buildSpritePopupInfo(instanceId, projectId);
-
-            if (!info) {
-                setLabelPopup(null);
-                return;
-            }
-
-            setLabelPopup({
-                info,
-                clientX: event.detail?.clientX,
-                clientY: event.detail?.clientY,
+            if (!instanceId || !buildSpritePopupInfo(instanceId, projectId)) return;
+            setLabelPopup(null);
+            setHiddenInstanceId(null);
+            setHiddenRequestKey(null);
+            const sceneAsset = sceneAssets?.[instanceId];
+            useGame.getState().setPlayAssetInfoRequest({
+                instanceId,
+                name: sceneAsset?.name,
+                categoryIndex: sceneAsset?.categoryIndex,
+                assetID: sceneAsset?.assetID,
+                requestKey: `${instanceId}-${Date.now()}`,
             });
-
-            if (assetInfo?.instanceId) {
-                setHiddenInstanceId(assetInfo.instanceId);
-                setHiddenRequestKey(assetInfo.requestKey || null);
-            }
         };
 
         window.addEventListener("play-building-label-click", handleBuildingLabelClick);

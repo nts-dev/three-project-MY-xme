@@ -55,7 +55,9 @@ export async function resolveRendererKind(projectBaseId) {
 export function createRenderer(kind, canvas, { antialias, powerPreference, logarithmicDepthBuffer }) {
     // alpha matches R3F's default renderer: the canvas stays transparent so the CSS background
     // (white in the editor) shows through instead of an opaque black clear.
-    const options = { canvas, alpha: true, antialias, powerPreference, logarithmicDepthBuffer };
+    // stencil: the avatar's street-lamp shadows use it so overlapping limbs do not darken twice
+    // (packed with the depth buffer on practically every GPU: no measurable cost).
+    const options = { canvas, alpha: true, antialias, powerPreference, logarithmicDepthBuffer, stencil: true };
     const renderer = kind === 'webgpu' ? new WebGPURenderer(options) : new WebGLRenderer(options);
     renderer.outputColorSpace = SRGBColorSpace;
     return renderer;

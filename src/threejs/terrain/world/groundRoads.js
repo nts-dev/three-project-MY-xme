@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { edges, regionToScene, StripBuilder } from "./bridgeMeshes";
 import { findJunctions, junctionFans } from "./roadJunctions";
 import { groundMaterial } from "./groundMaterial";
+import { applyWetSurface } from "./wetSurface";
 
 // Ground roads as 3D surfaces: the regions' road surfaces (roads.json, scripts/terrain/steps/
 // roadSurfaces.mjs) built as thin meshes lying on the region ground, with small repeating asphalt
@@ -150,12 +151,13 @@ export function buildGroundRoads({ regions, frame, anchorElevation, maxAnisotrop
     const dashMap = markingTexture(true, maxAnisotropy);
     // Same lighting as the terrain and the 153_L1 ground models (groundMaterial.js).
     const surface = { side: THREE.DoubleSide, polygonOffset: true };
-    const asphalt = groundMaterial({ ...surface, map: asphaltMap, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
-    const markingMaterial = (map) => groundMaterial({ ...surface, map, transparent: true, depthWrite: false, polygonOffsetFactor: -4, polygonOffsetUnits: -8 });
+    // Rain: wet asphalt with puddles, wet markings and lawns (wetSurface.js, driven by RainEffect).
+    const asphalt = applyWetSurface(groundMaterial({ ...surface, map: asphaltMap, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }), { puddles: true });
+    const markingMaterial = (map) => applyWetSurface(groundMaterial({ ...surface, map, transparent: true, depthWrite: false, polygonOffsetFactor: -4, polygonOffsetUnits: -8 }), { puddles: false, strength: 0.8 });
     const solid = markingMaterial(solidMap);
     const dashed = markingMaterial(dashMap);
     const grassMap = grassTexture(maxAnisotropy);
-    const grass = groundMaterial({ ...surface, map: grassMap, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+    const grass = applyWetSurface(groundMaterial({ ...surface, map: grassMap, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), { puddles: false, strength: 0.35 });
     const grassStrips = new StripBuilder();
     const asphaltStrips = new StripBuilder();
     const solidStrips = new StripBuilder();
