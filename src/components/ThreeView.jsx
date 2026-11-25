@@ -18,6 +18,8 @@ import VideoPopup from "./popup/sideBar/VideoPopup";
 import ZoomAsset from "../threejs/scene/ZoomAsset.jsx";
 import BuildingSearch from './BuildingSearch.jsx';
 import WeatherChip from './weather/WeatherChip.jsx';
+import WeatherSound from './weather/WeatherSound.jsx';
+import Lightning from './weather/Lightning.jsx';
 import RainEffect from './weather/RainEffect.jsx';
 import CelestialSky from './weather/CelestialSky.jsx';
 import WindSway from './weather/WindSway.jsx';
@@ -801,6 +803,7 @@ export default function ThreeView() {
             <Toast ref={toast} />
             {!isXrPresenting && !character && !firstPerson && <BuildingSearch />}
             {!isXrPresenting && <WeatherChip />}
+            {!isXrPresenting && hasTerrain && <WeatherSound />}
             <div
                 ref={setCanvasHostNode}
                 className={`canvas-element${isAssetOver ? ' is-asset-drop-target' : ''}`}
@@ -917,6 +920,7 @@ export default function ThreeView() {
                     <AdaptiveDpr />
                     {!isXrPresenting && !packageControl && !isPackage && <FpsCounter />}
                     <RainEffect />
+                    <Lightning />
                     <CelestialSky />
                     <WindSway />
                     <StreetLights />

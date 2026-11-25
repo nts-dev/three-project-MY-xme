@@ -8,6 +8,7 @@ import Composite from './Composite';
 import { applyDslAnimations, clearDslAnimations, readDslAnimations } from './dslAnimationRuntime';
 import { isGeneratedAssetReference, normalizeSceneAssetName } from './generatedAssetPaths';
 import { enableSpatialInstanceCulling } from './spatialInstanceCulling.js';
+import { mergeColorMaterials } from './mergeColorMaterials.js';
 import { registerDistanceCulledMesh } from './scene/distanceCulling';
 
 import {
@@ -531,14 +532,24 @@ export default async function InstancedPattern(
                 new THREE.Matrix4().compose(new Vector3(), buildingInLabelFrame, absScale)
             );
             const sizeAndFont = { width: 20, length: 30, font: 120, centeredBold: true };
-            const frontOffset = frontBounds.getCenter(new Vector3());
-            // Align the plane's left edge with the front face's left edge.
-            const labelHalfWidth = (sizeAndFont.width - 5) * 0.01 / 2;
-            frontOffset.x = frontBounds.min.x + (labelHalfWidth*15);
-            frontOffset.y *= 0.4;
-            frontOffset.z = frontBounds.max.z + 0.02;
-            // Rotate the local face offset around the building pivot before translating it.
-            const frontLabelPosition = frontOffset.clone().applyQuaternion(labelFrameRotation).add(position);
+            let frontLabelPosition;
+            if (lowerName.replace(/[^a-z]/g, '').includes('malaysiaenvironmentbuildings')) {
+                // Estate unit: the number plate goes on the low front yard wall, beside the left gate
+                // (model x: gate -16.8..-8.21, wall piece from -8.21; wall outer face y -9.1, 1.38 m high).
+                frontLabelPosition = new Vector3(-7.6, -9.13, 0.85)
+                    .multiply(absScale)
+                    .applyQuaternion(finalQuaternion)
+                    .add(position);
+            } else {
+                const frontOffset = frontBounds.getCenter(new Vector3());
+                // Align the plane's left edge with the front face's left edge.
+                const labelHalfWidth = (sizeAndFont.width - 5) * 0.01 / 2;
+                frontOffset.x = frontBounds.min.x + (labelHalfWidth*15);
+                frontOffset.y *= 0.4;
+                frontOffset.z = frontBounds.max.z + 0.02;
+                // Rotate the local face offset around the building pivot before translating it.
+                frontLabelPosition = frontOffset.clone().applyQuaternion(labelFrameRotation).add(position);
+            }
             const textList = [];
 
             textList.push(buildingNumberText);
@@ -715,8 +726,17 @@ export default async function InstancedPattern(
         instancedMesh.computeBoundingSphere?.();
         const triangleCount = (object.geometry.index?.count || object.geometry.attributes.position.count) / 3;
         if (isXmeMap && /^(malaysiaenvironmentbuildings|xmegoldribbonfactory)/i.test(cleanKey)) {
-            // Units are ~40 m apart and have ~20 materials: every batch costs ~20 draw calls, so cells are
-            // large (a dozen batches over the estate) while still culling what is off screen.
+            // Units have ~20 materials, a dozen of them plain colours: those are merged into vertex
+            // colours first (20 -> 10 draw calls per batch), see mergeColorMaterials.js.
+            const merged = mergeColorMaterials(instancedMesh.geometry, instancedMesh.material);
+            if (merged) {
+                instancedMesh.geometry = merged.geometry;
+                instancedMesh.material = merged.materials;
+                instancedMesh.computeBoundingBox?.();
+                instancedMesh.computeBoundingSphere?.();
+            }
+            // Units are ~40 m apart: every batch costs a draw call per material, so cells are large
+            // (a dozen batches over the estate) while still culling what is off screen.
             const batches = enableSpatialInstanceCulling(instancedMesh, 160);
             if (batches) {
                 instancedMesh.userData.xmeBuildingShadowProxy = true;

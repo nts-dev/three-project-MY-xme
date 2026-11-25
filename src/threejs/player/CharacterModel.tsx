@@ -8,6 +8,7 @@ import { createAvatarLampShadows, updateAvatarLampShadows } from "../../componen
 import {useGame1} from "../../hooks/useGame1";
 import useGame from "../../hooks/useGame";
 import { sceneHasTerrain } from "../terrain/terrainData";
+import { emitFootstep } from "../../components/weather/soundStore";
 
 // Run = the walk cycle played this much faster (the model has no run clip).
 // (1/3 of the earlier 2.6: legs at ~1.3x the clip; movement speed is set separately in Ecctrl.)
@@ -103,6 +104,19 @@ export default function CharacterModel({charModel}: any) {
     const legActionRef = useRef<any>(null);
     const legRateRef = useRef(1);
 
+    // Footstep sounds in step with the animation: each foot bone's height is tracked, and a step is
+    // emitted when a foot stops going down near the lowest point it reached in the last second.
+    const feet = useMemo(() => {
+        const found: any[] = [];
+        scene.traverse((o: any) => {
+            if (o.isBone && /foot/i.test(o.name) && !/toe|end|top/i.test(o.name)) found.push(o);
+        });
+        return found.slice(0, 2).map((bone) => ({ bone, prevY: null as number | null, falling: false, lastStep: 0, lows: [] as { t: number; y: number }[] }));
+    }, [scene]);
+    const footWorld = useMemo(() => new THREE.Vector3(), []);
+    const modelWorld = useMemo(() => new THREE.Vector3(), []);
+    const lastStepRef = useRef(0);
+
     useFrame(({ camera }, delta) => {
         // Street-lamp light on the avatar from the lamps around it (zero when they are off).
         if (avatarLook && groupRef.current) {
@@ -126,6 +140,30 @@ export default function CharacterModel({charModel}: any) {
         const target = THREE.MathUtils.clamp(speed / (WALK_CLIP_SPEED * avatarScale), MIN_LEG_RATE, MAX_LEG_RATE);
         legRateRef.current += (target - legRateRef.current) * (1 - Math.exp(-LEG_RATE_RESPONSE * Math.min(delta, 0.1)));
         action.timeScale = legRateRef.current;
+
+        // Foot touch-downs -> footstep sounds (only while actually moving).
+        if (speed < 0.3 || !feet.length) return;
+        const now = performance.now() / 1000;
+        scene.getWorldPosition(modelWorld);
+        for (const foot of feet) {
+            foot.bone.getWorldPosition(footWorld);
+            const y = footWorld.y - modelWorld.y;
+            foot.lows = foot.lows.filter((l) => now - l.t < 1.2);
+            const low = foot.lows.reduce((m, l) => Math.min(m, l.y), y);
+            if (foot.prevY !== null) {
+                const falling = y < foot.prevY - 1e-4;
+                // One step per touch-down: the foot wobbles at the bottom, so each foot waits 0.25 s
+                // and the two feet 0.1 s between steps.
+                if (foot.falling && !falling && y - low < 0.04 * avatarScale && now - foot.lastStep > 0.25 && now - lastStepRef.current > 0.1) {
+                    foot.lastStep = now;
+                    lastStepRef.current = now;
+                    emitFootstep({ running: curAnimation === animationSet.run });
+                }
+                foot.falling = falling;
+            }
+            foot.lows.push({ t: now, y });
+            foot.prevY = y;
+        }
     });
 
     useEffect(() => {

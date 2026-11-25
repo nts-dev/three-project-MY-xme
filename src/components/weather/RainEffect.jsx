@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { getTerrainHeightAt } from "../../threejs/terrain/terrainData";
 import { wetSurfaceUniforms } from "../../threejs/terrain/world/wetSurface";
 import { RAIN_LEVELS, overcastLevel, rainIntensity, useSkyStore, useWeatherStore } from "./weatherStore";
+import { flashExposure } from "./lightning";
 
 // The scene follows the live weather (weatherStore, Open-Meteo):
 //  - Overcast (cloud cover, rain): the sun dims and its shadows fade out, the shadow side is filled
@@ -260,7 +261,8 @@ export default function RainEffect() {
         const b = base.current;
         if (b) {
             gl.toneMappingExposure = b.exposure * THREE.MathUtils.lerp(NIGHT_EXPOSURE, 1, day) * (1 - DARKEN_OVERCAST * grey - DARKEN_RAIN * wet)
-                * (1 - lowSunDim * (LOW_SUN_DARKEN + LOW_SUN_DARKEN_OVERCAST * grey));
+                * (1 - lowSunDim * (LOW_SUN_DARKEN + LOW_SUN_DARKEN_OVERCAST * grey))
+                * flashExposure(day); // lightning flash (Lightning.jsx)
             if (b.fog?.isFogExp2) {
                 b.fog.density = b.density + HAZE_OVERCAST * grey + HAZE_RAIN * wet;
                 if (b.ownFog) b.fog.color.copy(HAZE_COLOR).lerp(NIGHT_HAZE, 1 - day);

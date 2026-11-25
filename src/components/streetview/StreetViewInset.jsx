@@ -35,7 +35,11 @@ function sample(cameraRef) {
     const forward = camera.getWorldDirection(camera.position.clone());
     // Scene: x east, z south. Street View heading: degrees clockwise from north.
     const heading = ((Math.atan2(forward.x, -forward.z) * 180) / Math.PI + 360) % 360;
-    const { lat, lon } = frame.sceneToGeo(position.x, position.z);
+    // The scene is aligned to the ground photo (Esri); Google's Street View coordinates sit a few
+    // metres apart from it. terrain.json options.streetViewOffset = [east, south] metres (measured from
+    // the panorama positions along the estate roads) maps the avatar onto the matching Street View spot.
+    const [dx, dz] = terrain.world.options?.streetViewOffset || [0, 0];
+    const { lat, lon } = frame.sceneToGeo(position.x + dx, position.z + dz);
     return { x: position.x, z: position.z, lat, lon, heading };
 }
 

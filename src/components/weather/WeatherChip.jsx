@@ -14,9 +14,11 @@ import {
     WiSnow,
     WiSprinkle,
     WiThunderstorm,
+    WiTime4,
     WiWindDeg,
 } from "react-icons/wi";
-import { HiOutlineMapPin } from "react-icons/hi2";
+import { HiOutlineMapPin, HiSpeakerWave, HiSpeakerXMark } from "react-icons/hi2";
+import { useSoundStore } from "./soundStore";
 import { getActiveTerrain } from "../../threejs/terrain/terrainData";
 import { rainLevel, useWeatherStore } from "./weatherStore";
 import "./WeatherChip.css";
@@ -60,6 +62,8 @@ export default function WeatherChip() {
     const [failed, setFailed] = useState(false);
     const [open, setOpen] = useState(false);
     const preview = useWeatherStore((state) => state.preview);
+    const soundOn = useSoundStore((state) => state.on);
+    const toggleSound = useSoundStore((state) => state.toggle);
     const rootRef = useRef(null);
 
     // Wait for the terrain (and follow it if another map is opened).
@@ -129,6 +133,13 @@ export default function WeatherChip() {
         };
     }, [open]);
 
+    // Live clock for the chip, ticking every second.
+    const [now, setNow] = useState(() => Date.now());
+    useEffect(() => {
+        const timer = setInterval(() => setNow(Date.now()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
     if (!anchor || (!weather && !failed)) return null;
     if (!weather) return null; // unavailable: show nothing rather than an error in the scene
 
@@ -145,11 +156,20 @@ export default function WeatherChip() {
         }
     }
 
+    // Local time at the site (its time zone, not the viewer's).
+    let clock;
+    try {
+        clock = new Date(now).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: weather.timezone || undefined });
+    } catch {
+        clock = new Date(now).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+
     // The rain level the scene draws (a ?weather= preview overrides the live reading).
     const level = rainLevel(weather, preview);
 
     return (
         <div className={`weather-chip weather-chip--${weather.kind}${open ? " is-open" : ""}`} ref={rootRef}>
+            <div className="weather-chip__bar">
             <button
                 type="button"
                 className="weather-chip__summary"
@@ -166,7 +186,22 @@ export default function WeatherChip() {
                         {compass(weather.windDirection)} {round(weather.windSpeed)} km/h
                     </span>
                 )}
+                <span className="weather-chip__time">
+                    <WiTime4 aria-hidden="true" />
+                    <time>{clock}</time>
+                </span>
             </button>
+            <button
+                type="button"
+                className={`weather-chip__sound${soundOn ? "" : " is-off"}`}
+                aria-pressed={soundOn}
+                aria-label={soundOn ? "Turn sound off" : "Turn sound on"}
+                title={soundOn ? "Sound on (weather, footsteps)" : "Sound off"}
+                onClick={toggleSound}
+            >
+                {soundOn ? <HiSpeakerWave aria-hidden="true" /> : <HiSpeakerXMark aria-hidden="true" />}
+            </button>
+            </div>
 
             {open && (
                 <div className="weather-chip__panel" role="dialog" aria-label={weather.place ? `Weather in ${weather.place}` : "Weather details"}>

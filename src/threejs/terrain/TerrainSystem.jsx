@@ -16,6 +16,7 @@ import { fitBridgesToGround, GOOGLE_ELEVATION_ATTRIBUTION, loadGoogleElevation }
 import { createWorldFrame } from "./world/webMercator";
 
 const cameraPosition = new THREE.Vector3();
+const CHARACTER_SPLIT_FACTOR = 1.2; // terrain detail in character mode (the default is 1.6)
 
 const sameSceneKey = (left, right) =>
     String(left ?? "").trim().toUpperCase() === String(right ?? "").trim().toUpperCase();
@@ -194,9 +195,14 @@ function WorldTerrainLayer({ configKey, characterImagery }) {
         if (time - lastUpdateRef.current < 0.15) return;
         lastUpdateRef.current = time;
         let focus = null;
-        if (characterImagery) {
-            const { character, firstPerson, characterRef } = useGame.getState();
-            if ((character || firstPerson) && characterRef?.isValid?.()) focus = characterRef.translation();
+        const { character, firstPerson, characterRef } = useGame.getState();
+        const walking = character || firstPerson;
+        if (characterImagery && walking && characterRef?.isValid?.()) focus = characterRef.translation();
+        // Walking at street level the distant ground is seen at a grazing angle: full detail closer
+        // in (about half the finest tiles: fewer draw calls and photo uploads while running).
+        if (terrain.options && terrain.baseSplitFactor === undefined) terrain.baseSplitFactor = terrain.options.splitFactor;
+        if (terrain.options && terrain.baseSplitFactor !== undefined) {
+            terrain.options.splitFactor = walking ? Math.min(terrain.baseSplitFactor, CHARACTER_SPLIT_FACTOR) : terrain.baseSplitFactor;
         }
         terrain.update(camera, focus);
     });

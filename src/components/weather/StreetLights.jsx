@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { ambientLightLevel, useSkyStore, useWeatherStore } from "./weatherStore";
 import { applyLampMap, buildLampMap, lampMapUniforms, streetLampState, wantsLampMap } from "./streetLampLight";
+import { buildLampTreeShadows, collectTrees, lampShadowUniforms } from "./lampTreeShadows";
 
 // Street lights switch on automatically when it gets dark (dusk, a gloomy overcast evening, a storm)
 // and off when it is light again, like photocell lamps (light level from the real sun and live weather):
@@ -13,6 +14,7 @@ import { applyLampMap, buildLampMap, lampMapUniforms, streetLampState, wantsLamp
 // Glows and pools are two instanced meshes (2 draw calls), placed from the lamp instances.
 
 const LAMP_MESH = /^TrafficStreetLight$/i;
+const TREE_MESH = /PineTree|Tree0?\d/i;
 const SCAN_SECONDS = 4;
 const MAX_LAMPS = 2048;
 // Outdoor light level (0..1, ambientLightLevel) at which the lamps start to come on / are fully on.
@@ -63,9 +65,11 @@ const poolVertex = /* glsl */ `
     attribute vec3 offset; // ground under the lamp, world
     uniform float uRadius;
     varying vec2 vUv;
+    varying vec2 vGround; // world x, z
     void main() {
         vUv = position.xy;
         vec3 world = offset + vec3(position.x, 0.0, position.y) * uRadius * 2.0;
+        vGround = world.xz;
         gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
         #include <logdepthbuf_vertex>
     }
@@ -76,7 +80,12 @@ const poolFragment = /* glsl */ `
     uniform vec3 uColor;
     uniform float uOn;
     uniform float uRadius;
+    uniform sampler2D uLampShadow;
+    uniform vec2 uLampShadowOrigin;
+    uniform vec2 uLampShadowSize;
+    uniform float uLampShadowOn;
     varying vec2 vUv;
+    varying vec2 vGround;
     void main() {
         #include <logdepthbuf_fragment>
         float r = length(vUv) * 2.0; // 0 centre .. 1 edge of the pool quad
@@ -85,6 +94,11 @@ const poolFragment = /* glsl */ `
         // soft tail, so pools of lamps ~35-40 m apart meet and blend between them.
         float k = d / ${LAMP_HEIGHT.toFixed(1)};
         float pool = 0.8 * pow(1.0 + k * k, -1.5) * (1.0 - smoothstep(0.75, 1.0, r));
+        // Tree shadows in the lamp light (baked, lampTreeShadows.js): the share of light trees block here.
+        if (uLampShadowOn > 0.5) {
+            vec2 shadowUv = (vGround - uLampShadowOrigin) / uLampShadowSize + 0.5 / vec2(textureSize(uLampShadow, 0));
+            pool *= 1.0 - 0.85 * texture2D(uLampShadow, shadowUv).r;
+        }
         gl_FragColor = vec4(uColor * pool * uOn, 1.0);
     }
 `;
@@ -112,7 +126,7 @@ function lampAnchors(mesh) {
 
 export default function StreetLights() {
     const scene = useThree((state) => state.scene);
-    const state = useRef({ mesh: null, anchors: null, version: -1, scannedAt: -Infinity, bulbMaterial: null, bulbBase: null });
+    const state = useRef({ mesh: null, anchors: null, version: -1, scannedAt: -Infinity, bulbMaterial: null, bulbBase: null, treeKey: null });
     const on = useRef(0);
     const glowRef = useRef(null);
     const poolRef = useRef(null);
@@ -143,7 +157,7 @@ export default function StreetLights() {
             glowGeometry: quad(),
             poolGeometry: quad(),
             glowMaterial: material(glowVertex, glowFragment, { uSize: { value: GLOW_SIZE } }),
-            poolMaterial: Object.assign(material(poolVertex, poolFragment, { uRadius: { value: POOL_RADIUS } }), {
+            poolMaterial: Object.assign(material(poolVertex, poolFragment, { uRadius: { value: POOL_RADIUS }, ...lampShadowUniforms }), {
                 polygonOffset: true,
                 polygonOffsetFactor: -6,
                 polygonOffsetUnits: -12,
@@ -162,6 +176,7 @@ export default function StreetLights() {
         streetLampState.level = 0;
         lampMapUniforms.uLampMapLevel.value = 0;
         buildLampMap(null, 0);
+        buildLampTreeShadows(null, 0, [], 1);
         glowGeometry.dispose();
         poolGeometry.dispose();
         glowMaterial.dispose();
@@ -174,8 +189,10 @@ export default function StreetLights() {
         if (time - s.scannedAt > SCAN_SECONDS) {
             s.scannedAt = time;
             let mesh = null;
+            const treeMeshes = [];
             scene.traverse((object) => {
                 if (!mesh && object.isInstancedMesh && LAMP_MESH.test(object.name || "") && !object.userData.isCullCompanion) mesh = object;
+                if (object.isMesh && TREE_MESH.test(object.name || "") && !object.userData.isCullCompanion && !/^shadow-proxy/.test(object.name)) treeMeshes.push(object);
                 // Trees, building walls, fences... get the lamp light map (patched once, by day too, so
                 // switching the lamps on never recompiles anything).
                 if (object.isMesh) {
@@ -216,8 +233,17 @@ export default function StreetLights() {
                 streetLampState.heads = heads; // for lamp light on the avatar (streetLampLight.js)
                 streetLampState.count = count;
                 buildLampMap(heads, count); // and on trees, walls... (lamp light map)
+                s.treeKey = null; // re-bake the tree shadows for the new lamps
                 glowGeometry.instanceCount = count;
                 poolGeometry.instanceCount = count;
+            }
+            // Tree shadows in the lamp light: baked when the lamps or the trees change.
+            if (streetLampState.heads && streetLampState.count) {
+                const treeKey = treeMeshes.map((t) => `${t.uuid}:${t.isInstancedMesh ? t.count : 1}:${t.isInstancedMesh ? t.instanceMatrix.version : 0}`).join("|");
+                if (treeKey !== s.treeKey) {
+                    s.treeKey = treeKey;
+                    buildLampTreeShadows(streetLampState.heads, streetLampState.count, collectTrees(treeMeshes), streetLampState.height);
+                }
             }
         }
 

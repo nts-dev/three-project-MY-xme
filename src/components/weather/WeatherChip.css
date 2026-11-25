@@ -13,6 +13,53 @@
     color: var(--wc-text);
 }
 
+/* One pill: the summary (opens the details) and the sound toggle at its right end. */
+.weather-chip__bar {
+    display: inline-flex;
+    align-items: stretch;
+    height: 40px;
+    border: 1px solid var(--wc-line);
+    border-radius: 999px;
+    background: var(--wc-bg);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(12px);
+    overflow: hidden;
+    transition: border-color 150ms ease;
+}
+
+.weather-chip__bar:hover,
+.weather-chip.is-open .weather-chip__bar {
+    border-color: rgba(255, 255, 255, 0.22);
+}
+
+.weather-chip__sound {
+    display: inline-grid;
+    place-items: center;
+    width: 38px;
+    padding: 0 4px 0 0;
+    border: 0;
+    border-left: 1px solid var(--wc-line);
+    background: transparent;
+    color: var(--wc-text);
+    cursor: pointer;
+    transition: background 150ms ease, color 150ms ease;
+}
+
+.weather-chip__sound:hover,
+.weather-chip__sound:focus-visible {
+    background: rgba(255, 255, 255, 0.06);
+    outline: none;
+}
+
+.weather-chip__sound.is-off {
+    color: var(--wc-muted);
+}
+
+.weather-chip__sound svg {
+    width: 19px;
+    height: 19px;
+}
+
 .weather-chip--drizzle,
 .weather-chip--rain,
 .weather-chip--showers {
@@ -32,33 +79,41 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    height: 40px;
-    padding: 0 14px 0 8px;
-    border: 1px solid var(--wc-line);
-    border-radius: 999px;
-    background: var(--wc-bg);
+    height: 100%;
+    padding: 0 12px 0 8px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
     color: inherit;
     font: inherit;
     font-size: 13px;
     white-space: nowrap;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
-    backdrop-filter: blur(12px);
     cursor: pointer;
-    transition: border-color 150ms ease, background 150ms ease;
+    transition: background 150ms ease;
 }
 
 .weather-chip__summary:hover,
 .weather-chip__summary:focus-visible,
 .weather-chip.is-open .weather-chip__summary {
-    border-color: rgba(255, 255, 255, 0.22);
-    background: rgba(28, 38, 43, 0.94);
+    background: rgba(255, 255, 255, 0.06);
     outline: none;
 }
 
-.weather-chip__icon {
+/* All three icons (condition, wind, clock) share one box: the Weather Icons glyphs then draw at the
+   same width (~16px) and sit on the same centre line. */
+.weather-chip__summary svg {
+    display: block;
     flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+}
+
+/* The condition glyphs are wide and flat (a cloud is ~3/4 as tall as the round wind/clock dials):
+   a slightly larger box gives them the same visual weight. */
+.weather-chip__summary .weather-chip__icon {
     width: 26px;
     height: 26px;
+    margin: -2px 0;
     color: var(--wc-accent);
 }
 
@@ -75,17 +130,29 @@
 .weather-chip__wind {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
+    gap: 4px;
     padding-left: 9px;
     border-left: 1px solid var(--wc-line);
     color: var(--wc-muted);
     font-variant-numeric: tabular-nums;
 }
 
-.weather-chip__wind svg {
-    width: 20px;
-    height: 20px;
+.weather-chip__time {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding-left: 9px;
+    border-left: 1px solid var(--wc-line);
     color: var(--wc-text);
+    font-variant-numeric: tabular-nums;
+}
+
+.weather-chip__time svg,
+.weather-chip__wind svg {
+    color: var(--wc-text);
+}
+
+.weather-chip__wind svg {
     transition: transform 300ms ease;
 }
 
@@ -195,6 +262,13 @@
     color: var(--wc-text);
 }
 
+/* Mid-width screens: the condition word goes (the icon shows it) so the pill clears the toolbar. */
+@media (max-width: 1500px) {
+    .weather-chip__condition {
+        display: none;
+    }
+}
+
 /* Narrower screens: icon + temperature only (details still on tap), under the search bar. */
 @media (max-width: 1100px) {
     .weather-chip__condition,
@@ -210,9 +284,12 @@
         left: 84px;
     }
 
-    .weather-chip__summary {
+    .weather-chip__bar {
         height: 36px;
-        padding: 0 12px 0 6px;
+    }
+
+    .weather-chip__summary {
+        padding: 0 10px 0 6px;
     }
 
     .weather-chip__panel {

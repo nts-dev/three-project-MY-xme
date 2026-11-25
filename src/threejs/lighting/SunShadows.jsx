@@ -16,6 +16,7 @@ const BODY_MIN_HEIGHT = 5; // metres: geometry above this is the building body (
 const MAP_SIZE = 2048;
 const SYNC_EVERY = 90; // frames between checks for added / moved instances
 const CHARACTER_SHADOW_INTERVAL = 1 / 30;
+const INVISIBLE_SHADOW = 0.03; // shadow.intensity below this: not worth rendering the shadow map
 const proxyMaterial = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
 const unitBox = new THREE.BoxGeometry(1, 1, 1);
 const unitCone = new THREE.ConeGeometry(0.5, 1, 7).translate(0, 0.5, 0);
@@ -187,6 +188,13 @@ export default function SunShadows({ lightRef, orbitControls, enabled = true, li
         const walking = character || firstPerson;
         const limited = limitCharacterUpdates && walking;
         const time = clock.elapsedTime;
+        // The weather / time of day fade the shadow out (RainEffect: overcast, rain, night): while it is
+        // invisible the shadow map is not re-rendered at all (castShadow stays on, so nothing recompiles).
+        if (light.shadow.intensity < INVISIBLE_SHADOW) {
+            light.shadow.autoUpdate = false;
+            s.limited = true;
+            return;
+        }
         light.shadow.autoUpdate = !limited;
         if (limited && s.limited && time - s.lastShadowUpdate < CHARACTER_SHADOW_INTERVAL) return;
         s.limited = limited;

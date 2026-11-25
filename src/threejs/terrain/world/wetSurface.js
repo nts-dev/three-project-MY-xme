@@ -4,8 +4,8 @@ import * as THREE from "three";
 // materials when they are created, so changing the weather never recompiles them.
 //  - Wet asphalt: darker, a thin reflective film.
 //  - Puddles: a fixed world-space noise pattern (they stay put), filling up with the wetness; dark
-//    water that mirrors the sky with a Fresnel falloff (strong at grazing angles), with light ripples
-//    from the falling rain.
+//    water that mirrors the sky with a Fresnel falloff (strong at grazing angles), with raindrop rings
+//    near the viewer (procedural, in this shader: no extra geometry or passes).
 // Reflections are of the sky colour only (no extra render pass or reflection camera): a few
 // instructions per ground pixel, no measurable cost.
 
@@ -31,6 +31,26 @@ const PARS = /* glsl */ `
         vec2 i = floor(p), f = fract(p);
         vec2 u = f * f * (3.0 - 2.0 * f);
         return mix(mix(wetHash(i), wetHash(i + vec2(1.0, 0.0)), u.x), mix(wetHash(i + vec2(0.0, 1.0)), wetHash(i + vec2(1.0, 1.0)), u.x), u.y);
+    }
+    // Raindrop rings: one drop per grid cell at a random spot, its ring spreading and fading; cells
+    // are active in proportion to the rain. Returns the slope (normal xz offset) of the rings.
+    vec2 wetRippleLayer(vec2 p, float t, float rain) {
+        vec2 id = floor(p);
+        vec2 f = fract(p);
+        float h = wetHash(id);
+        if (wetHash(id + 17.3) > rain) return vec2(0.0);
+        vec2 c = 0.25 + 0.5 * vec2(wetHash(id + 3.1), wetHash(id + 9.7));
+        float phase = fract(t * (0.8 + 0.6 * h) + h);
+        vec2 v = f - c;
+        float d = length(v) + 1e-4;
+        float r = phase * 0.5;
+        float band = 1.0 - smoothstep(0.0, 0.07, abs(d - r));
+        float wave = sin((d - r) * 60.0) * band * (1.0 - phase) * (1.0 - phase);
+        return v / d * wave;
+    }
+    vec2 wetRipples(vec2 xz, float t, float rain) {
+        vec2 p = xz * 2.0; // 0.5 m cells
+        return wetRippleLayer(p, t, rain) + wetRippleLayer(p * 1.3 + vec2(0.37, 0.61), t * 1.1 + 0.5, rain);
     }
 `;
 
@@ -64,18 +84,24 @@ export function applyWetSurface(material, { puddles = true, strength = 1 } = {})
             .replace("#include <opaque_fragment>", `
                 vec3 wetView = normalize(vWetWorld - cameraPosition);
                 vec3 wetNormal = vec3(0.0, 1.0, 0.0);
-                if (puddle > 0.0 && uRain > 0.0) {
-                    vec2 q = vWetWorld.xz * 3.0;
-                    float t = uWetTime * 2.3;
-                    wetNormal.xz += (vec2(wetNoise(q + t), wetNoise(q - t + 3.1)) - 0.5) * 0.12 * uRain;
+                float rippleHighlight = 0.0;
+                ${puddles ? `
+                // Raindrop ripples near the viewer (fade out by 45 m: too small to see further away).
+                float rippleNear = 1.0 - smoothstep(15.0, 45.0, length(vWetWorld - cameraPosition));
+                if (uRain > 0.0 && rippleNear > 0.0 && (puddle > 0.0 || wetAmount > 0.2)) {
+                    vec2 slope = wetRipples(vWetWorld.xz, uWetTime, clamp(0.25 + uRain, 0.0, 1.0)) * rippleNear * mix(0.35, 1.0, puddle);
+                    wetNormal.xz += slope * 0.35;
                     wetNormal = normalize(wetNormal);
-                }
+                    rippleHighlight = length(slope);
+                }` : ""}
                 vec3 wetReflect = reflect(wetView, wetNormal);
                 vec3 wetSky = mix(uSkyHorizon, uSkyTop, smoothstep(0.0, 0.5, wetReflect.y));
                 float fresnel = 0.04 + 0.96 * pow(1.0 - clamp(dot(-wetView, wetNormal), 0.0, 1.0), 5.0);
                 // Seen from above water is mostly dark; it mirrors the sky towards grazing angles.
                 float mirror = puddle * mix(0.1, 0.95, fresnel) + wetAmount * 0.5 * fresnel;
                 outgoingLight = mix(outgoingLight, wetSky * 0.85, clamp(mirror, 0.0, 0.9));
+                // Ring crests catch the light (also at night, from the street lamps' glow).
+                outgoingLight += rippleHighlight * mix(0.05, 0.12, uDaylight) * vec3(0.9, 0.92, 1.0);
                 #include <opaque_fragment>`);
     };
     const key = `wet:${puddles ? 1 : 0}:${strength}`;
