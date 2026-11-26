@@ -1,0 +1,206 @@
+/*
+ * HUD layout: where every on-screen control sits, and how big the HUD is, on every screen size, in
+ * free camera and character mode. Loaded last (ThreeView.jsx); for screens wider than 760px it is
+ * the one place that decides positions, so its placement rules win with !important over the older
+ * per-component offsets (selectors carry :root / :not(.hud-legacy) to outrank the older ones in
+ * PlayMobileSplit.css, which are !important too). Phones (760px and narrower) keep PlayMobileSplit.css, with the fixes at the
+ * end of this file.
+ *
+ * Zones (nothing can overlap another zone):
+ *   top-left    back button, search, weather            (weather drops to a second row when the
+ *   top-right   view toolbar, home                        top row has no room for it)
+ *   right rail  zoom (free camera) / compass + height and angle sliders (character)
+ *   bottom-left walk tracker        bottom-right Street View (left of the right rail)
+ *
+ * Scale: one factor, --hud-z, per screen class. Controls grow on large monitors and shrink on small
+ * laptops / short windows. Each element is scaled from the corner it is anchored to (CSS `scale`,
+ * which leaves its own transform alone), and every offset is computed from the same factor, so
+ * the zones stay aligned at any scale.
+ */
+
+:root {
+    --hud-z: 1;
+    --hud-g: 16px; /* screen-edge gutter */
+    --hud-c: calc(40px * var(--hud-z)); /* control size (buttons, bars) */
+    --hud-s: calc(8px * var(--hud-z)); /* space between controls */
+    --hud-row2: calc(var(--hud-g) + var(--hud-c) + var(--hud-s)); /* top of the second row */
+    --hud-rail: calc(var(--hud-g) + var(--hud-c) + var(--hud-s) * 2); /* clear of the right rail */
+}
+
+/* Small laptops, short or landscape-phone windows: a bit smaller. */
+@media (max-width: 1280px), (max-height: 760px) {
+    :root { --hud-z: 0.9; }
+}
+@media (min-width: 761px) and (max-height: 520px) {
+    :root { --hud-z: 0.78; --hud-g: 10px; }
+}
+/* Full HD and up: larger, so the HUD keeps its size relative to the screen. */
+@media (min-width: 1920px) and (min-height: 1000px) {
+    :root { --hud-z: 1.15; --hud-g: 20px; }
+}
+@media (min-width: 2560px) and (min-height: 1300px) {
+    :root { --hud-z: 1.4; --hud-g: 24px; }
+}
+@media (min-width: 3400px) and (min-height: 1800px) {
+    :root { --hud-z: 1.8; --hud-g: 32px; }
+}
+
+@media (min-width: 761px) {
+    /* ---- top-left ---- */
+    html:root body:not(.hud-legacy) .project-viewer-back-button {
+        top: var(--hud-g) !important;
+        left: var(--hud-g) !important;
+        scale: var(--hud-z);
+        transform-origin: top left;
+    }
+
+    html:root body:not(.hud-legacy) .building-search {
+        top: var(--hud-g) !important;
+        left: calc(var(--hud-g) + var(--hud-c) + var(--hud-s)) !important;
+        right: auto !important;
+        transform: none !important;
+        scale: var(--hud-z);
+        transform-origin: top left;
+    }
+
+    /* Weather: after the search bar, or after the back button when there is no search (character mode). */
+    html:root body:not(.hud-legacy) .weather-chip {
+        top: var(--hud-g) !important;
+        left: calc(var(--hud-g) + var(--hud-c) + var(--hud-s)) !important;
+        scale: var(--hud-z);
+        transform-origin: top left;
+    }
+
+    html:root body:not(.hud-legacy):has(.building-search) .weather-chip {
+        left: calc(var(--hud-g) + var(--hud-c) + var(--hud-s) * 2 + 360px * var(--hud-z)) !important;
+    }
+
+    html:root body:not(.hud-legacy) .r3f-stats.fps-counter {
+        top: var(--hud-row2) !important;
+        left: var(--hud-g) !important;
+        right: auto !important;
+        bottom: auto !important;
+        scale: var(--hud-z);
+        transform-origin: top left;
+    }
+
+    /* ---- top-right ---- */
+    html:root body:not(.hud-legacy) .webglstudio-home-view-button {
+        top: var(--hud-g) !important;
+        right: var(--hud-g) !important;
+        scale: var(--hud-z);
+        transform-origin: top right;
+    }
+
+    html:root body:not(.hud-legacy) .play-view-controls {
+        top: var(--hud-g) !important;
+        right: calc(var(--hud-g) + var(--hud-c) + var(--hud-s)) !important;
+        left: auto !important;
+        scale: var(--hud-z);
+        transform-origin: top right;
+    }
+
+    /* ---- right rail ---- */
+    html:root body:not(.hud-legacy) .webglstudio-zoom-toolstrip,
+    html:root body:not(.hud-legacy) .editor-app-root .webglstudio-zoom-toolstrip.webglstudio-zoom-toolstrip {
+        position: fixed !important;
+        top: var(--hud-row2) !important;
+        right: var(--hud-g) !important;
+        scale: var(--hud-z);
+        transform-origin: top right;
+    }
+
+    html:root body:not(.hud-legacy) .camera-realtime-compass {
+        top: calc(var(--hud-g) + var(--hud-c) + 12px * var(--hud-z)) !important;
+        right: var(--hud-g) !important;
+        scale: var(--hud-z);
+        transform-origin: top right;
+    }
+
+    html:root body:not(.hud-legacy) .player-slider-stack {
+        top: calc(var(--hud-g) + var(--hud-c) + 104px * var(--hud-z)) !important;
+        right: var(--hud-g) !important;
+        scale: var(--hud-z);
+        transform-origin: top right;
+    }
+
+    /* ---- bottom corners ---- */
+    html:root body:not(.hud-legacy) .camera-realtime-walk-tracker {
+        left: var(--hud-g) !important;
+        bottom: calc(var(--hud-g) + 20px) !important; /* above the imagery credits line */
+        top: auto !important;
+        scale: var(--hud-z);
+        transform-origin: bottom left;
+    }
+
+    /* Street View: bottom-right, left of the right rail (never over the sliders), above the
+       imagery credits line. */
+    html:root body:not(.hud-legacy) .street-view-inset {
+        right: var(--hud-rail) !important;
+        bottom: calc(var(--hud-g) + 20px) !important;
+        scale: var(--hud-z);
+        transform-origin: bottom right;
+    }
+}
+
+/* Top row too narrow for the weather between the search bar and the toolbar: it moves to the
+   second row, right of the FPS badge. */
+@media (min-width: 761px) and (max-width: 1440px) {
+    html:root body:not(.hud-legacy):has(.building-search) .weather-chip {
+        top: var(--hud-row2) !important;
+        left: calc(var(--hud-g) + 66px * var(--hud-z)) !important;
+    }
+}
+/* Character mode (no search bar) only needs it below ~1000px. */
+@media (min-width: 761px) and (max-width: 1000px) {
+    html:root body:not(.hud-legacy) .weather-chip {
+        top: var(--hud-row2) !important;
+        left: calc(var(--hud-g) + 66px * var(--hud-z)) !important;
+    }
+}
+
+/* Short windows: Street View smaller, so it does not climb into the top rows. */
+@media (min-width: 761px) and (max-height: 640px) {
+    html:root body:not(.hud-legacy) .street-view-inset {
+        width: min(280px, calc(100vw - 32px)) !important;
+    }
+}
+
+/* ---- phones (760px and narrower): PlayMobileSplit.css lays these out; fixes for overlaps ---- */
+@media (max-width: 760px) {
+    /* Character mode: the compact walk tracker has the second row, the weather the third. */
+    html:root body.play-mobile-walk:not(.hud-legacy) .weather-chip {
+        top: 108px !important;
+        left: 12px !important;
+    }
+    html:root body.play-mobile-walk:not(.hud-legacy) .weather-chip__panel.forecast,
+    html:root body.play-mobile-walk:not(.hud-legacy) .weather-chip__panel:not(.forecast) {
+        position: fixed;
+        top: 152px;
+        left: 12px;
+        right: 12px;
+        width: auto;
+        max-height: calc(100vh - 168px);
+        overflow-y: auto;
+    }
+}
+
+/* Narrow phones: the pill keeps icon, temperature, forecast and sound; the clock goes (it is in the
+   details), so the pill stays clear of the zoom strip on the right. */
+@media (max-width: 480px) {
+    html:root body:not(.hud-legacy) .weather-chip__time {
+        display: none;
+    }
+}
+
+/* Phones: the search spans the space between back and home (PlayMobileSplit sets left / right). */
+@media (max-width: 760px) {
+    html:root body:not(.hud-legacy) .building-search {
+        width: auto !important;
+    }
+}
+
+/* While its results list is open the search is above the other controls (zoom strip, menus). */
+html:root body:not(.hud-legacy) .building-search.is-open {
+    z-index: 1000050 !important;
+}

@@ -1,6 +1,9 @@
 import { createXRStore } from "@react-three/xr";
 
 export const xrStore = createXRStore({
+    // No WebXR emulator: on localhost it injected a floating "Enter XR" button over the HUD. Real
+    // headsets enter VR through the toolbar's VR button (VrViewButton).
+    emulate: false,
     controller: {
         rayPointer: {
             minDistance: 0.05,

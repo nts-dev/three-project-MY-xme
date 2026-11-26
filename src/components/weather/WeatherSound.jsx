@@ -1,9 +1,10 @@
 import { useEffect } from "react";
 import useGame from "../../hooks/useGame";
 import { useGame1 } from "../../hooks/useGame1";
-import { rainIntensity, useSkyStore, useWeatherStore } from "./weatherStore";
+import { updateWeatherBlend } from "./weatherStore";
 import { onFootstep, useSoundStore } from "./soundStore";
 import { onStrike } from "./lightning";
+import { shelter } from "./rainShelter";
 
 // Ambient sound for the map, all synthesised with Web Audio (no sound files):
 //  - rain: band-passed noise (hiss) plus a low wash, louder with the rain level;
@@ -158,15 +159,17 @@ export default function WeatherSound() {
             master.gain.setTargetAtTime(on ? 0.6 : 0, now, 0.3);
             if (!on) return;
 
-            const { weather, preview } = useWeatherStore.getState();
-            const rain = rainIntensity(weather, preview);
+            // The eased weather (a new reading blends in over ~a minute, like the scene).
+            const blend = updateWeatherBlend();
+            const rain = blend.rain;
             engine.wet = rain;
-            engine.rainHiss.gain.setTargetAtTime(rain > 0 ? 0.05 + 0.25 * rain : 0, now, 1.5);
-            engine.rainWash.gain.setTargetAtTime(rain > 0 ? 0.08 + 0.35 * rain : 0, now, 1.5);
+            // Indoors: rain on the roof, muffled (no hiss, a quieter wash).
+            const inside = shelter.indoors;
+            engine.rainHiss.gain.setTargetAtTime(rain > 0 ? (0.05 + 0.25 * rain) * (inside ? 0.12 : 1) : 0, now, 0.6);
+            engine.rainWash.gain.setTargetAtTime(rain > 0 ? (0.08 + 0.35 * rain) * (inside ? 0.6 : 1) : 0, now, 0.6);
 
             // Wind: audible from ~5 km/h, full by ~40 km/h; gusts drift the level and pitch.
-            const windPreview = useSkyStore.getState().windPreview;
-            const speed = windPreview ?? (Number.isFinite(weather?.windSpeed) ? weather.windSpeed : 0);
+            const speed = blend.wind;
             const strength = Math.min(1, Math.max(0, (speed - 5) / 35));
             gust += (Math.random() - 0.5) * 0.3;
             gust *= 0.95;

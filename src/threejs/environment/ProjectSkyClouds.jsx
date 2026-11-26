@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Cloud, Clouds, Sky } from "@react-three/drei";
-import { overcastLevel, rainIntensity, useSkyStore, useWeatherStore } from "../../components/weather/weatherStore";
+import { updateWeatherBlend, useSkyStore } from "../../components/weather/weatherStore";
 import * as THREE from "three";
 import { SkyMesh } from "three/examples/jsm/objects/SkyMesh.js";
 
@@ -48,8 +48,18 @@ function WebGPUSky({ distance }) {
 export default function ProjectSkyClouds({ projectBaseId }) {
     const isWebGPU = useThree((state) => Boolean(state.gl.isWebGPURenderer));
     // Live weather (weatherStore): an overcast sky turns grey and hazy; rain darkens the clouds further.
-    const overcast = useWeatherStore((state) => overcastLevel(state.weather, state.preview));
-    const wet = useWeatherStore((state) => rainIntensity(state.weather, state.preview));
+    // The eased weather (updateWeatherBlend: a new reading blends in over ~a minute), in 2% steps so
+    // the sky and clouds re-render only now and then while it changes.
+    const [{ overcast, wet }, setShown] = useState({ overcast: 0, wet: 0 });
+    const shownRef = useRef({ overcast: -1, wet: -1 });
+    useFrame(() => {
+        const blend = updateWeatherBlend();
+        const next = { overcast: Math.round(blend.overcast * 50) / 50, wet: Math.round(blend.rain * 50) / 50 };
+        if (next.overcast !== shownRef.current.overcast || next.wet !== shownRef.current.wet) {
+            shownRef.current = next;
+            setShown(next);
+        }
+    });
     const mix = (clear, grey) => clear + (grey - clear) * overcast;
     // Time of day (CelestialSky): the sky shader follows the real sun; clouds darken at night.
     const daylight = useSkyStore((state) => state.daylight);

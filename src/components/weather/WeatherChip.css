@@ -262,6 +262,334 @@
     color: var(--wc-text);
 }
 
+/* Forecast: the calendar button in the pill and its popup (ForecastPanel.jsx). */
+.weather-chip__forecast-toggle {
+    display: inline-grid;
+    place-items: center;
+    width: 38px;
+    padding: 0;
+    border: 0;
+    border-left: 1px solid var(--wc-line);
+    background: transparent;
+    color: var(--wc-text);
+    cursor: pointer;
+    transition: background 150ms ease, color 150ms ease;
+}
+
+.weather-chip__forecast-toggle:hover,
+.weather-chip__forecast-toggle:focus-visible,
+.weather-chip__forecast-toggle.is-active {
+    background: rgba(255, 255, 255, 0.06);
+    outline: none;
+}
+
+.weather-chip__forecast-toggle.is-active {
+    color: var(--wc-accent);
+}
+
+.weather-chip__forecast-toggle svg {
+    width: 19px;
+    height: 19px;
+}
+
+/* While the forecast is open it sits above the map's other controls (zoom slider, view menu). */
+.weather-chip.has-forecast {
+    z-index: 1000050;
+}
+
+.weather-chip__panel.forecast {
+    width: 340px;
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 90px);
+    overflow-y: auto;
+    padding: 14px 14px 10px;
+    scrollbar-width: thin;
+}
+
+/* Weather glyphs coloured by sky: sun amber, cloud grey, rain blue, storm violet. */
+.forecast__icon {
+    display: block;
+    color: #cbd5e1;
+}
+
+.forecast__icon--clear,
+.forecast__icon--partly-cloudy {
+    color: #fbbf24;
+}
+
+.forecast__icon--clear.is-night,
+.forecast__icon--partly-cloudy.is-night {
+    color: #e2e8f0;
+}
+
+.forecast__icon--drizzle,
+.forecast__icon--rain,
+.forecast__icon--showers {
+    color: #60a5fa;
+}
+
+.forecast__icon--thunderstorm {
+    color: #a78bfa;
+}
+
+.forecast__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.forecast__place {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    margin: 0;
+    font-size: 14px;
+}
+
+.forecast__place strong {
+    overflow: hidden;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.forecast__place svg {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    color: var(--wc-accent);
+}
+
+.forecast__close {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--wc-muted);
+    cursor: pointer;
+}
+
+.forecast__close:hover,
+.forecast__close:focus-visible {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--wc-text);
+    outline: none;
+}
+
+.forecast__close svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Now: big icon and temperature, condition and today's high / low on the right. */
+.forecast__now {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 10px 0 14px;
+}
+
+.forecast__now .forecast__now-icon {
+    flex: none;
+    width: 64px;
+    height: 64px;
+    margin: -6px 0;
+}
+
+.forecast__now-temp {
+    font-size: 34px;
+    font-weight: 300;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.forecast__now-temp sup {
+    margin-left: 2px;
+    font-size: 14px;
+    font-weight: 400;
+    vertical-align: 14px;
+}
+
+.forecast__now-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    min-width: 0;
+    margin-left: auto;
+    text-align: right;
+}
+
+.forecast__now-text strong {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.forecast__now-text span {
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Next hours: a strip of five, scrolling sideways for the rest of the day (index.css resets list
+   padding with !important, so the box is a wrapper). */
+.forecast__hours-box {
+    margin: 0 0 14px;
+    padding: 10px 6px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.forecast__hours {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: calc((100% - 4 * 4px) / 5);
+    gap: 4px;
+    margin: 0;
+    overflow-x: auto;
+    list-style: none;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+}
+
+.forecast__hours::-webkit-scrollbar {
+    display: none;
+}
+
+.forecast__hours li,
+.forecast__days li {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    font-variant-numeric: tabular-nums;
+    scroll-snap-align: start;
+}
+
+.forecast__label {
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.forecast__date {
+    margin-top: -3px;
+    color: var(--wc-muted);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.forecast__hours .forecast__icon,
+.forecast__days .forecast__icon {
+    width: 30px;
+    height: 30px;
+}
+
+.forecast__hours strong,
+.forecast__days strong {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.forecast__low {
+    margin-top: -3px;
+    color: var(--wc-muted);
+    font-size: 13px;
+}
+
+.forecast__rain {
+    display: inline-flex;
+    align-items: center;
+    color: var(--wc-muted);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.forecast__rain svg {
+    width: 16px;
+    height: 16px;
+    margin: -3px -2px -3px -4px;
+    color: #60a5fa;
+}
+
+/* Days: five columns per row (the full forecast wraps onto more rows). */
+.forecast__days-box {
+    padding: 4px 6px 0;
+}
+
+.forecast__days {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    row-gap: 14px;
+    column-gap: 4px;
+    margin: 0;
+    list-style: none;
+}
+
+.forecast__more {
+    display: block;
+    margin: 12px auto 0;
+    padding: 4px 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #60a5fa;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.forecast__more:hover,
+.forecast__more:focus-visible {
+    background: rgba(96, 165, 250, 0.12);
+    outline: none;
+}
+
+.forecast__note {
+    margin: 14px 0;
+    color: var(--wc-muted);
+    font-size: 13px;
+    text-align: center;
+}
+
+.forecast__source {
+    margin: 10px 0 0;
+    color: var(--wc-muted);
+    font-size: 11px;
+    text-align: center;
+}
+
+.forecast__source a {
+    color: var(--wc-muted);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.forecast__source a:hover {
+    color: var(--wc-text);
+}
+
+/* Small screens: under the chip, the full width of the window (up to the card's width). */
+@media (max-width: 800px) {
+    .weather-chip__panel.forecast {
+        position: fixed;
+        top: 104px;
+        left: 16px;
+        right: 16px;
+        width: auto;
+        max-width: 380px;
+        max-height: calc(100vh - 120px);
+    }
+}
+
 /* Mid-width screens: the condition word goes (the icon shows it) so the pill clears the toolbar. */
 @media (max-width: 1500px) {
     .weather-chip__condition {

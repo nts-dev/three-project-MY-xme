@@ -3,8 +3,9 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { getTerrainHeightAt } from "../../threejs/terrain/terrainData";
 import { wetSurfaceUniforms } from "../../threejs/terrain/world/wetSurface";
-import { RAIN_LEVELS, overcastLevel, rainIntensity, useSkyStore, useWeatherStore } from "./weatherStore";
+import { RAIN_LEVELS, updateWeatherBlend, useSkyStore, useWeatherStore } from "./weatherStore";
 import { flashExposure } from "./lightning";
+import { roofAbove, shelter } from "./rainShelter";
 
 // The scene follows the live weather (weatherStore, Open-Meteo):
 //  - Overcast (cloud cover, rain): the sun dims and its shadows fade out, the shadow side is filled
@@ -20,8 +21,9 @@ const BOX = new THREE.Vector3(50, 34, 50); // metres around the camera
 const FADE_FROM_HEIGHT = 250; // metres above ground: streaks full below, gone from FADE_TO_HEIGHT
 const FADE_TO_HEIGHT = 600;
 
-const SUN_DIM = 0.82; // direct sun reduction when fully overcast
-const FILL_BOOST = 0.3; // more ambient / sky light when overcast (light comes from the whole sky)
+const SUN_DIM = 0.2; // direct sun reduction when fully overcast (kept small: buildings keep clear shadows; the grey sky and haze show the overcast)
+const OVERCAST_SHADOW_FADE = 0.1; // an overcast sky still leaves clear shadows (0.9 of the clear-sky strength)
+const FILL_BOOST = 0.08; // a little more ambient / sky light when overcast (more washes the shadows out)
 const DARKEN_OVERCAST = 0.12; // exposure reduction, overcast
 const DARKEN_RAIN = 0.18; // extra exposure reduction, heavy rain
 const HAZE_COLOR = new THREE.Color("#8d99a6");
@@ -107,10 +109,6 @@ const fragmentShader = /* glsl */ `
 const lerp = THREE.MathUtils.lerp;
 
 export default function RainEffect() {
-    const weather = useWeatherStore((state) => state.weather);
-    const preview = useWeatherStore((state) => state.preview);
-    const rainTarget = rainIntensity(weather, preview);
-    const overcastTarget = overcastLevel(weather, preview);
     const camera = useThree((state) => state.camera);
     const gl = useThree((state) => state.gl);
     const scene = useThree((state) => state.scene);
@@ -121,6 +119,7 @@ export default function RainEffect() {
     const base = useRef(null); // scene exposure / fog before the weather changed them
     const lights = useRef({ list: [], scannedAt: -Infinity });
     const meshRef = useRef(null);
+    const shelterState = useRef({ at: -Infinity, pos: new THREE.Vector3(1e9, 0, 0), open: 1 });
 
     const { geometry, material } = useMemo(() => {
         const g = new THREE.InstancedBufferGeometry();
@@ -190,8 +189,10 @@ export default function RainEffect() {
 
     useFrame(({ clock }, delta) => {
         const dt = Math.min(delta, 0.1);
-        rain.current += (rainTarget - rain.current) * (1 - Math.exp(-0.8 * dt));
-        overcast.current += (overcastTarget - overcast.current) * (1 - Math.exp(-0.8 * dt));
+        // The weather as shown: eased towards each new reading (weatherStore, updateWeatherBlend).
+        const blend = updateWeatherBlend();
+        rain.current = blend.rain;
+        overcast.current = blend.overcast;
         const wet = rain.current;
         const grey = overcast.current;
 
@@ -228,7 +229,7 @@ export default function RainEffect() {
         for (const entry of lights.current.list) {
             if (entry.sun) {
                 entry.light.intensity = entry.intensity * (sunShare + moonShare) * (1 - SUN_DIM * grey);
-                if (entry.light.shadow && entry.shadowIntensity !== undefined) entry.light.shadow.intensity = entry.shadowIntensity * (1 - grey) * (byMoon ? 0.5 : 1);
+                if (entry.light.shadow && entry.shadowIntensity !== undefined) entry.light.shadow.intensity = entry.shadowIntensity * (1 - OVERCAST_SHADOW_FADE * grey) * (byMoon ? 0.5 : 1);
                 if (entry.color && sky.ready) entry.light.color.copy(byMoon ? MOON_COLOR : SUN_COLOR).lerp(LOW_SUN_COLOR, byMoon ? 0 : day * (1 - sunUp));
                 // Direction used by SunShadows to place the light and its shadow camera.
                 const direction = byMoon ? sky.moon.direction : sky.sun.direction;
@@ -274,7 +275,18 @@ export default function RainEffect() {
         if (!mesh) return;
         const ground = getTerrainHeightAt(camera.position.x, camera.position.z) ?? 0;
         const altitudeFade = 1 - THREE.MathUtils.smoothstep(camera.position.y - ground, FADE_FROM_HEIGHT, FADE_TO_HEIGHT);
-        const amount = wet * altitudeFade;
+        // Under a roof (camera inside a building): no rain. Checked only while it rains, every 0.4 s
+        // (a table lookup, rainShelter.js), not per frame.
+        const sh = shelterState.current;
+        if (wet > 0.01 && time - sh.at > 0.4) {
+            sh.at = time;
+            sh.pos.copy(camera.position);
+            shelter.indoors = roofAbove(scene, camera.position);
+        } else if (wet <= 0.01) {
+            shelter.indoors = false;
+        }
+        sh.open += ((shelter.indoors ? 0 : 1) - sh.open) * (1 - Math.exp(-8 * dt));
+        const amount = wet * altitudeFade * sh.open;
         mesh.visible = amount > 0.01;
         if (!mesh.visible) return;
         // Drops: light ~7% (a sparse few hundred around the viewer), medium ~45%, heavy all.
@@ -290,7 +302,8 @@ export default function RainEffect() {
         const fov = THREE.MathUtils.degToRad(camera.fov || 50);
         u.uPixelAngle.value = (2 * Math.tan(fov / 2)) / Math.max(size.height, 1);
         // Wind (km/h, from `windDirection`) -> drift towards the opposite side; scene x east, z south.
-        const speed = Number.isFinite(weather?.windSpeed) ? weather.windSpeed / 3.6 : 0;
+        const weather = useWeatherStore.getState().weather;
+        const speed = blend.wind / 3.6;
         const from = THREE.MathUtils.degToRad(Number.isFinite(weather?.windDirection) ? weather.windDirection : 0);
         u.uWind.value.set(-Math.sin(from) * speed * 0.8, Math.cos(from) * speed * 0.8);
     });

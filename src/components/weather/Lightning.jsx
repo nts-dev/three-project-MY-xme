@@ -2,7 +2,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { emitStrike, isStorm, lightning } from "./lightning";
-import { useWeatherStore } from "./weatherStore";
+import { updateWeatherBlend, useWeatherStore } from "./weatherStore";
 
 // Lightning in thunderstorms (live weather, or ?weather=storm): every 8-25 s a strike somewhere
 // 300-1200 m from the camera. The scene flashes (RainEffect multiplies the exposure, no extra
@@ -91,7 +91,8 @@ export default function Lightning() {
         const s = state.current;
         const mesh = meshRef.current;
         const { weather, preview } = useWeatherStore.getState();
-        if (!isStorm(weather, preview)) {
+        // Strikes start once the storm has blended in (live update: ~a minute) and stop as it eases off.
+        if (!isStorm(weather, preview) || (!preview && updateWeatherBlend().rain < 0.3)) {
             s.next = 0;
             lightning.flash = 0;
             if (mesh) mesh.visible = false;

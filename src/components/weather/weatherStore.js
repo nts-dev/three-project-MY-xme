@@ -104,3 +104,43 @@ export function daylightFromAltitude(altitude) {
     const t = Math.min(1, Math.max(0, (altitude + 0.105) / (0.175 + 0.105)));
     return t * t * (3 - 2 * t);
 }
+
+// ---------------------------------------------------------------------------------------------
+// The weather the scene SHOWS, eased towards the latest reading: a live update (every 5 minutes)
+// that changes the condition blends in over ~a minute (rain thickening or thinning, the sky greying
+// or clearing, the wind picking up) instead of switching at once. The first reading after loading
+// is applied at once (the scene opens with the right weather); ?weather= / ?wind= previews ease
+// quickly. Shared by RainEffect, the sky / clouds, wind sway, lightning and the weather sound.
+// updateWeatherBlend() may be called from several places per frame: it advances by real time.
+
+const LIVE_BLEND_SECONDS = 25; // time constant: ~63% after 25 s, ~95% after 75 s
+const PREVIEW_BLEND_SECONDS = 1.5;
+
+export const weatherBlend = { rain: 0, overcast: 0, wind: 0, gusts: 0, ready: false, at: 0 };
+
+export function updateWeatherBlend() {
+    const b = weatherBlend;
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const dt = b.at ? Math.min((now - b.at) / 1000, 1) : 0;
+    b.at = now;
+    const { weather, preview } = useWeatherStore.getState();
+    const windPreview = useSkyStore.getState().windPreview;
+    const wind = windPreview ?? (Number.isFinite(weather?.windSpeed) ? weather.windSpeed : 0);
+    const target = {
+        rain: rainIntensity(weather, preview),
+        overcast: overcastLevel(weather, preview),
+        wind,
+        gusts: windPreview !== null ? windPreview * 1.5 : (Number.isFinite(weather?.windGusts) ? weather.windGusts : wind),
+    };
+    if (!b.ready) {
+        if (weather || preview || windPreview !== null) {
+            Object.assign(b, target);
+            b.ready = true;
+        }
+        return b;
+    }
+    if (dt <= 0) return b;
+    const k = 1 - Math.exp(-dt / (preview || windPreview !== null ? PREVIEW_BLEND_SECONDS : LIVE_BLEND_SECONDS));
+    for (const key of ["rain", "overcast", "wind", "gusts"]) b[key] += (target[key] - b[key]) * k;
+    return b;
+}

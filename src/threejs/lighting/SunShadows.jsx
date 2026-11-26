@@ -16,6 +16,7 @@ const BODY_MIN_HEIGHT = 5; // metres: geometry above this is the building body (
 const MAP_SIZE = 2048;
 const SYNC_EVERY = 90; // frames between checks for added / moved instances
 const CHARACTER_SHADOW_INTERVAL = 1 / 30;
+const REFRESH = 0.5; // s: cached shadow map refreshed at least this often (moving things)
 const INVISIBLE_SHADOW = 0.03; // shadow.intensity below this: not worth rendering the shadow map
 const proxyMaterial = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
 const unitBox = new THREE.BoxGeometry(1, 1, 1);
@@ -193,21 +194,21 @@ export default function SunShadows({ lightRef, orbitControls, enabled = true, li
         if (light.shadow.intensity < INVISIBLE_SHADOW) {
             light.shadow.autoUpdate = false;
             s.limited = true;
+            s.lastHalf = null; // re-render as soon as it shows again
             return;
         }
-        light.shadow.autoUpdate = !limited;
+        // The map is rendered on demand (needsUpdate), never every frame by itself.
+        light.shadow.autoUpdate = false;
         if (limited && s.limited && time - s.lastShadowUpdate < CHARACTER_SHADOW_INTERVAL) return;
         s.limited = limited;
-        s.lastShadowUpdate = time;
-        // Keep the light-space transform in sync with the map while its render is throttled.
-        light.shadow.needsUpdate = true;
         const focus = s.focus;
         const body = (walking ? characterRef : null)?.translation?.();
         if (body) focus.set(body.x, body.y, body.z);
         else if (orbitControls?.current?.target) focus.copy(orbitControls.current.target);
         else camera.getWorldDirection(focus).multiplyScalar(50).add(camera.position);
         const distance = camera.position.distanceTo(focus);
-        const half = THREE.MathUtils.clamp(body ? 45 : distance * 0.9, 40, 350);
+        // In ~8% steps, so zooming re-renders the map only now and then.
+        const half = THREE.MathUtils.clamp(body ? 45 : Math.round(Math.pow(1.08, Math.round(Math.log(distance * 0.9) / Math.log(1.08)))), 40, 350);
         // Snap the focus to shadow texels (in the light's view plane) so shadows do not shimmer.
         const texel = (2 * half) / MAP_SIZE;
         focus.x = Math.round(focus.x / texel) * texel;
@@ -220,7 +221,18 @@ export default function SunShadows({ lightRef, orbitControls, enabled = true, li
             shadowCamera.near = 1; shadowCamera.far = half * 6;
             shadowCamera.updateProjectionMatrix();
         }
-        light.position.copy(focus).addScaledVector(light.userData.sunDirection, half * 3);
+        // Re-render the map when the shadow frame moved (focus, size, sun direction), and at least
+        // every REFRESH s for things that move inside it (vehicles, the avatar while walking is
+        // covered by the focus moving). Orbiting around a fixed target keeps the cached map.
+        const sun = light.userData.sunDirection;
+        const changed = s.lastHalf !== half || !s.lastFocus?.equals(focus) || !s.lastSun?.equals(sun);
+        if (!changed && time - s.lastShadowUpdate < (limited ? CHARACTER_SHADOW_INTERVAL : REFRESH)) return;
+        s.lastHalf = half;
+        (s.lastFocus ||= new THREE.Vector3()).copy(focus);
+        (s.lastSun ||= new THREE.Vector3()).copy(sun);
+        s.lastShadowUpdate = time;
+        light.shadow.needsUpdate = true;
+        light.position.copy(focus).addScaledVector(sun, half * 3);
         s.target.position.copy(focus);
         s.target.updateMatrixWorld();
     });

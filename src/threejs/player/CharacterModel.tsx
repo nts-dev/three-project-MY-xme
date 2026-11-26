@@ -102,6 +102,9 @@ export default function CharacterModel({charModel}: any) {
 
     const {actions} = useAnimations(animations, groupRef);
     const legActionRef = useRef<any>(null);
+    const currentActionRef = useRef<any>(null); // the action now playing (faded out by the next one)
+    // Unmount (model replaced): fade out whatever plays.
+    useEffect(() => () => { currentActionRef.current?.fadeOut(0.2); currentActionRef.current = null; }, [scene]);
     const legRateRef = useRef(1);
 
     // Footstep sounds in step with the animation: each foot bone's height is tracked, and a step is
@@ -175,6 +178,8 @@ export default function CharacterModel({charModel}: any) {
 
        if(action==undefined)
            return
+        const previous: any = currentActionRef.current;
+        let crossFaded = false;
         // For jump and jump land animation, only play once and clamp when finish
         if (curAnimation === animationSet.jump) {
             action
@@ -200,23 +205,33 @@ export default function CharacterModel({charModel}: any) {
                 .play();
             action.clampWhenFinished = true;
         }
+        else if (legActionRef.current === action && previous === action && action.isRunning()) {
+            // Walk <-> run on the same clip (the model has no run clip): the cycle simply goes on,
+            // no restart and no fade (that blended the legs towards the rest pose: a visible pop).
+            // The stride follows the avatar's speed as it builds up / dies down (useFrame above).
+        }
         else {
-            //   console.log(speed)
             const rate = isRun ? speed * RUN_ANIMATION_RATE : speed;
             action
                 .reset()
-                .fadeIn(0.2)
-                .setDuration(action.getClip().duration / rate)
+                .setEffectiveTimeScale(rate)
+                .setEffectiveWeight(1)
                 .play();
+            // From another clip (idle, jump): cross-fade.
+            if (previous && previous !== action) { action.crossFadeFrom(previous, 0.25, false); crossFaded = true; }
+            else action.fadeIn(0.2);
             legActionRef.current = action;
             legRateRef.current = rate;
         }
+        // The fade-out of this action is done by the next one (cross-fade), not here: when it is the
+        // same action (walk <-> run) it keeps playing.
+        if (previous && previous !== action && !crossFaded) previous.fadeOut(0.2);
+        currentActionRef.current = action;
         // When any action is clamp and finished reset animation
         action._mixer.addEventListener("finished", () => resetAnimation());
 
         return () => {
-            if (legActionRef.current === action) legActionRef.current = null;
-            action.fadeOut(0.2);
+            if (legActionRef.current === action && !/walk|run/i.test(useGame1.getState().curAnimation || "")) legActionRef.current = null;
             action._mixer.removeEventListener("finished", () =>
                 resetAnimation()
             );

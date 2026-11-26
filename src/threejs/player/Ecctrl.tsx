@@ -25,6 +25,8 @@ const WALK_SPEED_MULTIPLIER = 1.5; // walking only; run speeds above are unchang
 const HORIZONTAL_MOVE_ACCELERATION = 14;
 const HORIZONTAL_MOVE_DECELERATION = 20;
 const HORIZONTAL_MOVE_MAX_ACCEL = 24;
+const SPEED_BUILD_UP = 2.5; // per second, as a share of the faster of current / target speed
+const SPEED_DIE_DOWN = 2;
 const JOYSTICK_FORWARD_ANGLE = Math.PI / 2;
 const JOYSTICK_STRAIGHT_CONE = THREE.MathUtils.degToRad(18);
 const JOYSTICK_TURN_ONLY_SIDE_THRESHOLD = 0.68;
@@ -135,6 +137,9 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     const characterModelRef: any = useRef(null);
     const characterVisualGestureRef: any = useRef(null);
     const isTurnInputActiveRef = useRef(false);
+    // Speed build-up / die-down (walk <-> run, starting off): the speed ramps instead of jumping.
+    const rampSpeedRef = useRef(0);
+    const lastMoveAtRef = useRef(0);
     const emitAccumulatorRef = useRef(0);
     const playerMovePayloadRef = useRef<any>({
         mType: "player",
@@ -827,7 +832,16 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
         // Phones: the touch Walk/Run toggle runs 5x the base run; PC (keyboard Shift / gamepad) 3x.
         const inputRunMultiplier = useJoystickControls.getState().curRunToggle ? TOUCH_RUN_SPEED_MULTIPLIER : PC_RUN_SPEED_MULTIPLIER;
         const speedMult = run ? sprintMult * levelRunSpeedMultiplier * inputRunMultiplier : WALK_SPEED_MULTIPLIER;
-        const targetSpeed = maxVelLimit * speedMult;
+        const fullSpeed = maxVelLimit * speedMult;
+        // Ramp the speed (only its size: turning stays as responsive): from the current speed when
+        // moving resumes, up at SPEED_BUILD_UP and down at SPEED_DIE_DOWN of the faster speed per
+        // second (walk -> run ~0.4 s, run -> walk ~0.5 s, starting to walk ~0.4 s).
+        const nowMs = performance.now();
+        if (nowMs - lastMoveAtRef.current > 150) rampSpeedRef.current = Math.hypot(horizontalMoveVelocity.x, horizontalMoveVelocity.z);
+        lastMoveAtRef.current = nowMs;
+        const rampStep = Math.max(fullSpeed, rampSpeedRef.current) * (fullSpeed > rampSpeedRef.current ? SPEED_BUILD_UP : SPEED_DIE_DOWN) * Math.max(delta, 1 / 240);
+        rampSpeedRef.current += THREE.MathUtils.clamp(fullSpeed - rampSpeedRef.current, -rampStep, rampStep);
+        const targetSpeed = rampSpeedRef.current;
         const rotationSmoothing = 3.5 * TURN_RESPONSE_MULTIPLIER * speedRotMult;
         const safeDelta = Math.max(delta, 1 / 240);
         const velocityAlpha = 1 - Math.exp(-HORIZONTAL_MOVE_ACCELERATION * safeDelta);

@@ -17,11 +17,14 @@ import {
     WiTime4,
     WiWindDeg,
 } from "react-icons/wi";
-import { HiOutlineMapPin, HiSpeakerWave, HiSpeakerXMark } from "react-icons/hi2";
+import { HiOutlineCalendarDays, HiOutlineMapPin, HiSpeakerWave, HiSpeakerXMark } from "react-icons/hi2";
 import { useSoundStore } from "./soundStore";
 import { getActiveTerrain } from "../../threejs/terrain/terrainData";
 import { rainLevel, useWeatherStore } from "./weatherStore";
+import ForecastPanel from "./ForecastPanel";
 import "./WeatherChip.css";
+
+const FORECAST_TTL_MS = 30 * 60 * 1000;
 
 const LEVEL_LABELS = { light: "Light", medium: "Medium", heavy: "Heavy" };
 
@@ -60,7 +63,8 @@ export default function WeatherChip() {
     const [anchor, setAnchor] = useState(terrainAnchor);
     const [weather, setWeather] = useState(null);
     const [failed, setFailed] = useState(false);
-    const [open, setOpen] = useState(false);
+    const [open, setOpen] = useState(false); // false | "details" | "forecast"
+    const [forecast, setForecast] = useState(null); // { at, key, data } or { at, key, error }
     const preview = useWeatherStore((state) => state.preview);
     const soundOn = useSoundStore((state) => state.on);
     const toggleSound = useSoundStore((state) => state.toggle);
@@ -120,6 +124,24 @@ export default function WeatherChip() {
         };
     }, [anchor]);
 
+    // 14-day forecast: fetched when its popup opens, kept for 30 minutes per location.
+    useEffect(() => {
+        if (open !== "forecast" || !anchor) return undefined;
+        const key = `${anchor.lat.toFixed(4)},${anchor.lon.toFixed(4)}`;
+        if (forecast?.key === key && !forecast.error && Date.now() - forecast.at < FORECAST_TTL_MS) return undefined;
+        let cancelled = false;
+        if (forecast?.key !== key || forecast?.error) setForecast(null);
+        fetch(`${API_BASE}/weather/forecast?cordinates=${key}`)
+            .then((response) => (response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`))))
+            .then((data) => { if (!cancelled) setForecast({ at: Date.now(), key, data }); })
+            .catch((error) => {
+                console.warn("Forecast unavailable:", error);
+                if (!cancelled) setForecast({ at: Date.now(), key, error: true });
+            });
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, anchor]);
+
     // Close the details when clicking elsewhere or pressing Escape.
     useEffect(() => {
         if (!open) return undefined;
@@ -168,14 +190,14 @@ export default function WeatherChip() {
     const level = rainLevel(weather, preview);
 
     return (
-        <div className={`weather-chip weather-chip--${weather.kind}${open ? " is-open" : ""}`} ref={rootRef}>
+        <div className={`weather-chip weather-chip--${weather.kind}${open === "details" ? " is-open" : ""}${open === "forecast" ? " has-forecast" : ""}`} ref={rootRef}>
             <div className="weather-chip__bar">
             <button
                 type="button"
                 className="weather-chip__summary"
-                aria-expanded={open}
+                aria-expanded={open === "details"}
                 aria-label={`Weather now${weather.place ? ` in ${weather.place}` : ""}: ${round(weather.temperature)} degrees, ${weather.condition}, wind ${round(weather.windSpeed)} km/h. Show details`}
-                onClick={() => setOpen((value) => !value)}
+                onClick={() => setOpen((value) => (value === "details" ? false : "details"))}
             >
                 <Icon className="weather-chip__icon" aria-hidden="true" />
                 <strong>{round(weather.temperature)}°</strong>
@@ -193,6 +215,16 @@ export default function WeatherChip() {
             </button>
             <button
                 type="button"
+                className={`weather-chip__forecast-toggle${open === "forecast" ? " is-active" : ""}`}
+                aria-expanded={open === "forecast"}
+                aria-label="14-day forecast"
+                title="14-day forecast"
+                onClick={() => setOpen((value) => (value === "forecast" ? false : "forecast"))}
+            >
+                <HiOutlineCalendarDays aria-hidden="true" />
+            </button>
+            <button
+                type="button"
                 className={`weather-chip__sound${soundOn ? "" : " is-off"}`}
                 aria-pressed={soundOn}
                 aria-label={soundOn ? "Turn sound off" : "Turn sound on"}
@@ -203,7 +235,7 @@ export default function WeatherChip() {
             </button>
             </div>
 
-            {open && (
+            {open === "details" && (
                 <div className="weather-chip__panel" role="dialog" aria-label={weather.place ? `Weather in ${weather.place}` : "Weather details"}>
                     {weather.place && (
                         <p className="weather-chip__place">
@@ -239,6 +271,14 @@ export default function WeatherChip() {
                         </a>
                     </p>
                 </div>
+            )}
+
+            {open === "forecast" && (
+                <ForecastPanel
+                    forecast={forecast?.key === `${anchor.lat.toFixed(4)},${anchor.lon.toFixed(4)}` ? forecast : null}
+                    weather={weather}
+                    onClose={() => setOpen(false)}
+                />
             )}
         </div>
     );

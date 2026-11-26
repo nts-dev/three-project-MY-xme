@@ -1,37 +1,258 @@
+/* Building search (BuildingSearch.jsx): a glass pill in the top bar, like the weather pill, with a
+   results panel under it. Its position is set by hudLayout.css (desktop) and PlayMobileSplit.css
+   (phones); the parts use their own bsearch__ classes, clear of older .building-search-* rules. */
 .building-search {
+    --bs-bg: rgba(22, 30, 34, 0.86);
+    --bs-panel: rgba(17, 22, 26, 0.97);
+    --bs-line: rgba(255, 255, 255, 0.1);
+    --bs-text: #eef4f5;
+    --bs-muted: #9fb0b5;
+    --bs-accent: #2ee6c8;
     position: fixed;
     top: 56px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 1000;
+    width: 360px;
     max-width: calc(100vw - 32px);
-    color: #e6f4f4;
+    color: var(--bs-text);
+    font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
 }
-.building-search-bar {
+
+.bsearch__bar {
     display: flex;
     align-items: center;
-    background: #243437;
-    border: 1px solid #466064;
-    border-radius: 12px;
-    padding: 4px;
-    box-shadow: 0 4px 14px #0003;
+    gap: 6px;
+    height: 40px;
+    box-sizing: border-box;
+    padding: 0 6px 0 12px;
+    border: 1px solid var(--bs-line);
+    border-radius: 999px;
+    background: var(--bs-bg);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(12px);
+    transition: border-color 150ms ease, box-shadow 150ms ease;
 }
-.building-search-bar input {
-    width: min(300px, calc(100vw - 130px));
+
+.bsearch__bar:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* One focus ring, on the whole pill (not a box around the bare input). */
+.bsearch__bar:focus-within {
+    border-color: color-mix(in srgb, var(--bs-accent) 70%, transparent);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28), 0 0 0 3px color-mix(in srgb, var(--bs-accent) 18%, transparent);
+}
+
+.bsearch__icon {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    color: var(--bs-muted);
+}
+
+.bsearch__bar:focus-within .bsearch__icon {
+    color: var(--bs-accent);
+}
+
+.building-search .bsearch__input {
+    flex: 1;
     min-width: 0;
-    padding: 8px 10px;
+    height: 100%;
+    margin: 0;
+    padding: 0;
     border: 0;
     outline: none;
+    box-shadow: none;
     background: transparent;
     color: inherit;
+    font: inherit;
     font-size: 14px;
+    -webkit-appearance: none;
+    appearance: none;
 }
-.building-search-bar input::placeholder { color: #adc3c6; }
-.building-search button { cursor: pointer; color: inherit; border: 0; background: transparent; }
-.building-search-bar button { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; }
-.building-search button:hover { background: #36575b; }
-.building-search button:focus-visible, .building-search input:focus-visible { outline: 2px solid #54d8d1; outline-offset: -2px; }
-.building-search-results { list-style: none; margin: 8px 0 0; padding: 4px; max-height: 320px; overflow-y: auto; background: #243437; border-radius: 10px; box-shadow: 0 4px 14px #0003; }
-.building-search-results button { display: flex; flex-direction: column; text-align: left; width: 100%; padding: 10px; border-radius: 6px; }
-.building-search-results small { color: #adc3c6; margin-top: 3px; }
-.building-search-message { margin-top: 8px; padding: 10px; background: #243437; border-radius: 8px; font-size: 13px; }
+
+.building-search .bsearch__input:focus,
+.building-search .bsearch__input:focus-visible {
+    border: 0;
+    outline: none;
+    box-shadow: none;
+}
+
+.bsearch__input::placeholder {
+    color: var(--bs-muted);
+    opacity: 1;
+}
+
+/* The browser's own clear button for type=search: replaced by ours. */
+.bsearch__input::-webkit-search-cancel-button {
+    display: none;
+}
+
+.bsearch__clear {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--bs-muted);
+    cursor: pointer;
+}
+
+.bsearch__clear:hover,
+.bsearch__clear:focus-visible {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--bs-text);
+    outline: none;
+}
+
+.bsearch__clear svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Results */
+.bsearch__panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    overflow: hidden;
+    border: 1px solid var(--bs-line);
+    border-radius: 14px;
+    background: var(--bs-panel);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(14px);
+}
+
+.bsearch__results {
+    max-height: min(400px, calc(100vh - 170px));
+    margin: 0;
+    padding: 6px;
+    overflow-y: auto;
+    list-style: none;
+    scrollbar-width: thin;
+}
+
+.bsearch__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.bsearch__item.is-active {
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.bsearch__badge {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--kind) 22%, transparent);
+    color: var(--kind);
+}
+
+.bsearch__badge svg {
+    width: 14px;
+    height: 14px;
+}
+
+.bsearch__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.bsearch__name,
+.bsearch__meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bsearch__name {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.bsearch__meta {
+    color: var(--bs-muted);
+    font-size: 12px;
+}
+
+.building-search mark {
+    padding: 0;
+    border-radius: 2px;
+    background: transparent;
+    color: var(--bs-accent);
+    font-weight: 700;
+}
+
+.bsearch__empty {
+    margin: 0;
+    padding: 16px 14px;
+    color: var(--bs-muted);
+    font-size: 13px;
+    text-align: center;
+}
+
+.bsearch__foot {
+    margin: 0;
+    padding: 7px 12px;
+    border-top: 1px solid var(--bs-line);
+    color: var(--bs-muted);
+    font-size: 11px;
+}
+
+.bsearch__foot kbd {
+    display: inline-block;
+    min-width: 16px;
+    margin: 0 2px;
+    padding: 0 4px;
+    border: 1px solid var(--bs-line);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--bs-text);
+    font: inherit;
+    text-align: center;
+}
+
+.bsearch__toast {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    max-width: 100%;
+    overflow: hidden;
+    padding: 7px 12px;
+    border: 1px solid var(--bs-line);
+    border-radius: 999px;
+    background: var(--bs-panel);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Touch screens: no keyboard hints. */
+@media (hover: none) {
+    .bsearch__foot {
+        display: none;
+    }
+}

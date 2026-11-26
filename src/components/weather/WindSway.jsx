@@ -1,7 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { useSkyStore, useWeatherStore } from "./weatherStore";
+import { useWeatherStore, updateWeatherBlend } from "./weatherStore";
 
 // Trees move with the live wind (weatherStore, Open-Meteo): in the vertex shader each vertex is
 // pushed downwind by an amount growing with the square of its height above the tree's base (the
@@ -88,9 +88,10 @@ export default function WindSway() {
         }
 
         const weather = useWeatherStore.getState().weather;
-        const preview = useSkyStore.getState().windPreview;
-        const speed = preview ?? (Number.isFinite(weather?.windSpeed) ? weather.windSpeed : 0); // km/h
-        const gusts = preview !== null ? preview * 1.5 : (Number.isFinite(weather?.windGusts) ? weather.windGusts : speed);
+        // Eased wind (updateWeatherBlend: a new reading blends in), km/h.
+        const blend = updateWeatherBlend();
+        const speed = blend.wind;
+        const gusts = blend.gusts;
         // Effective wind: the mean plus part of the gusts (trees answer to gusts). Even light air
         // moves a crown a little, so there is a gentle idle sway; ~50 km/h bends a tree fully.
         const effective = Math.max(speed, speed + (gusts - speed) * 0.5);

@@ -65,6 +65,7 @@ import AvatarEyeDirectionalLight from "../threejs/player/AvatarEyeDirectionalLig
 import Floor from "../threejs/environment/Floor.jsx";
 import Notification from "../threejs/notification/Notification";
 import '../leaderboard.css'
+import './hud/hudLayout.css';
 import { PhysicsProvider } from '../threejs/cannon/PhysicsContext';
 import Scene from "../threejs/cannon/Scene";
 import PopupInfo from "./popup/form/PopupInfo";
