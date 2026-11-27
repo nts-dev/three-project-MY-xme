@@ -24,6 +24,7 @@ import Materials from "./rack/Materials";
 import AddLabels from "./rack/AddLabels";
 import Building from "./environment/Building1";
 import TerrainSystem from "./terrain/TerrainSystem";
+import TopViewRenderer from "./topview/TopViewRenderer";
 import { loadProjectTerrainConfig } from "./terrain/terrainData";
 import { getProjectOptimizeOptions, optimizeModel } from "./scene/optimize/modelOptimizer";
 import { AnnotationData } from "./label/AttachLabel";
@@ -2185,6 +2186,7 @@ const configureOriginalMeshMaterial = (material, mesh, keepDoubleSided = false) 
             {bProjectId > 0 && (bProjectId != 147 && bProjectId != 148 && bProjectId != 153) && <Building bProjectId={bProjectId} />}
             {/* Ground terrain of scenes whose scene JSON has `terrain` (153_L2, the XME map); others render nothing. */}
             {projectId ? <TerrainSystem sceneKey={projectId} /> : null}
+            <TopViewRenderer />
             {/* <DroneShowMorph morphs={sceneMorphs} categories={morphCategories} /> */}
             <DslMorphClouds morphs={sceneMorphs} categories={morphCategories} />
 

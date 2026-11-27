@@ -7,8 +7,9 @@ import { applyTerrainTileTexture, buildTerrainGroup, disposeTerrainGroup } from 
 import { createTerrainImagery } from "./terrainImagery";
 import { WorldTerrain } from "./world/worldTerrain";
 import { loadRegions } from "./world/regionOverlay";
-import { bridgeImageryMasks, buildBridges, regionToScene } from "./world/bridgeMeshes";
+import { bridgeImageryMasks, buildBridges, joinTwinBridges, regionToScene } from "./world/bridgeMeshes";
 import { roadSurfaceLines } from "./world/roadSurfaces";
+import { buildStreetSigns } from "./world/streetSigns";
 import { buildGroundRoads } from "./world/groundRoads";
 import { resolveImageryProvider } from "./world/imageryProviders";
 import { ELEVATION_ATTRIBUTION } from "./world/elevationSource";
@@ -28,6 +29,7 @@ function showAttribution(canvas, text) {
     const element = document.createElement("div");
     element.className = "terrain-attribution";
     element.textContent = text;
+    element.title = text;
     Object.assign(element.style, {
         position: "absolute",
         right: "6px",
@@ -80,6 +82,7 @@ function WorldTerrainLayer({ configKey, characterImagery }) {
         let world = null;
         let bridges = null;
         let groundRoads = null;
+        let streetSigns = null;
         let removeAttribution = () => {};
 
         Promise.all([
@@ -101,6 +104,8 @@ function WorldTerrainLayer({ configKey, characterImagery }) {
                         console.warn("[terrain] Google elevation unavailable; using the built-in elevation", error);
                     }
                 }
+                // Twin bridges (one per carriageway) as one structure: same heights, no gap.
+                regions = joinTwinBridges(regions);
                 return [regions, provider, anchorElevation, localElevation];
             })
             .then(([regions, provider, anchorElevation, localElevation]) => {
@@ -160,6 +165,20 @@ function WorldTerrainLayer({ configKey, characterImagery }) {
                     });
                     world.group.add(groundRoads.group);
                 }
+                // Street name signs at junctions (local name, English below when known).
+                if (regions.some((region) => region.signs?.length || region.streets?.length)) {
+                    const base = regions[0];
+                    const googleGround = localElevation?.google ? localElevation : null;
+                    const regionGround = (x, z) => base.terrain.heightAt(x, z) + base.referenceElevation;
+                    streetSigns = buildStreetSigns({
+                        regions,
+                        frame: world.frame,
+                        anchorElevation: world.anchorElevation,
+                        maxAnisotropy: gl.capabilities.getMaxAnisotropy(),
+                        groundAt: (x, z) => (googleGround ? googleGround.heightAt(x, z, regionGround(x, z)) : regionGround(x, z)) - world.anchorElevation,
+                    });
+                    world.group.add(streetSigns.group);
+                }
                 removeAttribution = showAttribution(gl.domElement, [
                     provider?.attribution,
                     localElevation?.google ? GOOGLE_ELEVATION_ATTRIBUTION : null,
@@ -178,6 +197,7 @@ function WorldTerrainLayer({ configKey, characterImagery }) {
             removeAttribution();
             bridges?.dispose();
             groundRoads?.dispose();
+            streetSigns?.dispose();
             if (world) {
                 world.dispose();
                 clearActiveTerrain();
@@ -187,10 +207,11 @@ function WorldTerrainLayer({ configKey, characterImagery }) {
         };
     }, [characterImagery, configKey, gl, getThree]);
 
-    useFrame(({ camera, clock }) => {
+    useFrame(({ camera, clock }, delta) => {
         if (!terrain) return;
-        // Downloaded tiles become meshes one per frame, their photo uploaded to the GPU there too.
-        terrain.finishTiles(gl, 1);
+        // Downloaded tiles become meshes over the next frames (mesh, then photo upload), held back
+        // a frame after a slow one (worldTerrain.finishTiles).
+        terrain.finishTiles(gl, 1, delta * 1000);
         const time = clock.getElapsedTime();
         if (time - lastUpdateRef.current < 0.15) return;
         lastUpdateRef.current = time;

@@ -22,13 +22,27 @@ const WALK_CLIP_SPEED = 2.5;
 const MIN_LEG_RATE = 0.6;
 const MAX_LEG_RATE = 3.2;
 const LEG_RATE_RESPONSE = 8; // 1/s: how quickly the leg rate follows speed changes
+// Held back while walking: below BLOCKED_SPEED m/s for BLOCKED_AFTER s, the legs blend to idle.
+const BLOCKED_SPEED = 0.25;
+const BLOCKED_AFTER = 0.2;
+const BLOCKED_BLEND_RATE = 10; // 1/s
+
+// Where the avatar model sits on the controller body (capsule centre): lowered by the offset and
+// scaled about its feet. Remote avatars use the same (RemotePlayer.tsx), so they match in size.
+const CHAR_Y_POS_OFFSET = 0.35;
+export function avatarPlacement(onTerrain: boolean) {
+    return {
+        offsetY: (onTerrain ? -1.1 : -1.4) + CHAR_Y_POS_OFFSET,
+        scale: onTerrain ? 0.57 : 1,
+    };
+}
 
 export default function CharacterModel({charModel}: any) {
     const groupRef: any = useRef<THREE.Group>();
     const personColor = useGame((state: any) => state.personColor);
     const projectID = useGame((state: any) => state.projectID);
     const positionY = useRef(0)
-    const [charYPosOffset, setcharYPosOffset] = useState(0.35)
+    const [charYPosOffset, setcharYPosOffset] = useState(CHAR_Y_POS_OFFSET)
     const {animations, scene} = charModel
 
     // The avatar's material: made once per model / colour (it used to be rebuilt, and the old one
@@ -73,10 +87,10 @@ export default function CharacterModel({charModel}: any) {
     // up for that in their floors (153_L1: +0.4); terrain scenes stand on the real ground, so
     // there the model is lifted to put the feet on the capsule bottom.
     const onTerrain = useGame((state: any) => sceneHasTerrain(state, state.projectID));
-    const modelOffsetY = onTerrain ? -1.1 : -1.4;
+    const modelOffsetY = avatarPlacement(onTerrain).offsetY - CHAR_Y_POS_OFFSET;
     // On the real-world map the avatar is real size, about 1.75 m (unscaled it stood ~3.1 m), to
     // match people and cars in Street View.
-    const avatarScale = onTerrain ? 0.57 : 1;
+    const avatarScale = avatarPlacement(onTerrain).scale;
 
     const animationSet = {
         idle: "Idle",
@@ -106,6 +120,9 @@ export default function CharacterModel({charModel}: any) {
     // Unmount (model replaced): fade out whatever plays.
     useEffect(() => () => { currentActionRef.current?.fadeOut(0.2); currentActionRef.current = null; }, [scene]);
     const legRateRef = useRef(1);
+    const blockedForRef = useRef(0); // s the avatar has been held back while walking / running
+    const blockedBlendRef = useRef(0); // 0 legs walking .. 1 idle pose (held back)
+    const borrowedIdleRef = useRef(false); // idle is mixed in by the held-back blend
 
     // Footstep sounds in step with the animation: each foot bone's height is tracked, and a step is
     // emitted when a foot stops going down near the lowest point it reached in the last second.
@@ -143,6 +160,38 @@ export default function CharacterModel({charModel}: any) {
         const target = THREE.MathUtils.clamp(speed / (WALK_CLIP_SPEED * avatarScale), MIN_LEG_RATE, MAX_LEG_RATE);
         legRateRef.current += (target - legRateRef.current) * (1 - Math.exp(-LEG_RATE_RESPONSE * Math.min(delta, 0.1)));
         action.timeScale = legRateRef.current;
+
+        // Held back (against a wall, a fence, another body) while walking / running: the legs
+        // settle into the idle pose instead of walking on the spot, and step again as soon as the
+        // avatar moves. Not during a cross-fade (its own weights run then).
+        const idle: any = actions[animationSet.idle];
+        if (idle && idle !== action && !action._weightInterpolant && /walk|run/i.test(curAnimation || "")) {
+            const dt = Math.min(delta, 0.1);
+            blockedForRef.current = speed < BLOCKED_SPEED ? blockedForRef.current + dt : 0;
+            const target = blockedForRef.current > BLOCKED_AFTER ? 1 : 0;
+            blockedBlendRef.current += (target - blockedBlendRef.current) * (1 - Math.exp(-BLOCKED_BLEND_RATE * dt));
+            const b = blockedBlendRef.current < 0.01 ? 0 : blockedBlendRef.current;
+            if (b > 0) {
+                if (!idle.isRunning()) idle.reset().play();
+                idle.setEffectiveWeight(b);
+                action.setEffectiveWeight(1 - b);
+                borrowedIdleRef.current = true;
+            } else if (borrowedIdleRef.current) {
+                // Done: legs back to full, idle stopped with its weight restored (a base weight of
+                // 0 left behind made every later fade-in of idle stay at 0: a T-pose).
+                action.setEffectiveWeight(1);
+                idle.stop();
+                idle.setEffectiveWeight(1);
+                borrowedIdleRef.current = false;
+            }
+        } else {
+            // Left walk / run (jump, idle...) while held back: the borrowed idle pose fades out,
+            // unless idle is now the animation playing.
+            if (borrowedIdleRef.current && idle && curAnimation !== animationSet.idle) idle.fadeOut(0.2);
+            borrowedIdleRef.current = false;
+            blockedForRef.current = 0;
+            blockedBlendRef.current = 0;
+        }
 
         // Foot touch-downs -> footstep sounds (only while actually moving).
         if (speed < 0.3 || !feet.length) return;
@@ -184,21 +233,31 @@ export default function CharacterModel({charModel}: any) {
         if (curAnimation === animationSet.jump) {
             action
                 .reset()
+                .setEffectiveWeight(1)
                 .fadeIn(0.05)
                  .setLoop(projectID==144 ? THREE.LoopRepeat : THREE.LoopOnce, undefined as unknown as number)
                 .setDuration(action.getClip().duration / speed)
                 .play();
             action.clampWhenFinished = true;
         } else if(curAnimation === animationSet.idle) {
-            action
-                .reset()
-                .fadeIn(0.2)
-                .setDuration(action.getClip().duration)
-                .play();
+            if (action.isRunning() && action.getEffectiveWeight() > 0.05) {
+                // Already showing (the legs settled into idle against a wall): carry on from its
+                // pose; restarting with a fade-in from 0 sagged the body towards the rest pose.
+                action.stopFading().setEffectiveWeight(1);
+            } else {
+                // Base weight back to 1 first: reset() keeps it, and fadeIn() scales it.
+                action
+                    .reset()
+                    .setEffectiveWeight(1)
+                    .fadeIn(0.2)
+                    .setDuration(action.getClip().duration)
+                    .play();
+            }
         }
         else if(curAnimation === animationSet.fail || curAnimation === animationSet.recover){
             action
                 .reset()
+                .setEffectiveWeight(1)
                 .fadeIn(0.2)
                 .setLoop( THREE.LoopOnce, undefined as unknown as number)
                 .setDuration(action.getClip().duration )

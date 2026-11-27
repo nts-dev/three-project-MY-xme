@@ -1,0 +1,192 @@
+/* Top view map: bottom-left (the corner Google Street View keeps its map in), above the imagery
+   credits line; on phones top-left under the weather row (the joystick has the bottom-left). */
+.top-view-map {
+    --top-view-size: 240px;
+    position: fixed;
+    left: 16px;
+    bottom: 36px;
+    z-index: 1000004;
+    width: var(--top-view-size);
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 12px;
+    background: transparent;
+    color: #eef2f6;
+    font: 500 12px/1.3 Inter, "Segoe UI", Roboto, Arial, sans-serif;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+    pointer-events: auto;
+}
+
+.top-view-map.is-large {
+    --top-view-size: min(420px, calc(100vw - 32px), calc(100vh - 220px));
+}
+
+@media (min-width: 1920px) and (min-height: 1000px) {
+    .top-view-map { --top-view-size: 280px; left: 20px; }
+    .top-view-map.is-large { --top-view-size: min(520px, calc(100vh - 240px)); }
+}
+
+.top-view-map__head {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 6px 4px 12px;
+    background: rgba(11, 16, 22, 0.9);
+}
+
+.top-view-map__head span {
+    flex: 1;
+    font-weight: 700;
+}
+
+.top-view-map__head button {
+    width: 26px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #eef2f6;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.top-view-map__head button:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+/* Transparent: the canvas draws the map right under this area. */
+.top-view-map__body {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    touch-action: none;
+}
+
+.top-view-map__marker {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+    will-change: transform;
+}
+
+/* View cone: where the camera looks (rotated by the renderer, north = up). */
+.top-view-map__cone {
+    position: absolute;
+    left: -34px;
+    top: -60px;
+    width: 68px;
+    height: 60px;
+    background: radial-gradient(ellipse 50% 100% at 50% 100%, rgba(66, 133, 244, 0.55), rgba(66, 133, 244, 0) 100%);
+    clip-path: polygon(50% 100%, 8% 0, 92% 0);
+    transform-origin: 50% 100%;
+    transform: rotate(var(--top-view-heading, 0deg));
+}
+
+.top-view-map__dot {
+    position: absolute;
+    left: -8px;
+    top: -8px;
+    width: 16px;
+    height: 16px;
+    box-sizing: border-box;
+    border: 3px solid #fff;
+    border-radius: 50%;
+    background: #4285f4;
+    box-shadow: 0 0 0 6px rgba(66, 133, 244, 0.22), 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+
+.top-view-map__north {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(11, 16, 22, 0.75);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 20px;
+    text-align: center;
+    pointer-events: none;
+}
+
+.top-view-map__scale {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    pointer-events: none;
+}
+
+.top-view-map__scale div {
+    height: 4px;
+    border: 2px solid #fff;
+    border-top: 0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+    flex: none;
+    min-width: 12px;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.top-view-map__scale span {
+    color: #fff;
+    font-size: 10px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+    white-space: nowrap;
+}
+
+/* Phones: under the top bar (free view: below the weather pill; walking: below the weather row),
+   clear of the zoom strip / compass on the right; tap targets of 30 px. */
+@media (max-width: 760px) {
+    .top-view-map {
+        --top-view-size: 148px;
+        left: 12px;
+        top: 108px;
+        bottom: auto;
+        border-color: rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    }
+    body.play-mobile-walk .top-view-map {
+        top: 156px;
+    }
+    .top-view-map.is-large {
+        --top-view-size: min(250px, calc(100vw - 88px));
+    }
+    .top-view-map__head {
+        gap: 0;
+        padding: 0 2px 0 10px;
+        background: rgba(10, 18, 22, 0.92);
+    }
+    .top-view-map__head span {
+        font-size: 12px;
+    }
+    .top-view-map__head button {
+        width: 28px;
+        height: 30px;
+        border-radius: 8px;
+        font-size: 17px;
+    }
+    .top-view-map__north {
+        width: 18px;
+        height: 18px;
+        font-size: 10px;
+        line-height: 18px;
+    }
+}
+
+/* Reopen button: only on phones while walking (elsewhere the toolbar has the map button). */
+.top-view-map__reopen {
+    display: none;
+}

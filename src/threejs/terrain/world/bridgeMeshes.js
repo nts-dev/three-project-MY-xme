@@ -10,11 +10,80 @@ const METERS_PER_DEGREE_LAT = 110574;
 const EDGE_MARGIN = 300; // metres; regionOverlay blends regions into raw elevation over 250 m
 const TEXTURE_LENGTH = 24; // metres of deck per repeat of the road texture (lane dash cycle)
 const RAISED = 1.5; // deck at least this far above the ground counts as raised
+const MASK_MARGIN = 6; // metres of ground photo erased beyond each raised deck edge
 
 /** Bridges near a region's edge are left out: there its corrected ground (and ramps) fade out. */
 export const isBridgeShown = (region, bridge) =>
     bridge.points?.length >= 2
     && !bridge.points.some(([x, z]) => Math.min(x - region.minX, region.maxX - x, z - region.minZ, region.maxZ - z) < EDGE_MARGIN);
+
+/** Nearest point on a polyline of [x, z, ...] points: { distance, index, t } (segment index, fraction). */
+function nearestOnLine(points, x, z) {
+    let best = { distance: Infinity, index: 0, t: 0 };
+    for (let i = 0; i < points.length - 1; i++) {
+        const [x1, z1] = points[i];
+        const [x2, z2] = points[i + 1];
+        const dx = x2 - x1;
+        const dz = z2 - z1;
+        const t = Math.max(0, Math.min(1, ((x - x1) * dx + (z - z1) * dz) / (dx * dx + dz * dz || 1)));
+        const distance = Math.hypot(x - x1 - t * dx, z - z1 - t * dz);
+        if (distance < best.distance) best = { distance, index: i, t };
+    }
+    return best;
+}
+
+const TWIN_MAX_GAP = 4; // metres between the decks' edges for two bridges to count as one structure
+
+/**
+ * Twin bridges (one per carriageway, side by side in OSM) are one structure in reality: here they
+ * got different heights from the ground under each (one floating at an end, the other dipping into
+ * the bank) and a gap between them. Each pair gets a common height profile (the higher of the two at
+ * each point, so neither cuts into the ground) and is widened to close the gap.
+ * Returns new region objects.
+ */
+export function joinTwinBridges(regions) {
+    return regions.map((region) => {
+        const bridges = (region.bridges || []).map((bridge) => ({ ...bridge, points: bridge.points.map((p) => [...p]) }));
+        if (bridges.length < 2) return region;
+        const original = bridges.map((bridge) => bridge.points.map((p) => [...p]));
+        const heading = (points) => {
+            const [x1, z1] = points[0];
+            const [x2, z2] = points[points.length - 1];
+            const l = Math.hypot(x2 - x1, z2 - z1) || 1;
+            return [(x2 - x1) / l, (z2 - z1) / l];
+        };
+        for (let a = 0; a < bridges.length; a++) {
+            for (let b = a + 1; b < bridges.length; b++) {
+                const A = bridges[a];
+                const B = bridges[b];
+                if (A.points.length < 2 || B.points.length < 2 || (A.layer ?? 1) !== (B.layer ?? 1)) continue;
+                const [ax, az] = heading(original[a]);
+                const [bx, bz] = heading(original[b]);
+                if (Math.abs(ax * bx + az * bz) < 0.95) continue; // not parallel
+                // Centre-line spacing at A's middle points (where both run side by side).
+                const mid = original[a].slice(1, -1);
+                if (!mid.length) continue;
+                const spacing = mid.map(([x, z]) => nearestOnLine(original[b], x, z).distance);
+                const gap = Math.max(...spacing) - (A.width + B.width) / 2;
+                if (gap > TWIN_MAX_GAP || Math.min(...spacing) < 1) continue;
+                // Common profile: each point takes the higher of its own deck and the twin's beside it.
+                const deckAt = (points, x, z) => {
+                    const { index, t } = nearestOnLine(points, x, z);
+                    return points[index][2] + (points[index + 1][2] - points[index][2]) * t;
+                };
+                A.points.forEach((p) => { p[2] = Math.max(p[2], deckAt(original[b], p[0], p[1])); });
+                B.points.forEach((p) => { p[2] = Math.max(p[2], deckAt(original[a], p[0], p[1])); });
+                // Close the gap: each deck reaches the middle between them.
+                const centres = Math.max(...spacing);
+                A.width = Math.max(A.width, centres); // edges meet (overlapping tops would z-fight)
+                B.width = Math.max(B.width, centres);
+                A.twin = B.id;
+                B.twin = A.id;
+            }
+        }
+        return { ...region, bridges };
+    });
+}
 
 const regionToGeo = (region) => (x, z) => ({
     lat: region.lat - z / METERS_PER_DEGREE_LAT,
@@ -23,7 +92,8 @@ const regionToGeo = (region) => (x, z) => ({
 
 /**
  * Raised deck spans as geo polylines, for erasing the bridge from the ground photo:
- * [{ points: [{ lat, lon }, ...], halfWidth }] (halfWidth in metres, with a margin).
+ * [{ points: [{ lat, lon }, ...], halfWidth, roads }] (halfWidth in metres, with a margin; roads:
+ * the ground roads near the deck, [{ half, points: [{ lat, lon }] }], or null when not known).
  */
 export function bridgeImageryMasks(regions) {
     const masks = [];
@@ -31,9 +101,16 @@ export function bridgeImageryMasks(regions) {
         const toGeo = regionToGeo(region);
         for (const bridge of region.bridges || []) {
             if (!isBridgeShown(region, bridge)) continue;
+            // Ground roads beside / under the deck (bridges.json `ground`, scene metres): road texture
+            // is kept under the deck only on these, everywhere else the ground beside it fills in.
+            const roads = Array.isArray(bridge.ground)
+                ? bridge.ground.filter((road) => road.points?.length >= 2).map((road) => ({ half: road.half, skew: road.skew ?? 0, points: road.points.map(([x, z]) => toGeo(x, z)) }))
+                : null;
             let run = [];
             const flush = () => {
-                if (run.length >= 2) masks.push({ points: run, halfWidth: bridge.width / 2 + 2 });
+                // MASK_MARGIN beyond the deck edges: the photo's own bridge (often a couple of metres off
+                // the deck: its parapet lines and its shadow beside it) goes too.
+                if (run.length >= 2) masks.push({ points: run, halfWidth: bridge.width / 2 + MASK_MARGIN, roads });
                 run = [];
             };
             bridge.points.forEach(([x, z, deck, ground]) => {
@@ -184,8 +261,15 @@ export function buildBridges({ regions, frame, anchorElevation, maxAnisotropy = 
         for (const bridge of region.bridges || []) {
             if (!isBridgeShown(region, bridge)) continue;
             // Where the deck comes down to the ground (the ends), it lies on the ground instead of
-            // standing on it as a slab.
-            const centre = bridge.points.map(([x, z, y, ground]) => toScene(x, z, ground !== undefined && y - ground < ON_GROUND ? ground + 0.08 : y));
+            // standing on it as a slab: eased from the ground (y - ground 0) to its own height (from
+            // ON_GROUND up), never below the ground. A hard switch at ON_GROUND made a ~1 m step in
+            // the deck where it crossed that height (a notch / gap near the bridge ends).
+            const deckY = (y, ground) => {
+                if (ground === undefined) return y;
+                const t = smoothstep(Math.min(1, Math.max(0, (y - ground) / ON_GROUND)));
+                return Math.max(ground + 0.08, ground + 0.08 + (y - ground - 0.08) * t);
+            };
+            const centre = bridge.points.map(([x, z, y, ground]) => toScene(x, z, deckY(y, ground)));
             const { left, right } = edges(centre, bridge.width / 2);
             const thickness = bridge.thickness ?? 1.3;
             // Parapets fade out as the deck comes down to the ground, so the bridge blends into the road.
@@ -234,11 +318,41 @@ export function buildBridges({ regions, frame, anchorElevation, maxAnisotropy = 
             bridgeGroup.add(deck, body);
 
             if (bridge.piers?.length) {
-                const piers = new THREE.InstancedMesh(pierGeometry, concrete, bridge.piers.length);
+                // Each pier runs from the ground to just under the deck as built (the decks are refitted
+                // to the finer ground at runtime, so the stored pier heights can be metres off: piers
+                // poked up through the deck). Deck and ground come from the nearest point on the line.
+                const underDeck = (x, z) => {
+                    let best = Infinity;
+                    let result = null;
+                    const P = bridge.points;
+                    for (let i = 0; i < P.length - 1; i++) {
+                        const [x1, z1, y1, g1] = P[i];
+                        const [x2, z2, y2, g2] = P[i + 1];
+                        const dx = x2 - x1;
+                        const dz = z2 - z1;
+                        const t = Math.max(0, Math.min(1, ((x - x1) * dx + (z - z1) * dz) / (dx * dx + dz * dz || 1)));
+                        const d = Math.hypot(x - x1 - t * dx, z - z1 - t * dz);
+                        if (d < best) {
+                            best = d;
+                            const ground = g1 === undefined || g2 === undefined ? undefined : g1 + (g2 - g1) * t;
+                            result = { deck: deckY(y1, g1) + (deckY(y2, g2) - deckY(y1, g1)) * t, ground };
+                        }
+                    }
+                    return result;
+                };
+                const placed = [];
+                for (const [x, z, topY, bottomY] of bridge.piers) {
+                    const at = underDeck(x, z);
+                    const top = (at ? at.deck : topY + thickness) - thickness + 0.05; // tucked under the slab
+                    const bottom = (at?.ground ?? bottomY) - 0.5; // a little into the ground
+                    if (top - bottom < 2) continue; // deck too close to the ground for a pier
+                    placed.push([x, z, bottom, top]);
+                }
+                const piers = new THREE.InstancedMesh(pierGeometry, concrete, Math.max(1, placed.length));
+                piers.count = placed.length;
                 const matrix = new THREE.Matrix4();
-                bridge.piers.forEach(([x, z, topY, bottomY], i) => {
-                    const base = toScene(x, z, bottomY - 0.5);
-                    matrix.compose(base, new THREE.Quaternion(), new THREE.Vector3(1, Math.max(0.5, topY - bottomY + 0.5), 1));
+                placed.forEach(([x, z, bottom, top], i) => {
+                    matrix.compose(toScene(x, z, bottom), new THREE.Quaternion(), new THREE.Vector3(1, top - bottom, 1));
                     piers.setMatrixAt(i, matrix);
                 });
                 piers.instanceMatrix.needsUpdate = true;

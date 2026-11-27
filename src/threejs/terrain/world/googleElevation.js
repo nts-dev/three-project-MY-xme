@@ -359,11 +359,104 @@ export function fitBridgesToGround(regions, localElevation, frame, anchorElevati
                 if (clearance > 2) value = Math.max(value, ground[i] + Math.min(clearance, MIN_CLEARANCE));
                 return value;
             });
+            const MAX_GRADE = 0.08;
+            // Away from the roads it crosses, the deck climbs from its ends at most MAX_GRADE: the
+            // old clearance kept everywhere left decks high near an end that the new ground brought
+            // down (a 5 m drop over the last 20 m). Over a road crossing beneath, the clearance stays.
+            const crossings = (bridge.ground || []).filter((road) => road.points?.length >= 2);
+            const crossesAt = (x, z, hx, hz) => {
+                const hl = Math.hypot(hx, hz) || 1;
+                return crossings.some((road) => road.points.some((p, k) => {
+                    if (!k) return false;
+                    const [x1, z1] = road.points[k - 1];
+                    const dx = p[0] - x1;
+                    const dz = p[1] - z1;
+                    const l = Math.hypot(dx, dz) || 1;
+                    if (Math.abs((dx * hz - dz * hx) / (l * hl)) < 0.3) return false; // runs along the deck
+                    const t = Math.max(0, Math.min(1, ((x - x1) * dx + (z - z1) * dz) / (l * l)));
+                    return Math.hypot(x - x1 - t * dx, z - z1 - t * dz) <= road.half + 2;
+                }));
+            };
+            const overRoad = points.map(([x, z], i) => {
+                const prev = points[Math.max(0, i - 1)];
+                const next = points[Math.min(last, i + 1)];
+                return crossesAt(x, z, next[0] - prev[0], next[1] - prev[1]);
+            });
+            // (Only with the roads known: without them every point would count as off the roads.)
+            for (let i = 1; Array.isArray(bridge.ground) && i < last; i++) {
+                if (overRoad[i]) continue;
+                const fromEnds = Math.min(deck[0] + MAX_GRADE * along[i], deck[last] + MAX_GRADE * (length - along[i]));
+                deck[i] = Math.max(Math.min(deck[i], fromEnds), ground[i] + 0.1);
+            }
+            // The clearance lift above raises only the high points: from the ends the deck would step
+            // up onto them (a ~1 m step near each end). Ramp up to them at most MAX_GRADE instead
+            // (both directions; the end points stay on the ground).
+            for (let i = last - 1; i >= 1; i--) deck[i] = Math.max(deck[i], deck[i + 1] - MAX_GRADE * (along[i + 1] - along[i]));
+            for (let i = 1; i <= last - 1; i++) deck[i] = Math.max(deck[i], deck[i - 1] - MAX_GRADE * (along[i] - along[i - 1]));
             // Smooth the clamped deck a little, ends fixed on the ground.
             for (let pass = 0; pass < 2; pass++) {
                 deck = deck.map((value, i) => (i === 0 || i === last ? value : (deck[i - 1] + value * 2 + deck[i + 1]) / 4));
             }
-            return { ...bridge, points: points.map(([x, z], i) => [x, z, deck[i], ground[i]]) };
+            // Where the deck runs close to the ground (the ends, coming down onto the road), the
+            // ground between the ~8 m deck points can rise above the straight deck between them and
+            // poke through it: there, extra points every NEAR_GROUND_STEP metres keep the deck
+            // NEAR_GROUND_LIFT above the actual ground.
+            const NEAR_GROUND = 1.5;
+            const NEAR_GROUND_STEP = 2;
+            const NEAR_GROUND_LIFT = 0.25;
+            // Ground under the centre and both deck edges (a bank across the road is higher on one side).
+            const half = (bridge.width ?? 8) / 2;
+            const groundUnder = (px, pz, dirX, dirZ, base) => {
+                const l = Math.hypot(dirX, dirZ) || 1;
+                const ox = (-dirZ / l) * half;
+                const oz = (dirX / l) * half;
+                let high = -Infinity;
+                for (const s of [0, 1, -1]) {
+                    const p = toScene(px + ox * s, pz + oz * s, 0);
+                    high = Math.max(high, localElevation.heightAt(p.x, p.z, base + ref) - ref);
+                }
+                return high;
+            };
+            const out = [];
+            for (let i = 0; i < points.length; i++) {
+                const [x, z] = points[i];
+                const prev = points[Math.max(0, i - 1)];
+                const next = points[Math.min(last, i + 1)];
+                let d = deck[i];
+                if (i > 0 && i < last && d - ground[i] <= NEAR_GROUND) d = Math.max(d, groundUnder(x, z, next[0] - prev[0], next[1] - prev[1], points[i][3]) + NEAR_GROUND_LIFT);
+                out.push([x, z, d, ground[i]]);
+                if (i === last) break;
+                const [nx, nz] = points[i + 1];
+                if (Math.min(deck[i] - ground[i], deck[i + 1] - ground[i + 1]) > NEAR_GROUND) continue;
+                const steps = Math.floor(Math.hypot(nx - x, nz - z) / NEAR_GROUND_STEP);
+                for (let k = 1; k < steps; k++) {
+                    const t = k / steps;
+                    const px = x + (nx - x) * t;
+                    const pz = z + (nz - z) * t;
+                    const p = toScene(px, pz, 0);
+                    const g = localElevation.heightAt(p.x, p.z, points[i][3] + ref) - ref;
+                    const high = groundUnder(px, pz, nx - x, nz - z, points[i][3]);
+                    const dt = deck[i] + (deck[i + 1] - deck[i]) * t;
+                    out.push([px, pz, Math.max(dt, high + NEAR_GROUND_LIFT), g]);
+                }
+            }
+            // The same end grade over the final points (with the extra near-ground ones): nothing
+            // added after the limit above may make a step up just inside an end.
+            if (Array.isArray(bridge.ground) && out.length > 2) {
+                const s = [0];
+                for (let j = 1; j < out.length; j++) s.push(s[j - 1] + Math.hypot(out[j][0] - out[j - 1][0], out[j][1] - out[j - 1][1]));
+                const total = s[s.length - 1];
+                const start = out[0][2];
+                const end = out[out.length - 1][2];
+                for (let j = 1; j < out.length - 1; j++) {
+                    const a = out[j - 1];
+                    const b = out[j + 1];
+                    if (crossesAt(out[j][0], out[j][1], b[0] - a[0], b[1] - a[1])) continue;
+                    const cap = Math.min(start + MAX_GRADE * s[j], end + MAX_GRADE * (total - s[j]));
+                    out[j][2] = Math.max(Math.min(out[j][2], cap), out[j][3] + 0.1);
+                }
+            }
+            return { ...bridge, points: out };
         });
         return { ...region, bridges };
     });

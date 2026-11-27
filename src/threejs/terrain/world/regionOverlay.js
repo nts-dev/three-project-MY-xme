@@ -19,19 +19,21 @@ export async function loadRegions(paths = [], { signal } = {}) {
                 return null;
             }
             // Extra data built with the region: 3D bridge decks (steps/bridges.mjs) and road surfaces
-            // painted over the photo (steps/roadSurfaces.mjs).
+            // painted over the photo (steps/roadSurfaces.mjs) and street name signs (steps/streetSigns.mjs).
             const loadExtra = async (file, key) => {
                 if (!file) return [];
                 try {
                     const response = await fetch(new URL(file, new URL(manifestUrl, window.location.href)), { signal, cache: "no-cache" });
-                    return response.ok ? (await response.json())[key] || [] : [];
+                    if (!response.ok) return key ? [] : {};
+                    const json = await response.json();
+                    return key ? json[key] || [] : json; // no key: the whole file
                 } catch (error) {
                     if (error.name === "AbortError") throw error;
                     console.warn(`[terrain] ${key} of region ${path} could not be loaded`, error);
-                    return [];
+                    return key ? [] : {};
                 }
             };
-            const [bridges, roads] = await Promise.all([loadExtra(manifest.bridges, "bridges"), loadExtra(manifest.roads, "roads")]);
+            const [bridges, roads, signData] = await Promise.all([loadExtra(manifest.bridges, "bridges"), loadExtra(manifest.roads, "roads"), loadExtra(manifest.signs, null)]);
             return {
                 path,
                 terrain,
@@ -45,6 +47,8 @@ export async function loadRegions(paths = [], { signal } = {}) {
                 maxZ: manifest.origin.z + manifest.tilesZ * manifest.tileSize,
                 bridges,
                 roads,
+                signs: signData.signs || [], // street name signs at junctions
+                streets: signData.streets || [], // named streets (names along the roads)
             };
         } catch (error) {
             if (error.name === "AbortError") throw error;

@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect } from "react";
-import { FaEye, FaLocationArrow, FaTag, FaEllipsisH, FaVideo, FaRobot, FaCamera, FaSatelliteDish } from "react-icons/fa";
+import React, { useCallback, useEffect, useRef } from "react";
+import { FaEye, FaLocationArrow, FaTag, FaEllipsisH, FaVideo, FaRobot, FaCamera, FaSatelliteDish, FaMap } from "react-icons/fa";
 import useGame from "../../../../hooks/useGame";
 import { publicAssetUrl } from "../../../../puzzleUi/publicAssetUrl";
 import VrViewButton from "./VrViewButton";
 import RobotTrialControls from "./RobotTrialControls";
 import "./PlayMobileSplit.css";
+import useTopView from "../../../topview/topViewStore";
 
 // Phones (see PlayMobileSplit.css): while the map is navigated freely, the map takes the top 2/3
 // of the screen and the bottom 1/3 shows the details popup, or these buttons when it is closed.
@@ -19,21 +20,66 @@ const VIEW_CONTROLS = [
     {
         id: "firstPerson",
         label: "First person view",
+        short: "First person",
         Icon: FaVideo,
     },
     {
         id: "character",
         label: "Character view",
+        short: "Character",
         src: characterIconUrl,
     },
     {
         id: "orbit",
         label: "Free navigation view",
+        short: "Free view",
         src: freeCameraIconUrl,
     },
 ];
 
+/** Top view map on / off (the map with the blue dot, components/topview/TopViewMap.jsx). */
+function TopViewButton() {
+    const open = useTopView((s) => s.open);
+    const toggle = useTopView((s) => s.toggle);
+    const label = open ? "Hide top view map" : "Show top view map";
+    return (
+        <button
+            type="button"
+            className={`play-view-controls__button${open ? " is-active" : ""}`}
+            aria-label={label}
+            aria-pressed={open}
+            data-tooltip={label}
+            data-short="Map"
+            onClick={toggle}
+        >
+            <FaMap className="play-view-controls__svg-icon" aria-hidden="true" />
+        </button>
+    );
+}
+
 export default function PlayModeViewControls() {
+    // Phones: the menu sheet is as tall as its buttons; the map gets the rest of the screen
+    // (--play-menu-h on <body>, read by PlayMobileSplit.css).
+    const toolbarRef = useRef(null);
+    useEffect(() => {
+        const element = toolbarRef.current;
+        if (!element || typeof ResizeObserver !== "function") return undefined;
+        const update = () => {
+            const height = element.getBoundingClientRect().height;
+            if (window.innerWidth <= 760 && height > 0) document.body.style.setProperty("--play-menu-h", `${Math.ceil(height)}px`);
+            else document.body.style.removeProperty("--play-menu-h");
+        };
+        const observer = new ResizeObserver(update);
+        observer.observe(element);
+        window.addEventListener("resize", update);
+        update();
+        return () => {
+            observer.disconnect();
+            window.removeEventListener("resize", update);
+            document.body.style.removeProperty("--play-menu-h");
+        };
+    }, []);
+
     const firstPerson = useGame((state) => state.firstPerson);
     const character = useGame((state) => state.character);
     const setFirstPerson = useGame((state) => state.setFirstPerson);
@@ -152,9 +198,9 @@ export default function PlayModeViewControls() {
     }, [robotRealtimeFollow, setButtonMode, setCameraPathReplay, setCameraRealtimeFollow, setCharacter, setFirstPerson, setRobotFirstPerson, setRobotRealtimeFollow]);
 
     return (
-        <div className="play-view-controls" role="toolbar" aria-label="Play mode view controls">
+        <div ref={toolbarRef} className="play-view-controls" role="toolbar" aria-label="Play mode view controls">
             <div className="play-view-controls__radio" role="radiogroup" aria-label="Camera mode">
-                {VIEW_CONTROLS.map(({ id, label, Icon: ViewIcon, src }) => {
+                {VIEW_CONTROLS.map(({ id, label, short, Icon: ViewIcon, src }) => {
                     return (
                         <button
                             key={id}
@@ -163,6 +209,7 @@ export default function PlayModeViewControls() {
                             aria-label={label}
                             aria-checked={activeView === id}
                             data-tooltip={label}
+                            data-short={short}
                             role="radio"
                             onClick={() => setViewMode(id)}
                         >
@@ -177,12 +224,15 @@ export default function PlayModeViewControls() {
                 <VrViewButton />
             </div>
 
+            <TopViewButton />
+
             <button
                 type="button"
                 className={`play-view-controls__button play-view-controls__button--camera-path${cameraPathReplay && cameraPathSource === "gps" ? " is-active" : ""}`}
                 aria-label={cameraPathReplay && cameraPathSource === "gps" ? "Stop GPS camera route" : "Play GPS camera route"}
                 aria-pressed={cameraPathReplay && cameraPathSource === "gps"}
                 data-tooltip={cameraPathReplay && cameraPathSource === "gps" ? "Stop GPS camera route" : "Play GPS camera route"}
+                data-short="GPS route"
                 onClick={() => toggleCameraPathReplay("gps")}
             >
                 <FaLocationArrow className="play-view-controls__svg-icon play-view-controls__svg-icon--cameraPath" aria-hidden="true" />
@@ -194,6 +244,7 @@ export default function PlayModeViewControls() {
                 aria-label={cameraPathReplay && cameraPathSource === "rtls" ? "Stop RTLS tag camera route" : "Play RTLS tag camera route"}
                 aria-pressed={cameraPathReplay && cameraPathSource === "rtls"}
                 data-tooltip={cameraPathReplay && cameraPathSource === "rtls" ? "Stop RTLS tag camera route" : "Play RTLS tag camera route"}
+                data-short="RTLS route"
                 onClick={() => toggleCameraPathReplay("rtls")}
             >
                 <FaTag className="play-view-controls__svg-icon" aria-hidden="true" />
@@ -205,6 +256,7 @@ export default function PlayModeViewControls() {
                 aria-label={rtlsRouteDots ? "Hide RTLS route dots" : "Show RTLS route dots"}
                 aria-pressed={rtlsRouteDots}
                 data-tooltip={rtlsRouteDots ? "Hide RTLS route dots" : "Show RTLS route dots"}
+                data-short="RTLS dots"
                 onClick={() => setRtlsRouteDots(!rtlsRouteDots)}
             >
                 <FaEllipsisH className="play-view-controls__svg-icon" aria-hidden="true" />
@@ -216,6 +268,7 @@ export default function PlayModeViewControls() {
                 aria-label={robotRouteDots ? "Hide robot path" : "Show robot path"}
                 aria-pressed={robotRouteDots}
                 data-tooltip={robotRouteDots ? "Hide robot path" : "Show robot path"}
+                data-short="Robot path"
                 onClick={() => setRobotRouteDots(!robotRouteDots)}
             >
                 <FaRobot className="play-view-controls__svg-icon" aria-hidden="true" />
@@ -229,6 +282,7 @@ export default function PlayModeViewControls() {
                 aria-label={robotFirstPerson ? "Exit Raspbot first-person view" : "Raspbot First-Person View"}
                 aria-pressed={robotFirstPerson}
                 data-tooltip={robotFirstPerson ? "Exit Raspbot first-person view" : "Raspbot First-Person View"}
+                data-short="Robot view"
                 onClick={toggleRobotFirstPerson}
             >
                 <FaCamera className="play-view-controls__svg-icon" aria-hidden="true" />
@@ -240,6 +294,7 @@ export default function PlayModeViewControls() {
                 aria-label={robotRealtimeFollow ? "Stop real-time robot follow" : "Follow robot (real-time)"}
                 aria-pressed={robotRealtimeFollow}
                 data-tooltip={robotRealtimeFollow ? "Stop real-time robot follow" : "Follow robot (real-time)"}
+                data-short="Follow robot"
                 onClick={toggleRobotRealtimeFollow}
             >
                 <FaSatelliteDish className="play-view-controls__svg-icon" aria-hidden="true" />
@@ -251,6 +306,7 @@ export default function PlayModeViewControls() {
                 aria-label={cameraRealtimeFollow ? "Stop realtime camera follow" : "Follow walking camera"}
                 aria-pressed={cameraRealtimeFollow}
                 data-tooltip={cameraRealtimeFollow ? "Stop realtime camera follow" : "Follow walking camera"}
+                data-short="Follow camera"
                 onClick={toggleCameraRealtimeFollow}
             >
                 <FaEye className="play-view-controls__svg-icon play-view-controls__svg-icon--cameraRealtime" aria-hidden="true" />
@@ -262,6 +318,7 @@ export default function PlayModeViewControls() {
                 aria-label={playerTrackReplay ? "Stop player track" : "Play player track"}
                 aria-pressed={playerTrackReplay}
                 data-tooltip={playerTrackReplay ? "Stop player track" : "Play player track"}
+                data-short="Player track"
                 onClick={() => setPlayerTrackReplay(!playerTrackReplay)}
             >
                 <img className="play-view-controls__asset-icon play-view-controls__asset-icon--navigation" src={navigationIconUrl} alt="" aria-hidden="true" />

@@ -4,9 +4,12 @@ import * as THREE from "three";
 import { useAnimations } from "@react-three/drei";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils";
 import { useFrame } from "@react-three/fiber";
+import { applyStreetLampLight, updateStreetLampLight } from "../../components/weather/streetLampLight";
 import {RigidBody, CapsuleCollider} from "@react-three/rapier";
 import useGame from "../../hooks/useGame";
 import PlayerLabel from "./PlayerLabel";
+import { avatarPlacement } from "./CharacterModel";
+import { sceneHasTerrain } from "../terrain/terrainData";
 
 const IDLE_ANIMATIONS = new Set(["Idle", "Idle 1", "idle"]);
 const WALK_ANIMATION_CANDIDATES = ["Walk", "Walking", "walk", "walking"];
@@ -15,6 +18,8 @@ const GPS_WALK_DISTANCE = 0.015;
 const REMOTE_LERP_SPEED = 5;
 const REMOTE_TARGET_SMOOTHING = 7;
 const REMOTE_TURN_SPEED = 10;
+const LAMP_UPDATE_FRAMES = 4; // the street-lamp light on a remote avatar is refreshed every few frames
+const REMOTE_SNAP_DISTANCE = 25; // metres: farther than this (respawn, teleport) the avatar jumps there
 
 function findAnimationName(actions: Record<string, any>, candidates: string[]) {
     return candidates.find((name) => actions?.[name]) || "";
@@ -31,7 +36,7 @@ function lerpAngle(from: number, to: number, alpha: number) {
     return from + delta * alpha;
 }
 
-export default function RemotePlayer({ player, rPlayer, animations, rtlsMotions }: any) {
+export default function RemotePlayer({ player, rPlayer, animations, rtlsMotions, liveRef, modelScale }: any) {
     const playerRef = useRef<THREE.Group>(null);
     const rigidBodyRef = useRef<any>(null);
     const targetPositionRef = useRef(new THREE.Vector3());
@@ -48,6 +53,8 @@ export default function RemotePlayer({ player, rPlayer, animations, rtlsMotions 
     const liveRtls = Boolean(player?.rtls && !player?.isTrackReplay);
     const rtlsRotation = useRef(new THREE.Quaternion());
     const rtlsEuler = useRef(new THREE.Euler());
+    const facingQuaternion = useRef(new THREE.Quaternion());
+    const facingEuler = useRef(new THREE.Euler());
 
     const {
         clientId, posX, posY, posZ, speed, currentAnimation,
@@ -55,6 +62,11 @@ export default function RemotePlayer({ player, rPlayer, animations, rtlsMotions 
     } = player;
 
     const projectID = useGame((state: any) => state.projectID);
+    const onTerrain = useGame((state: any) => sceneHasTerrain(state, state.projectID));
+    // Other players' avatars (walked in character mode) are placed exactly like the local avatar:
+    // same model scale, same scale about the feet and the same height on the body.
+    const matchLocal = !liveRtls && !player?.isTrackReplay && projectID !== 144;
+    const placement = avatarPlacement(onTerrain);
     const [yOffset, setYOffset] = useState(-1)
     // Clone the model for independent animation control
     const clonedModel = React.useMemo(() => {
@@ -67,12 +79,31 @@ export default function RemotePlayer({ player, rPlayer, animations, rtlsMotions 
         //     model.scale.multiplyScalar(1.7);
         // }
    
-          model.scale.multiplyScalar(2);
+        if (modelScale) model.scale.copy(modelScale); // the local model's own scale
+        else model.scale.multiplyScalar(2);
         
             
         
         return model;
-    }, [rPlayer, player?.isTrackReplay]);
+    }, [rPlayer, player?.isTrackReplay, modelScale]);
+    // The same look as the local avatar (CharacterModel.tsx): the body in a Phong material with the
+    // model's texture and the player's colour, lit by the street lamps at night. The model file's
+    // own material (what a plain clone kept) looked darker, and being a different shader it was
+    // compiled when the first other player appeared (a frame freeze).
+    const bodyLook = React.useMemo(() => {
+        const body: any = clonedModel.children[0]?.children[0];
+        if (!body?.material) return null;
+        const map = body.material.map || null;
+        if (map) map.colorSpace = THREE.SRGBColorSpace;
+        const material = new THREE.MeshPhongMaterial({ map, color: player?.personColor || "#ffffff" });
+        const lampUniforms = applyStreetLampLight(material);
+        body.material = material;
+        return { body, material, lampUniforms };
+    }, [clonedModel, player?.personColor]);
+    useEffect(() => () => bodyLook?.material.dispose(), [bodyLook]);
+    const lampWorld = useRef(new THREE.Vector3());
+    const lampFrame = useRef(Math.floor(Math.random() * LAMP_UPDATE_FRAMES));
+
     const { actions } = useAnimations(animations, playerRef);
     const shouldUseGpsWalk = !currentAnimation || IDLE_ANIMATIONS.has(currentAnimation);
     const desiredAnimation = liveRtls
@@ -126,8 +157,12 @@ export default function RemotePlayer({ player, rPlayer, animations, rtlsMotions 
         };
     }, [desiredAnimation, autoWalking, projectID, actions, rPlayer, clonedModel, animationSpeed]);
 
-    useFrame((_, delta) => {
+    useFrame(({ camera }, delta) => {
         if (!rigidBodyRef.current) return;
+        if (bodyLook && ++lampFrame.current % LAMP_UPDATE_FRAMES === 0) {
+            bodyLook.body.getWorldPosition(lampWorld.current);
+            updateStreetLampLight(bodyLook.lampUniforms, lampWorld.current, camera);
+        }
 
         if (liveRtls) {
             const motion = rtlsMotions?.get(String(clientId));
@@ -146,12 +181,15 @@ export default function RemotePlayer({ player, rPlayer, animations, rtlsMotions 
             return;
         }
 
-        // Move rigid body smoothly to target position
+        // Move rigid body smoothly to target position (the latest snapshot: positions arrive without
+        // re-rendering this component).
+        const latest = (!player?.isTrackReplay && liveRef?.current?.get(String(clientId))) || player;
         const currentPosition = rigidBodyRef.current.translation();
         currentPositionRef.current.set(currentPosition.x, currentPosition.y, currentPosition.z);
-        targetPositionRef.current.set(posX / 100, posY / 100, posZ / 100);
+        targetPositionRef.current.set(Number(latest.posX) / 100, Number(latest.posY) / 100, Number(latest.posZ) / 100);
+        if (!Number.isFinite(targetPositionRef.current.x) || !Number.isFinite(targetPositionRef.current.z)) return;
 
-        if (!hasTargetRef.current) {
+        if (!hasTargetRef.current || currentPositionRef.current.distanceTo(targetPositionRef.current) > REMOTE_SNAP_DISTANCE) {
             hasTargetRef.current = true;
             smoothedTargetPositionRef.current.copy(targetPositionRef.current);
             currentPositionRef.current.copy(targetPositionRef.current);
@@ -179,7 +217,7 @@ export default function RemotePlayer({ player, rPlayer, animations, rtlsMotions 
         newPositionRef.current.y = smoothedTargetPositionRef.current.y
         rigidBodyRef.current.setTranslation(newPositionRef.current, true);
 
-        const explicitDirection = Number(direction);
+        const explicitDirection = Number(latest.direction ?? direction);
         let targetDirection = Number.isFinite(explicitDirection) ? explicitDirection : null;
         moveDirectionRef.current.subVectors(smoothedTargetPositionRef.current, currentPositionRef.current);
         moveDirectionRef.current.y = 0;
@@ -194,9 +232,8 @@ export default function RemotePlayer({ player, rPlayer, animations, rtlsMotions 
                 targetDirection,
                 Math.min(delta * REMOTE_TURN_SPEED, 1)
             );
-            const quaternion = new THREE.Quaternion();
-            quaternion.setFromEuler(new THREE.Euler(0, facingDirectionRef.current, 0));
-            rigidBodyRef.current.setRotation(quaternion, true);
+            facingQuaternion.current.setFromEuler(facingEuler.current.set(0, facingDirectionRef.current, 0));
+            rigidBodyRef.current.setRotation(facingQuaternion.current, true);
         }
 
     });
@@ -231,7 +268,13 @@ export default function RemotePlayer({ player, rPlayer, animations, rtlsMotions 
 
             {/* Player model inside the rigid body */}
             <group ref={playerRef} name={userName}>
-                <primitive object={clonedModel}  position-y={ yOffset } />
+                {matchLocal ? (
+                    <group position-y={placement.offsetY} scale={placement.scale}>
+                        <primitive object={clonedModel} />
+                    </group>
+                ) : (
+                    <primitive object={clonedModel}  position-y={ yOffset } />
+                )}
             </group>
         </RigidBody>
     );

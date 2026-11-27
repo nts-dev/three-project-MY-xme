@@ -25,7 +25,13 @@ const WALK_SPEED_MULTIPLIER = 1.5; // walking only; run speeds above are unchang
 const HORIZONTAL_MOVE_ACCELERATION = 14;
 const HORIZONTAL_MOVE_DECELERATION = 20;
 const HORIZONTAL_MOVE_MAX_ACCEL = 24;
+// Touch / gamepad stick: dead zone, then the speed grows with the push up to full at JOYSTICK_FULL_PUSH.
+const JOYSTICK_DEAD_ZONE = 0.12;
+const JOYSTICK_FULL_PUSH = 0.85;
+const JOYSTICK_MIN_SPEED = 0.3;
+const GAMEPAD_DEAD_ZONE = 0.15;
 const SPEED_BUILD_UP = 2.5; // per second, as a share of the faster of current / target speed
+const IDLE_HEARTBEAT_S = 1; // multiplayer: position packets while standing still
 const SPEED_DIE_DOWN = 2;
 const JOYSTICK_FORWARD_ANGLE = Math.PI / 2;
 const JOYSTICK_STRAIGHT_CONE = THREE.MathUtils.degToRad(18);
@@ -41,6 +47,8 @@ const MAX_PLAYER_CAMERA_ELEVATION = THREE.MathUtils.degToRad(80);
 const GAMEPLAY_RAYCAST_COLLIDER_KEY = "gameplayRaycastCollider";
 const MIN_GAMEPLAY_COLLIDER_HEIGHT = 0.15;
 const CAMERA_COLLISION_SPRING = 16;
+const CAMERA_PULL_IN_RATE = 30; // 1/s: camera distance when an obstacle comes between (fast)
+const CAMERA_EASE_OUT_RATE = 5; // 1/s: back out to the normal distance (gentle)
 const AVATAR_COLLISION_SKIN = 0.04;
 const AVATAR_COLLISION_RAY_HEIGHTS = [0.2, 0.75, 1.25];
 const AVATAR_COLLISION_STOP_DISTANCE = 0.2;
@@ -139,8 +147,10 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     const isTurnInputActiveRef = useRef(false);
     // Speed build-up / die-down (walk <-> run, starting off): the speed ramps instead of jumping.
     const rampSpeedRef = useRef(0);
+    const analogSpeedRef = useRef(1); // joystick push -> share of the full speed (keyboard: 1)
     const lastMoveAtRef = useRef(0);
     const emitAccumulatorRef = useRef(0);
+    const lastSentMoveRef = useRef({ x: 0, y: 0, z: 0, direction: 0, animation: "", at: 0 });
     const playerMovePayloadRef = useRef<any>({
         mType: "player",
         position: { x: 0, y: 0, z: 0 },
@@ -413,7 +423,8 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     const handleSticks = (axes: readonly number[]) => {
 
         // Gamepad first joystick trigger the EcctrlJoystick event to move the character
-        if (Math.abs(axes[0]) > 0 || Math.abs(axes[1]) > 0) {
+        // Dead zone: worn sticks rest slightly off centre and would creep the avatar along.
+        if (Math.hypot(axes[0], axes[1]) > GAMEPAD_DEAD_ZONE) {
             gamepadJoystickVec2.set(axes[0], -axes[1])
             gamepadJoystickDis = Math.min(Math.sqrt(gamepadJoystickVec2.x * gamepadJoystickVec2.x + gamepadJoystickVec2.y * gamepadJoystickVec2.y), 1)
             gamepadJoystickAng = gamepadJoystickVec2.angle()
@@ -431,7 +442,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
                     ang: gamepadJoystickAng,
                     run: runState,
                 };
-                setJoystick(gamepadJoystickDis, gamepadJoystickAng, runState)
+                setJoystick(gamepadJoystickDis, gamepadJoystickAng, runState, Math.min(1, gamepadJoystickDis / 0.7))
             }
         } else {
             if (lastGamepadJoystickRef.current.active) {
@@ -525,6 +536,10 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
     const followForwardVec = useMemo(() => new THREE.Vector3(), []);
     const followOffsetVec = useMemo(() => new THREE.Vector3(), []);
     const followCameraPosVec = useMemo(() => new THREE.Vector3(), []);
+    const camOffsetNow = useMemo(() => new THREE.Vector3(), []);
+    const camOffsetWant = useMemo(() => new THREE.Vector3(), []);
+    const camSphereNow = useMemo(() => new THREE.Spherical(), []);
+    const camSphereWant = useMemo(() => new THREE.Spherical(), []);
     const cameraTargetVec = useMemo(() => new THREE.Vector3(), []);
     const cameraCollisionOriginVec = useMemo(() => new THREE.Vector3(), []);
     const cameraCollisionDirectionVec = useMemo(() => new THREE.Vector3(), []);
@@ -749,6 +764,20 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
         player.personColor = personColor;
         player.noOfLivesRemaining = noOfLivesRemaining;
         player.jump = buttonPressed || !canJump;
+        // Standing still: nothing to send but a heartbeat each IDLE_HEARTBEAT_S (the others keep the
+        // avatar; every packet is relayed to every player).
+        const last = lastSentMoveRef.current;
+        const now = performance.now();
+        const unchanged = last.at > 0
+            && Math.abs(last.x - currentPos.x) < 0.01 && Math.abs(last.y - currentPos.y) < 0.01 && Math.abs(last.z - currentPos.z) < 0.01
+            && Math.abs(last.direction - player.direction) < 0.01 && last.animation === player.currentAnimation && !player.jump;
+        if (unchanged && now - last.at < IDLE_HEARTBEAT_S * 1000) return;
+        last.x = currentPos.x;
+        last.y = currentPos.y;
+        last.z = currentPos.z;
+        last.direction = player.direction;
+        last.animation = player.currentAnimation;
+        last.at = now;
         emitSocketEvent("playerMove", player, { volatile: true });
     }
 
@@ -832,7 +861,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
         // Phones: the touch Walk/Run toggle runs 5x the base run; PC (keyboard Shift / gamepad) 3x.
         const inputRunMultiplier = useJoystickControls.getState().curRunToggle ? TOUCH_RUN_SPEED_MULTIPLIER : PC_RUN_SPEED_MULTIPLIER;
         const speedMult = run ? sprintMult * levelRunSpeedMultiplier * inputRunMultiplier : WALK_SPEED_MULTIPLIER;
-        const fullSpeed = maxVelLimit * speedMult;
+        const fullSpeed = maxVelLimit * speedMult * analogSpeedRef.current;
         // Ramp the speed (only its size: turning stays as responsive): from the current speed when
         // moving resumes, up at SPEED_BUILD_UP and down at SPEED_DIE_DOWN of the faster speed per
         // second (walk -> run ~0.4 s, run -> walk ~0.5 s, starting to walk ~0.4 s).
@@ -1101,8 +1130,26 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
             cameraTargetVec.copy(followFocusVec);
             cameraTargetVec.y += targetHeight;
             resolveCameraCollision(followCameraPosVec, cameraTargetVec);
-            const cameraSpringAlpha = 1 - Math.exp(-CAMERA_COLLISION_SPRING * Math.max(delta, 1 / 240));
-            state.camera.position.lerp(followCameraPosVec, cameraSpringAlpha);
+            // Ease the camera's angle and distance around the avatar (not its world position): a
+            // straight-line lerp cut across the circle while turning (the camera came closer) and
+            // trailed behind while moving. Pulled in fast when something comes between avatar and
+            // camera (no clipping into walls), eased back out slowly.
+            const dtCam = Math.max(delta, 1 / 240);
+            const angleAlpha = 1 - Math.exp(-CAMERA_COLLISION_SPRING * dtCam);
+            camOffsetNow.copy(state.camera.position).sub(cameraTargetVec);
+            camOffsetWant.copy(followCameraPosVec).sub(cameraTargetVec);
+            camSphereNow.setFromVector3(camOffsetNow);
+            camSphereWant.setFromVector3(camOffsetWant);
+            if (!(camSphereNow.radius > 0.01) || camSphereNow.radius > camSphereWant.radius * 3 + 5) {
+                camSphereNow.copy(camSphereWant); // first frame / teleport: no swing across the map
+            } else {
+                const turn = Math.atan2(Math.sin(camSphereWant.theta - camSphereNow.theta), Math.cos(camSphereWant.theta - camSphereNow.theta));
+                camSphereNow.theta += turn * angleAlpha;
+                camSphereNow.phi += (camSphereWant.phi - camSphereNow.phi) * angleAlpha;
+                const radiusRate = camSphereWant.radius < camSphereNow.radius ? CAMERA_PULL_IN_RATE : CAMERA_EASE_OUT_RATE;
+                camSphereNow.radius += (camSphereWant.radius - camSphereNow.radius) * (1 - Math.exp(-radiusRate * dtCam));
+            }
+            state.camera.position.copy(cameraTargetVec).add(camOffsetNow.setFromSpherical(camSphereNow));
             orbitControls.current.target.copy(cameraTargetVec);
             orbitControls.current.update();
         }
@@ -1413,7 +1460,11 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
                     z: THREE.MathUtils.lerp(currentVel.z, idleTarget.z, idleAlpha),
                 }, true);
             } else {
+                // Analog stick: speed follows how far it is pushed (a small push walks slowly).
+                const amount = joystickState.curJoystickAmount ?? 1;
+                analogSpeedRef.current = JOYSTICK_MIN_SPEED + (1 - JOYSTICK_MIN_SPEED) * THREE.MathUtils.smoothstep(amount, JOYSTICK_DEAD_ZONE, JOYSTICK_FULL_PUSH);
                 moveCharacter(delta, runState, slopeAngle, movingObjectVelocity, forward);
+                analogSpeedRef.current = 1;
             }
         }
 

@@ -35,7 +35,7 @@ export default function TouchControls() {
         const maxDistance = radius * MAX_PUSH;
         const distance = Math.min(length, maxDistance);
         const angle = (Math.atan2(-dy, dx) + 2 * Math.PI) % (2 * Math.PI);
-        setJoystick(distance, angle, false);
+        setJoystick(distance, angle, false, maxDistance > 0 ? distance / maxDistance : 1);
     }, [setJoystick]);
 
     const onStickDown = (event) => {

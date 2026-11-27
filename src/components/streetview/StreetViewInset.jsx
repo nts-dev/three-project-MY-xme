@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { getActiveTerrain } from "../../threejs/terrain/terrainData";
 import { GOOGLE_MAPS_API_KEY } from "../project-map/ProjectGoogleWebGLMap";
 import useGame from "../../hooks/useGame";
+import { FaStreetView } from "react-icons/fa";
 import "./StreetViewInset.css";
 
 // Character mode on terrain (world map) scenes: a small window with the real Google Street View photo
@@ -17,6 +18,8 @@ const RADIUS_M = 60;
 const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY;
 
 const WALK_SPLIT_CLASS = "play-mobile-walk-split";
+// Closed: on phones the 3D view takes the whole screen again (PlayMobileSplit.css).
+const CLOSED_CLASS = "street-view-closed";
 
 const angleDiff =(a, b) => Math.abs(((a - b) % 360 + 540) % 360 - 180);
 
@@ -56,6 +59,12 @@ export default function StreetViewInset({ cameraRef }) {
         document.body.classList.add(WALK_SPLIT_CLASS);
         return () => document.body.classList.remove(WALK_SPLIT_CLASS);
     }, []);
+
+    useEffect(() => {
+        if (open || !key) return undefined;
+        document.body.classList.add(CLOSED_CLASS);
+        return () => document.body.classList.remove(CLOSED_CLASS);
+    }, [open]);
 
     useEffect(() => {
         if (!open || !key) return undefined;
@@ -101,8 +110,9 @@ export default function StreetViewInset({ cameraRef }) {
     if (!key) return null;
     if (!open) {
         return (
-            <button type="button" className="street-view-inset__reopen" onClick={() => { shown.current = null; setOpen(true); }}>
-                Street View
+            <button type="button" className="street-view-inset__reopen" aria-label="Show Street View" title="Show Street View" onClick={() => { shown.current = null; setOpen(true); }}>
+                <FaStreetView aria-hidden="true" />
+                <span>Street View</span>
             </button>
         );
     }

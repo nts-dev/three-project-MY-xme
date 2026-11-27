@@ -10,6 +10,9 @@ export const useJoystickControls = /* @__PURE__ */ create<State>()(
             // Initial joystick/button state
             curJoystickDis: 0 as number,
             curJoystickAng: 0 as number,
+            // How far the stick is pushed, 0..1 (sources report distance in their own units:
+            // pixels, 0..1, ...). The avatar walks slower on a small push. 1 when not reported.
+            curJoystickAmount: 1 as number,
             curRunState: false as boolean,
             curButton1Pressed: false as boolean,
             curButton2Pressed: false as boolean,
@@ -22,12 +25,14 @@ export const useJoystickControls = /* @__PURE__ */ create<State>()(
             setJoystick: (
                 joystickDis: number,
                 joystickAng: number,
-                runState: boolean
+                runState: boolean,
+                amount: number = 1
             ) => {
                 set(() => {
                     return {
                         curJoystickDis: joystickDis,
                         curJoystickAng: joystickAng,
+                        curJoystickAmount: amount,
                         curRunState: runState,
                     };
                 });
@@ -142,6 +147,7 @@ export const useJoystickControls = /* @__PURE__ */ create<State>()(
 type State = {
     curJoystickDis: number;
     curJoystickAng: number;
+    curJoystickAmount: number;
     curRunState: boolean;
     curButton1Pressed: boolean;
     curButton2Pressed: boolean;
@@ -155,7 +161,8 @@ type State = {
     setJoystick: (
         joystickDis: number,
         joystickAng: number,
-        runState: boolean
+        runState: boolean,
+        amount?: number
     ) => void;
     resetJoystick: () => void;
     pressButton1: () => void;

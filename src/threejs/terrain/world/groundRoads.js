@@ -105,6 +105,38 @@ function densify(points, step) {
     return out;
 }
 
+/**
+ * Like densify, also carrying per-point [left, right] half widths (interpolated along). For aprons
+ * with "sides": a taper, or a kerb curving out into a junction.
+ */
+function densifySides(points, sides, step) {
+    const centre = [points[0]];
+    const out = [sides[0]];
+    for (let i = 1; i < points.length; i++) {
+        const [ax, az] = points[i - 1];
+        const [bx, bz] = points[i];
+        const count = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / step));
+        for (let k = 1; k <= count; k++) {
+            const t = k / count;
+            centre.push([ax + (bx - ax) * t, az + (bz - az) * t]);
+            out.push([sides[i - 1][0] + (sides[i][0] - sides[i - 1][0]) * t, sides[i - 1][1] + (sides[i][1] - sides[i - 1][1]) * t]);
+        }
+    }
+    return { centre, sides: out };
+}
+
+/** A polyline shifted sideways by offsets(i) metres per point (positive = left of travel). */
+function offsetLineBy(points, offsets) {
+    return points.map((p, i) => {
+        const a = points[Math.max(0, i - 1)];
+        const b = points[Math.min(points.length - 1, i + 1)];
+        const dx = b[0] - a[0];
+        const dz = b[1] - a[1];
+        const length = Math.hypot(dx, dz) || 1;
+        return [p[0] + (dz / length) * offsets[i], p[1] - (dx / length) * offsets[i]];
+    });
+}
+
 /** A polyline shifted sideways by `offset` metres (positive = left of the direction of travel). */
 function offsetLine(points, offset) {
     return points.map((p, i) => {
@@ -168,7 +200,9 @@ export function buildGroundRoads({ regions, frame, anchorElevation, maxAnisotrop
         const roads = all.filter((road) => !road.surface);
         const lawns = all.filter((road) => road.surface === "grass");
         // Tarmac aprons (surface "paved"): plain asphalt from the kerb to the fences, under the roads.
-        const aprons = streetsOnly ? [] : all.filter((road) => road.surface === "paved");
+        // In the normal view (streetsOnly) only those marked "always" (part of the street, e.g. a
+        // road widening into a junction); all of them with ?roads=on.
+        const aprons = all.filter((road) => road.surface === "paved" && (!streetsOnly || road.always));
         const toScene = regionToScene(region, frame, anchorElevation);
         const ground = (x, z) => region.terrain.heightAt(x, z);
         // groundAt (scene x/z -> scene y): the rendered ground when it differs from the region's own
@@ -193,9 +227,16 @@ export function buildGroundRoads({ regions, frame, anchorElevation, maxAnisotrop
         }
 
         for (const apron of aprons) {
-            const centre = densify(apron.points, STEP);
-            const half = apron.width / 2;
-            const rows = [offsetLine(centre, half), offsetLine(centre, -half)];
+            let rows;
+            if (Array.isArray(apron.sides) && apron.sides.length === apron.points.length) {
+                // Per-point side widths: tapers and kerbs curving out (finer steps for the curves).
+                const { centre, sides } = densifySides(apron.points, apron.sides, Math.min(STEP, 1));
+                rows = [offsetLineBy(centre, sides.map((s) => s[0])), offsetLineBy(centre, sides.map((s) => -s[1]))];
+            } else {
+                const centre = densify(apron.points, STEP);
+                const half = apron.width / 2;
+                rows = [offsetLine(centre, half), offsetLine(centre, -half)];
+            }
             const uv = (row) => row.map((p) => [p[0] / ASPHALT_REPEAT, p[1] / ASPHALT_REPEAT]);
             asphaltStrips.strip(rows[0].map((p) => point(p, LIFT - 0.012)), rows[1].map((p) => point(p, LIFT - 0.012)), uv(rows[0]), uv(rows[1]));
         }

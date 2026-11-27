@@ -62,6 +62,7 @@ export default function VrViewButton() {
             aria-label={isPresenting ? "Exit VR" : "Enter VR"}
             aria-checked={isPresenting}
             data-tooltip={isSupported ? (isPresenting ? "Exit VR" : "Enter VR") : "VR unavailable"}
+            data-short="VR"
             disabled={!isSupported}
             role="radio"
             onClick={toggleVr}

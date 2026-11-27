@@ -86,3 +86,14 @@
     font: 600 12px Inter, "Segoe UI", Roboto, Arial, sans-serif;
     cursor: pointer;
 }
+
+.street-view-inset__reopen {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.street-view-inset__reopen svg {
+    width: 14px;
+    height: 14px;
+}

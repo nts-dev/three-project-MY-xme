@@ -50,6 +50,7 @@ import TerrainGroundCollider from "../threejs/terrain/TerrainGroundCollider";
 import { sceneHasTerrain } from "../threejs/terrain/terrainData";
 import SunShadows from "../threejs/lighting/SunShadows";
 import StreetViewInset from "./streetview/StreetViewInset";
+import TopViewMap from "./topview/TopViewMap";
 import DecorCulling from "../threejs/lighting/DecorCulling";
 import ViewportMouseCoordinates from "./ViewportMouseCoordinates.jsx";
 import PlayerHeightSlider from "../threejs/hud/playerControls/PlayerHeightSlider";
@@ -944,6 +945,7 @@ export default function ThreeView() {
             {isGameRuntime && <AvatarSetupConfirm />}
             {showAvatarLoadingOverlay && <AvatarLoadingOverlay />}
             {!isXrPresenting && (character || firstPerson) && hasTerrain && <StreetViewInset cameraRef={cameraRef} />}
+            {!isXrPresenting && <TopViewMap />}
 
 
             {isPuzzleGame && <PuzzleAssetPlacementController scene={sceneRef.current} />}
