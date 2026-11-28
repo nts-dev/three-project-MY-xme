@@ -5976,3 +5976,17 @@
     white-space: nowrap;
     pointer-events: none;
 }
+
+/* Live GPS (PlayModeViewControls LiveGpsButton): a pulse while waiting for a fix, red after an error. */
+.play-view-controls__button--live-gps.is-waiting svg {
+    animation: live-gps-pulse 1.2s ease-in-out infinite;
+}
+.play-view-controls__button--live-gps.is-error svg {
+    color: #ff6b6b;
+}
+@keyframes live-gps-pulse {
+    50% { opacity: 0.35; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .play-view-controls__button--live-gps.is-waiting svg { animation: none; opacity: 0.6; }
+}

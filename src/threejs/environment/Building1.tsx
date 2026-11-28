@@ -21,6 +21,16 @@ const SCREEN_MATERIAL_NAMES = new Set([
     "Screen_14",
 ]);
 
+// Placement of the building model per project (default: the original one for all projects).
+// Project 33 (MY Map): the NTS Computers unit (33.FBX) sits on its lot in the shop row, block B07 of
+// 33_L0: turned 11.4° like the row and scaled to fill the lot (7.17 m wide, 28.28 m from the car park
+// to the back lane) at the row's height (roofs at 12.7 m, like B13 and Smile Hotel next to it).
+type Vec3 = [number, number, number];
+const BUILDING_PLACEMENT: Record<number, { position: Vec3; rotationY: number; scale: Vec3 }> = {
+    33: { position: [-2.425, -0.484, -1.811], rotationY: (11.4 * Math.PI) / 180, scale: [0.01114, 0.007177, 0.011737] },
+};
+const DEFAULT_PLACEMENT = { position: [-0.8, -0.48, -1.4] as Vec3, rotationY: -0.03, scale: [0.0102, 0.01, 0.01] as Vec3 };
+
 type ManagedMesh = {
     mesh: THREE.Mesh;
     orig: THREE.Material | THREE.Material[];
@@ -325,9 +335,10 @@ export default function Building({ bProjectId }: { bProjectId: number }) {
     useEffect(() => {
         if (!bProjectId || bProjectId <= 0 || !fbxModel || !scene) return;
 
-        fbxModel.scale.set(0.0102, 0.01, 0.01);
-        fbxModel.position.set(-0.8,-0.48,-1.4)
-        fbxModel.rotation.y = -0.03
+        const placement = BUILDING_PLACEMENT[bProjectId] || DEFAULT_PLACEMENT;
+        fbxModel.scale.set(...placement.scale);
+        fbxModel.position.set(...placement.position);
+        fbxModel.rotation.y = placement.rotationY;
 
         let sceneObj = scene.getObjectByName("sceneObj") as THREE.Object3D;
         if (!sceneObj) {

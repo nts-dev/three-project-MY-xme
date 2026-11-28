@@ -24,6 +24,8 @@ import RainEffect from './weather/RainEffect.jsx';
 import CelestialSky from './weather/CelestialSky.jsx';
 import WindSway from './weather/WindSway.jsx';
 import StreetLights from './weather/StreetLights.jsx';
+import OfficeLights from "./weather/OfficeLights";
+import GpsRouteOverlay from "./livegps/GpsRouteOverlay";
 import Roof from "../threejs/scene/Roof";
 import { GameExperience } from "../threejs/GameExperience.jsx";
 import SceneGrid from './popup/grid/SceneGrid';
@@ -127,14 +129,15 @@ const EDIT_MODE_EXIT_CAMERA_TARGET = new THREE.Vector3(0, 0, 0);
 const INITIAL_SCENE_CAMERA_POSITION = [5, 25, 50];
 const MIN_SCENE_CAMERA_NEAR = 0.05;
 const DEFAULT_SCENE_CAMERA_FAR = 100000000;
-// A lower sun for project 153: the default [5, 10, 5] lights roofs and ground
+// A lower sun for outdoor maps: the default [5, 10, 5] lights roofs and ground
 // about 2.4x brighter than shaded walls, so tops blow out while facades look dull.
-const PROJECT_153_SUN_POSITION = [8, 6, 5];
+const MAP_SUN_POSITION = [8, 6, 5];
 
 // Scenes with a "back to start view" button under the zoom slider (large maps where the start is easy to lose),
 // with their start view in scene metres (null = the pose the scene opens with).
-// 153_L2: ~390 m out, 40° down from the south, over the XME estate (ground at the origin is height 0).
+// The overview looks down from the south, about 390 m from the map's origin.
 const HOME_VIEWS = {
+    "33_L0": { position: [0, 250, 300], target: [0, 0, 0] },
     "153_L2": { position: [0, 250, 300], target: [0, 0, 0] },
 };
 
@@ -144,11 +147,11 @@ const getServerXrSessionSnapshot = () => false;
 
 // Neutral tone mapping keeps texture hue/saturation when lights are bright,
 // where the default ACES curve pushes saturated colors toward white.
-function ProjectToneMapping({ projectBaseId }) {
+function ProjectToneMapping({ mapLighting }) {
     const gl = useThree((state) => state.gl);
 
     useEffect(() => {
-        if (projectBaseId !== '153') return undefined;
+        if (!mapLighting) return undefined;
 
         const previous = { toneMapping: gl.toneMapping, exposure: gl.toneMappingExposure };
         gl.toneMapping = THREE.NeutralToneMapping;
@@ -158,7 +161,7 @@ function ProjectToneMapping({ projectBaseId }) {
             gl.toneMapping = previous.toneMapping;
             gl.toneMappingExposure = previous.exposure;
         };
-    }, [gl, projectBaseId]);
+    }, [gl, mapLighting]);
 
     return null;
 }
@@ -679,6 +682,8 @@ export default function ThreeView() {
     ) : null;
     const isGameRuntime = isPuzzleGame && buttonMode === 'Play mode';
     const projectBaseId = String(projectId).replace(/_L\d+$/i, "");
+    const projectKey = String(projectId).trim().toUpperCase();
+    const mapLighting = projectBaseId === '153' || projectKey === '33_L0';
     const isCadProject = projectBaseId === "151";
     const disableAntialiasing = isLowGpu
 
@@ -832,7 +837,7 @@ export default function ThreeView() {
                 >
                     {/* Scene components may call gl APIs on mount, so wait for the renderer to be ready */}
                     {rendererReady && <XrSceneRoot>
-                    <ProjectToneMapping projectBaseId={projectBaseId} />
+                    <ProjectToneMapping mapLighting={mapLighting} />
 
                         {
                             projectId === 145 ? (
@@ -868,25 +873,25 @@ export default function ThreeView() {
                                     
                                                  <InstanceExperience key={`instanceexperience-${projectId}`} />
                                                 
-                                                <directionalLight ref={directionalLightRef} position={projectBaseId === '153' ? PROJECT_153_SUN_POSITION : [5, 10, 5]} intensity={String(projectId).includes('137') ? 6.5 : String(projectId).startsWith('153') ? 1.6 : 5.5} />
+                                                <directionalLight ref={directionalLightRef} position={mapLighting ? MAP_SUN_POSITION : [5, 10, 5]} intensity={mapLighting ? 1.6 : String(projectId).includes('137') ? 6.5 : 5.5} />
                                                 <AvatarEyeDirectionalLight
                                                     lightRef={directionalLightRef}
                                                     enabled={false}
-                                                    defaultPosition={projectBaseId === '153' ? PROJECT_153_SUN_POSITION : undefined}
+                                                    defaultPosition={mapLighting ? MAP_SUN_POSITION : undefined}
                                                 />
                                                 {/* Sun shadows (cheap proxies for the heavy models), see SunShadows.jsx. */}
                                                 <SunShadows
                                                     lightRef={directionalLightRef}
                                                     orbitControls={orbitControls}
-                                                    enabled={projectBaseId === '153'}
-                                                    limitCharacterUpdates={String(projectId).trim().toUpperCase() === '153_L2'}
+                                                    enabled={mapLighting}
+                                                    limitCharacterUpdates={projectKey === '153_L2' || projectKey === '33_L0'}
                                                 />
                                                 {/* Only near, in-view pines and street lights are drawn (DecorCulling.jsx). */}
                                                 <DecorCulling orbitControls={orbitControls} enabled={projectBaseId === '153'} />
                                                 <Ground />
-                                                <ambientLight intensity={String(projectId).includes('137') ? 3 : String(projectId).startsWith('153') ? 2.2 : 0.6} />
+                                                <ambientLight intensity={mapLighting ? 2.2 : String(projectId).includes('137') ? 3 : 0.6} />
                                                 {/* Sky/ground fill: brightens walls while keeping directional shading, unlike flat ambient */}
-                                                {!String(projectId).includes('137') && !String(projectId).startsWith('153') && (
+                                                {!String(projectId).includes('137') && !mapLighting && (
                                                     <hemisphereLight args={['#dcebff', '#8a8070', 2.2]} />
                                                 )}
                                                 </>
@@ -926,6 +931,8 @@ export default function ThreeView() {
                     <CelestialSky />
                     <WindSway />
                     <StreetLights />
+                    <OfficeLights />
+                    <GpsRouteOverlay />
                    
                     </XrSceneRoot>}
                 </Canvas>

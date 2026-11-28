@@ -17,10 +17,10 @@ const PROJECTS = [
         number: "01",
         title: "MY Map",
         imageFile: "33.png",
-        type: "Floor Plan",
+        type: "Terrain Map",
         date: "02/06/2026",
         buildingCount: "2 buildings",
-        floorLabel: "First Floor / Floors 0-13",
+        floorLabel: "NTS Computers / Seri Kembangan",
     },
     {
         id: "153_L1",

@@ -157,7 +157,8 @@ function prepareRoads(roads = [], natural, anchorElevation = 0) {
             });
         }
         const half = road.w / 2;
-        const reach = half + ROAD_BLEND;
+        const blend = Number.isFinite(road.blend) && road.blend > 0 ? road.blend : ROAD_BLEND;
+        const reach = half + blend;
         for (let i = 0; i < pts.length - 1; i++) {
             if (h[i] === null || h[i + 1] === null) continue;
             const [ax, az] = pts[i];
@@ -165,7 +166,7 @@ function prepareRoads(roads = [], natural, anchorElevation = 0) {
             const dx = bx - ax;
             const dz = bz - az;
             segments.push({
-                ax, az, dx, dz, lengthSq: dx * dx + dz * dz || 1, ha: h[i], hb: h[i + 1], half, fixedGrade,
+                ax, az, dx, dz, lengthSq: dx * dx + dz * dz || 1, ha: h[i], hb: h[i + 1], half, blend, fixedGrade,
                 minX: Math.min(ax, bx) - reach, maxX: Math.max(ax, bx) + reach,
                 minZ: Math.min(az, bz) - reach, maxZ: Math.max(az, bz) + reach,
             });
@@ -291,8 +292,8 @@ export function createLocalElevation(config, anchorElevation, grid = null) {
             if (x < s.minX || x > s.maxX || z < s.minZ || z > s.maxZ) continue;
             const t = Math.max(0, Math.min(1, ((x - s.ax) * s.dx + (z - s.az) * s.dz) / s.lengthSq));
             const distance = Math.hypot(x - (s.ax + t * s.dx), z - (s.az + t * s.dz)) - s.half;
-            if (distance >= ROAD_BLEND) continue;
-            const weight = featherWeight(distance, ROAD_BLEND) * (s.fixedGrade ? 1 : gridWeight);
+            if (distance >= s.blend) continue;
+            const weight = featherWeight(distance, s.blend) * (s.fixedGrade ? 1 : gridWeight);
             const w4 = weight ** 4;
             mixWeight += w4;
             mixHeight += w4 * (s.ha + (s.hb - s.ha) * t);

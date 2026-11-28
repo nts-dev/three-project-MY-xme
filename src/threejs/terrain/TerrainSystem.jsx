@@ -13,11 +13,14 @@ import { buildStreetSigns } from "./world/streetSigns";
 import { buildGroundRoads } from "./world/groundRoads";
 import { resolveImageryProvider } from "./world/imageryProviders";
 import { ELEVATION_ATTRIBUTION } from "./world/elevationSource";
-import { fitBridgesToGround, GOOGLE_ELEVATION_ATTRIBUTION, loadGoogleElevation } from "./world/googleElevation";
+import { createLocalElevation, fitBridgesToGround, GOOGLE_ELEVATION_ATTRIBUTION, loadGoogleElevation } from "./world/googleElevation";
 import { createWorldFrame } from "./world/webMercator";
 
 const cameraPosition = new THREE.Vector3();
 const CHARACTER_SPLIT_FACTOR = 1.2; // terrain detail in character mode (the default is 1.6)
+const TERRAIN_UPDATE_SECONDS = 0.15;
+const ROTATING_TERRAIN_UPDATE_SECONDS = 0.4;
+const ROTATING_RECOVERY_SECONDS = 0.1;
 
 const sameSceneKey = (left, right) =>
     String(left ?? "").trim().toUpperCase() === String(right ?? "").trim().toUpperCase();
@@ -61,7 +64,7 @@ export default function TerrainSystem({ sceneKey }) {
     const configKey = terrainConfig ? JSON.stringify(terrainConfig) : "";
     if (!configKey) return null;
     return terrainConfig.mode === "world"
-        ? <WorldTerrainLayer configKey={configKey} characterImagery={sameSceneKey(sceneKey, "153_L2")} />
+        ? <WorldTerrainLayer configKey={configKey} mapView={sameSceneKey(sceneKey, "153_L2") || sameSceneKey(sceneKey, "33_L0")} />
         : <RegionTerrainLayer configKey={configKey} />;
 }
 
@@ -70,11 +73,12 @@ export default function TerrainSystem({ sceneKey }) {
 const showRoads = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("roads") === "on";
 
 /** Endless terrain: tiles load and unload as the camera moves. */
-function WorldTerrainLayer({ configKey, characterImagery }) {
+function WorldTerrainLayer({ configKey, mapView }) {
     const gl = useThree((state) => state.gl);
     const getThree = useThree((state) => state.get);
     const [terrain, setTerrain] = useState(null);
     const lastUpdateRef = useRef(0);
+    const orbitRef = useRef({ orientation: new THREE.Quaternion(), lastRotation: -Infinity });
 
     useEffect(() => {
         const config = JSON.parse(configKey);
@@ -93,7 +97,9 @@ function WorldTerrainLayer({ configKey, characterImagery }) {
                 // Default: the first region's reference height, so its ground stays at y = 0.
                 const anchorElevation = config.anchorElevation ?? regions[0]?.referenceElevation ?? 0;
                 let localElevation = null;
-                if (config.elevation) {
+                if (config.elevation?.provider === "aws") {
+                    localElevation = createLocalElevation(config.elevation, anchorElevation);
+                } else if (config.elevation?.provider === "google") {
                     try {
                         const frame = createWorldFrame(config.anchor);
                         localElevation = await loadGoogleElevation(config.elevation, frame, anchorElevation, { signal: controller.signal });
@@ -121,7 +127,7 @@ function WorldTerrainLayer({ configKey, characterImagery }) {
                     roadSurfaces: showRoads ? roadSurfaceLines(regions) : [],
                     maxAnisotropy: gl.capabilities.getMaxAnisotropy(),
                     ...(config.options || {}),
-                    characterImagery: characterImagery && provider?.name === "google",
+                    characterImagery: mapView && provider?.name === "google",
                 });
                 // `world` / `getBridges` give the physics ground (TerrainGroundCollider) the loaded
                 // tiles and the raised bridge decks to build colliders from.
@@ -149,6 +155,9 @@ function WorldTerrainLayer({ configKey, characterImagery }) {
                 // (asphalt, markings and the grass verges) and follow that ground; ?roads=on adds the tarmac
                 // aprons and paints the roads into the photo.
                 const googleGround = localElevation?.google ? localElevation : null;
+                // Road centrelines are scene metres with Google elevation, region metres otherwise
+                // (read by the street route planner, player/gpsRoutes.ts).
+                world.roadsInSceneCoords = Boolean(googleGround);
                 if ((showRoads || googleGround) && regions.some((region) => region.roads?.length)) {
                     const base = regions[0];
                     groundRoads = buildGroundRoads({
@@ -205,20 +214,28 @@ function WorldTerrainLayer({ configKey, characterImagery }) {
             }
             setTerrain(null);
         };
-    }, [characterImagery, configKey, gl, getThree]);
+    }, [configKey, gl, getThree, mapView]);
 
     useFrame(({ camera, clock }, delta) => {
         if (!terrain) return;
         // Downloaded tiles become meshes over the next frames (mesh, then photo upload), held back
         // a frame after a slow one (worldTerrain.finishTiles).
         terrain.finishTiles(gl, 1, delta * 1000);
-        const time = clock.getElapsedTime();
-        if (time - lastUpdateRef.current < 0.15) return;
-        lastUpdateRef.current = time;
-        let focus = null;
+        const time = clock.elapsedTime;
         const { character, firstPerson, characterRef } = useGame.getState();
         const walking = character || firstPerson;
-        if (characterImagery && walking && characterRef?.isValid?.()) focus = characterRef.translation();
+        let interval = TERRAIN_UPDATE_SECONDS;
+        if (mapView && !walking) {
+            const orbit = orbitRef.current;
+            if (Math.abs(orbit.orientation.dot(camera.quaternion)) < 0.999995) orbit.lastRotation = time;
+            orbit.orientation.copy(camera.quaternion);
+            // Select tiles less often during a fast turn so imagery and colliders aren't built
+            // for camera angles the orbit has already passed.
+            if (time - orbit.lastRotation < ROTATING_RECOVERY_SECONDS) interval = ROTATING_TERRAIN_UPDATE_SECONDS;
+        }
+        if (time - lastUpdateRef.current < interval) return;
+        lastUpdateRef.current = time;
+        const focus = mapView && walking && characterRef?.isValid?.() ? characterRef.translation() : null;
         // Walking at street level the distant ground is seen at a grazing angle: full detail closer
         // in (about half the finest tiles: fewer draw calls and photo uploads while running).
         if (terrain.options && terrain.baseSplitFactor === undefined) terrain.baseSplitFactor = terrain.options.splitFactor;

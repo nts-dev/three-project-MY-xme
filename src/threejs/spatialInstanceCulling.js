@@ -22,6 +22,7 @@ export function enableSpatialInstanceCulling(source, cellSize = 16) {
         batch.receiveShadow = source.receiveShadow;
         batch.renderOrder = source.renderOrder;
         batch.matrixAutoUpdate = false;
+        batch.userData.sourceIndices = indices; // local instance -> index in the source mesh
         indices.forEach((originalIndex, localIndex) => {
             source.getMatrixAt(originalIndex, matrix);
             batch.setMatrixAt(localIndex, matrix);
@@ -37,7 +38,14 @@ export function enableSpatialInstanceCulling(source, cellSize = 16) {
         const raycast = batch.raycast;
         batch.raycast = function (raycaster, hits) {
             const start = hits.length;
-            raycast.call(this, raycaster, hits);
+            // The rendered batch may use a lighter geometry. Pick the original instance surfaces.
+            const renderGeometry = this.geometry;
+            this.geometry = source.geometry;
+            try {
+                raycast.call(this, raycaster, hits);
+            } finally {
+                this.geometry = renderGeometry;
+            }
             for (let i = start; i < hits.length; i++) {
                 hits[i].instanceId = indices[hits[i].instanceId];
                 hits[i].object = source;

@@ -11,11 +11,22 @@ import {useGame1} from "../../hooks/useGame1";
 import useGame from "../../hooks/useGame";
 import {useJoystickControls} from "../../hooks/useJoystickControls";
 import type {Vector} from "@dimforge/rapier3d-compat";
+import {RigidBodyType as RapierBodyType} from "@dimforge/rapier3d-compat";
 import {emitSocketEvent} from "../../socket";
+import { LIVE_GPS_KEYS, liveGpsFields, setLiveGpsClientId } from "../../components/livegps/liveGpsStore";
+import { createGpsSample, GpsTrack } from "./gpsTrack";
+
+// Own avatar following this device's live GPS (see the Live GPS block in the frame loop).
+const GPS_BODY_ABOVE_GROUND = 0.85; // body centre above the ground (as it stands; RemotePlayer uses the same)
+const GPS_GLIDE_RATE = 3; // 1/s: back onto the GPS position after walking by hand
+const GPS_GLIDE_MAX_M = 25; // farther off than this: placed at once
+const GPS_RUN_SPEED = 3.2; // faster than this: the run clip
+const GPS_TURN_RATE = 4; // 1/s: turning towards the walking direction (steady, no twitching)
 import useInterface from "../../hooks/stores/useInterface";
 import PlayerLabel from "./PlayerLabel";
 import {createGameplayRaycast} from "./gameplayRaycast";
 import {getProjectSpawn} from "./projectSpawn";
+import {getTerrainHeightAt} from "../terrain/terrainData";
 // import {useFollowCam} from "../../hooks/useFollowCam";
 
 const PROJECT_153_L1_RUN_SPEED_MULTIPLIER = 3;
@@ -522,6 +533,15 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
      */
     let isBodyHitWall = false;
     let isPointMoving = false;
+    // Live GPS following (own avatar)
+    let gpsSteering = false;
+    let gpsWalking = false;
+    let gpsRunning = false;
+    const ownGpsTrackRef = useRef(new GpsTrack(true));
+    const ownGpsSampleRef = useRef(createGpsSample());
+    const gpsBlend = useMemo(() => new THREE.Vector3(), []);
+    const gpsKinematicRef = useRef(false);
+    const gpsSpeedRef = useRef(0);
     const crossVector = useMemo(() => new THREE.Vector3(), []);
     const pointToPoint = useMemo(() => new THREE.Vector3(), []);
     const prevPosition = useMemo(() => new THREE.Vector3(), []);
@@ -764,6 +784,12 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
         player.personColor = personColor;
         player.noOfLivesRemaining = noOfLivesRemaining;
         player.jump = buttonPressed || !canJump;
+        // Live GPS (liveGpsStore): while this device streams its real position, the moves carry the
+        // latest fix too, so the others keep placing this player by GPS (walking its real route).
+        setLiveGpsClientId(clientId);
+        const gpsFields = liveGpsFields();
+        if (gpsFields) Object.assign(player, gpsFields, { currentAnimation: "Idle", prevAnimation: "Idle" });
+        else for (const key of LIVE_GPS_KEYS) delete player[key];
         // Standing still: nothing to send but a heartbeat each IDLE_HEARTBEAT_S (the others keep the
         // avatar; every packet is relayed to every player).
         const last = lastSentMoveRef.current;
@@ -1481,6 +1507,68 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
             // followCam(state, delta, curAnimation)
         }
 
+        /**
+         * Live GPS: while this device streams its real position, the own avatar walks the route the
+         * fixes describe (the same smoothed, played-back track the other players see, gpsTrack.ts).
+         * The GPS position is the truth: the body moves kinematically (not pushed by walls, fences,
+         * kerbs: a real walker uses the gate the map has no opening for), at ground height. Moving it
+         * by hand (keys, stick, gamepad) takes over until released; then it glides back onto the
+         * GPS position.
+         */
+        gpsSteering = false;
+        gpsWalking = false;
+        gpsRunning = false;
+        const gpsFields = liveGpsFields();
+        const manualMoveInput = hasKeyboardMoveInput || hasGamepadMoveInput || (joystickDis > 0.05 && !joystickTurnOnly);
+        if (!gpsFields && ownGpsTrackRef.current.points.length) ownGpsTrackRef.current = new GpsTrack(true);
+        let gpsSample: ReturnType<GpsTrack["sample"]> = null;
+        if (gpsFields && !manualMoveInput && !climbing) {
+            const now = performance.now();
+            ownGpsTrackRef.current.push(gpsFields, now);
+            gpsSample = ownGpsTrackRef.current.sample(now, ownGpsSampleRef.current);
+        }
+        const gpsDrives = Boolean(gpsSample);
+        if (gpsDrives !== gpsKinematicRef.current) {
+            gpsKinematicRef.current = gpsDrives;
+            characterBody.setBodyType(gpsDrives ? RapierBodyType.KinematicPositionBased : RapierBodyType.Dynamic, true);
+            if (gpsDrives && gpsSample) {
+                // From where the avatar is now (after walking by hand) back onto the GPS position.
+                gpsBlend.set(currentPos.x - gpsSample.position.x, 0, currentPos.z - gpsSample.position.z);
+                if (gpsBlend.length() > GPS_GLIDE_MAX_M) gpsBlend.set(0, 0, 0);
+            } else {
+                characterBody.setLinvel({ x: 0, y: 0, z: 0 }, true);
+                horizontalMoveVelocity.set(0, 0, 0);
+            }
+        }
+        if (gpsSample) {
+            const dt = Math.max(delta, 1 / 240);
+            gpsBlend.multiplyScalar(Math.exp(-GPS_GLIDE_RATE * dt));
+            const x = gpsSample.position.x + gpsBlend.x;
+            const z = gpsSample.position.z + gpsBlend.z;
+            const ground = getTerrainHeightAt(x, z);
+            const y = ground === null ? currentPos.y : ground + GPS_BODY_ABOVE_GROUND;
+            const stepX = x - currentPos.x;
+            const stepZ = z - currentPos.z;
+            const step = Math.hypot(stepX, stepZ);
+            // Placed (first fix, teleport): no walking speed from that jump.
+            const speedNow = step > 3 ? 0 : step / dt;
+            gpsSpeedRef.current += (speedNow - gpsSpeedRef.current) * (1 - Math.exp(-4 * dt));
+            characterBody.setNextKinematicTranslation({ x, y, z });
+            currentPos.set(x, y, z);
+            horizontalMoveVelocity.set(0, 0, 0);
+            gpsSteering = true;
+            gpsWalking = gpsSpeedRef.current > 0.3 && !gpsSample.stale;
+            gpsRunning = gpsSpeedRef.current > GPS_RUN_SPEED;
+            const faceAngle = gpsSample.moving ? gpsSample.heading : step > 0.005 && step <= 3 ? Math.atan2(stepX, stepZ) : null;
+            if (faceAngle !== null && gpsWalking) {
+                modelEuler.y = faceAngle;
+                modelQuat.setFromEuler(modelEuler);
+                characterModelIndicator.quaternion.slerp(modelQuat, 1 - Math.exp(-GPS_TURN_RATE * dt));
+            }
+        } else {
+            gpsSpeedRef.current = 0;
+        }
+
         if (!cameraRealtimeFollow) {
             followCam(state, delta, curAnimation)
         }
@@ -1804,6 +1892,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
             canJump &&
             joystickDis === 0 &&
             !isPointMoving &&
+            !gpsSteering &&
             !gamepadKeys.forward && !gamepadKeys.backward && !gamepadKeys.leftward && !gamepadKeys.rightward &&
             characterBody
         ) {
@@ -1860,11 +1949,13 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
 
 
             if (currentPos.y < floorHeight || currentPos.y < -1) {
-
-                const initPosition = characterBody.translation()
-
-                resetPositionVec.set(initPosition.x, 5, initPosition.z);
-                characterBody.setTranslation(resetPositionVec, true);
+                // A streamed map can have valid ground below the scene's flat-floor threshold.
+                const {x, z} = characterBody.translation();
+                const ground = getTerrainHeightAt(x, z);
+                if (ground === null || currentPos.y < ground - 1) {
+                    resetPositionVec.set(x, (ground ?? 0) + 5, z);
+                    characterBody.setTranslation(resetPositionVec, true);
+                }
 
             }
         }
@@ -1904,7 +1995,7 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
 
             if (!forward && !backward && !leftward && !rightward && !jump &&
                 !button1Pressed && (joystickDis === 0 || joystickTurnOnly) &&
-                !isPointMoving &&
+                !isPointMoving && !gpsWalking &&
                 !gamepadKeys.forward && !gamepadKeys.backward && !gamepadKeys.leftward && !gamepadKeys.rightward &&
                 canJump &&
                 idleAnimation && !hasDied && !isRecovering
@@ -1921,11 +2012,11 @@ const Ecctrl = forwardRef<RapierRigidBody, EcctrlProps>(({
                     // sideways or backwards slid the avatar along in the standing pose.
                     forward || backward || leftward || rightward ||
                     (joystickDis > 0.05 && !joystickTurnOnly) ||
-                    isPointMoving ||
+                    isPointMoving || gpsWalking ||
                     gamepadKeys.forward || gamepadKeys.backward || gamepadKeys.leftward || gamepadKeys.rightward
                 ) && walkAnimation && !hasDied && !isRecovering) {
 
-                (run || runState) && runAnimation
+                (run || runState || (gpsWalking && gpsRunning)) && runAnimation
                     ? playAnimationCommand("Run", runAnimation)
                     : playAnimationCommand("Walk", walkAnimation);
             } else if (hasDied && fail && !isRecovering) {

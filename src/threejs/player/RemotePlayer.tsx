@@ -10,6 +10,7 @@ import useGame from "../../hooks/useGame";
 import PlayerLabel from "./PlayerLabel";
 import { avatarPlacement } from "./CharacterModel";
 import { sceneHasTerrain } from "../terrain/terrainData";
+import { createGpsSample, gpsTrackFor } from "./gpsTrack";
 
 const IDLE_ANIMATIONS = new Set(["Idle", "Idle 1", "idle"]);
 const WALK_ANIMATION_CANDIDATES = ["Walk", "Walking", "walk", "walking"];
@@ -20,6 +21,10 @@ const REMOTE_TARGET_SMOOTHING = 7;
 const REMOTE_TURN_SPEED = 10;
 const LAMP_UPDATE_FRAMES = 4; // the street-lamp light on a remote avatar is refreshed every few frames
 const REMOTE_SNAP_DISTANCE = 25; // metres: farther than this (respawn, teleport) the avatar jumps there
+// Live GPS players (gpsTrack.ts): the body origin this high above the ground, like the local avatar
+// (capsule half height + radius + float height of the controller).
+const GPS_BODY_ABOVE_GROUND = 0.85;
+const GPS_WALK_SPEED = 1.4; // m/s at which the walk clip plays at its own pace
 
 function findAnimationName(actions: Record<string, any>, candidates: string[]) {
     return candidates.find((name) => actions?.[name]) || "";
@@ -55,6 +60,8 @@ export default function RemotePlayer({ player, rPlayer, animations, rtlsMotions,
     const rtlsEuler = useRef(new THREE.Euler());
     const facingQuaternion = useRef(new THREE.Quaternion());
     const facingEuler = useRef(new THREE.Euler());
+    const gpsSample = useRef(createGpsSample());
+    const gpsPlacedRef = useRef(false);
 
     const {
         clientId, posX, posY, posZ, speed, currentAnimation,
@@ -184,6 +191,36 @@ export default function RemotePlayer({ player, rPlayer, animations, rtlsMotions,
         // Move rigid body smoothly to target position (the latest snapshot: positions arrive without
         // re-rendering this component).
         const latest = (!player?.isTrackReplay && liveRef?.current?.get(String(clientId))) || player;
+
+        // Streaming real GPS on a map: placed by its coordinates, walking the path of its fixes.
+        const track = onTerrain ? gpsTrackFor(latest) : null;
+        const sample = track?.sample(performance.now(), gpsSample.current);
+        if (sample) {
+            newPositionRef.current.copy(sample.position);
+            newPositionRef.current.y += GPS_BODY_ABOVE_GROUND;
+            rigidBodyRef.current.setTranslation(newPositionRef.current, true);
+            const walking = sample.moving && !sample.snapped && !sample.stale;
+            if (autoWalkingRef.current !== walking) {
+                autoWalkingRef.current = walking;
+                setAutoWalking(walking);
+            }
+            if (walking) {
+                // The walk clip at the pace of the real movement (slow stroll .. jog).
+                const walk: any = actions[findAnimationName(actions, WALK_ANIMATION_CANDIDATES)];
+                walk?.setEffectiveTimeScale?.(THREE.MathUtils.clamp(sample.speed / GPS_WALK_SPEED, 0.6, 2.5));
+            }
+            if (sample.heading !== null) {
+                facingDirectionRef.current = !gpsPlacedRef.current || sample.snapped
+                    ? sample.heading
+                    : lerpAngle(facingDirectionRef.current, sample.heading, Math.min(delta * REMOTE_TURN_SPEED * 0.6, 1));
+                facingQuaternion.current.setFromEuler(facingEuler.current.set(0, facingDirectionRef.current, 0));
+                rigidBodyRef.current.setRotation(facingQuaternion.current, true);
+            }
+            gpsPlacedRef.current = true;
+            hasTargetRef.current = false; // back to scene positions: placed afresh
+            return;
+        }
+        gpsPlacedRef.current = false;
         const currentPosition = rigidBodyRef.current.translation();
         currentPositionRef.current.set(currentPosition.x, currentPosition.y, currentPosition.z);
         targetPositionRef.current.set(Number(latest.posX) / 100, Number(latest.posY) / 100, Number(latest.posZ) / 100);

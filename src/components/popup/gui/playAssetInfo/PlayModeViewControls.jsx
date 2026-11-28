@@ -1,11 +1,19 @@
 import React, { useCallback, useEffect, useRef } from "react";
-import { FaEye, FaLocationArrow, FaTag, FaEllipsisH, FaVideo, FaRobot, FaCamera, FaSatelliteDish, FaMap } from "react-icons/fa";
+import { FaEye, FaLocationArrow, FaTag, FaEllipsisH, FaVideo, FaRobot, FaCamera, FaSatelliteDish, FaMap, FaSmog } from "react-icons/fa";
 import useGame from "../../../../hooks/useGame";
 import { publicAssetUrl } from "../../../../puzzleUi/publicAssetUrl";
 import VrViewButton from "./VrViewButton";
 import RobotTrialControls from "./RobotTrialControls";
 import "./PlayMobileSplit.css";
 import useTopView from "../../../topview/topViewStore";
+import { useWeatherStore } from "../../../weather/weatherStore";
+import { MdGpsFixed } from "react-icons/md";
+import useLiveGps from "../../../livegps/liveGpsStore";
+import { sceneHasTerrain } from "../../../../threejs/terrain/terrainData";
+import { FaRoute } from "react-icons/fa";
+import useGpsRouteTest from "../../../livegps/gpsRouteTest";
+import GpsRouteTestPanel from "../../../livegps/GpsRouteTestPanel";
+import { routeTestFor } from "../../../../threejs/player/gpsRoutes";
 
 // Phones (see PlayMobileSplit.css): while the map is navigated freely, the map takes the top 2/3
 // of the screen and the bottom 1/3 shows the details popup, or these buttons when it is closed.
@@ -54,6 +62,109 @@ function TopViewButton() {
         >
             <FaMap className="play-view-controls__svg-icon" aria-hidden="true" />
         </button>
+    );
+}
+
+/** Fog / haze on / off: off keeps the map visible when zoomed far out (RainEffect.jsx). */
+function FogButton() {
+    const hidden = useWeatherStore((s) => s.fogHidden);
+    const toggle = useWeatherStore((s) => s.toggleFog);
+    const label = hidden ? "Show fog" : "Hide fog";
+    return (
+        <button
+            type="button"
+            className={`play-view-controls__button${hidden ? " is-active" : ""}`}
+            aria-label={label}
+            aria-pressed={hidden}
+            data-tooltip={label}
+            data-short={hidden ? "Fog off" : "Fog"}
+            onClick={toggle}
+        >
+            <FaSmog className="play-view-controls__svg-icon" aria-hidden="true" />
+        </button>
+    );
+}
+
+/**
+ * Live GPS on / off: this device streams its real position, and the others see this player's
+ * avatar walk the real route on the map (liveGpsStore.js, gpsTrack.ts). Only on map (terrain) scenes.
+ */
+function LiveGpsButton() {
+    const onMap = useGame((s) => sceneHasTerrain(s, s.projectID));
+    const status = useLiveGps((s) => s.status);
+    const accuracy = useLiveGps((s) => s.accuracy);
+    const error = useLiveGps((s) => s.error);
+    const toggle = useLiveGps((s) => s.toggle);
+    const stop = useLiveGps((s) => s.stop);
+    useEffect(() => () => stop(), [stop]); // leaving play mode / the map ends the stream
+    if (!onMap) return null;
+    const on = status === "live" || status === "waiting";
+    const label = status === "live"
+        ? `Stop sharing live GPS (±${accuracy} m)`
+        : status === "waiting"
+            ? "Live GPS: waiting for a fix… (tap to stop)"
+            : error || "Share live GPS: your avatar follows your real position";
+    return (
+        <button
+            type="button"
+            className={`play-view-controls__button play-view-controls__button--live-gps is-${status}${on ? " is-active" : ""}`}
+            aria-label={label}
+            aria-pressed={on}
+            data-tooltip={label}
+            data-short={status === "live" ? `GPS ±${accuracy} m` : status === "waiting" ? "GPS…" : "Live GPS"}
+            onClick={toggle}
+        >
+            <MdGpsFixed className="play-view-controls__svg-icon" aria-hidden="true" />
+        </button>
+    );
+}
+
+/**
+ * GPS route walk: the own avatar walks a route between two buildings (picked in the panel; preset per
+ * project, e.g. 153_L2 NTS Computers -> Girbau Southeast Asia) in character view, driven by live GPS
+ * fixes and held on the route's blue line (gpsRouteTest.js): simulated fixes, or on a phone its
+ * precise GPS.
+ */
+function GpsRouteTestButton({ enterCharacterView }) {
+    const projectID = useGame((s) => s.projectID);
+    const onMap = useGame((s) => sceneHasTerrain(s, s.projectID));
+    const active = useGpsRouteTest((s) => s.active);
+    const open = useGpsRouteTest((s) => s.open);
+    const preset = routeTestFor(projectID);
+    useEffect(() => () => useGpsRouteTest.getState().close(), []);
+    if (!onMap) return null;
+    const label = active ? "Stop the GPS route walk" : open ? "Close GPS route walks" : "GPS route walk: pick two buildings and walk between them";
+    const run = async (walkMode) => {
+        const state = useGpsRouteTest.getState();
+        const current = state.route;
+        // The route shown (Show route) when it is still From -> To; otherwise planned now.
+        const route = current && state.fromId && current.test.fromId === state.fromId && current.test.toId === state.toId ? current : await state.plan();
+        if (route && useGpsRouteTest.getState().start(route.test, walkMode, route)) enterCharacterView();
+    };
+    const onClick = () => {
+        const state = useGpsRouteTest.getState();
+        if (state.active) state.stop();
+        else if (state.open) state.close();
+        else {
+            state.preset(preset);
+            state.show();
+        }
+    };
+    return (
+        <>
+            <button
+                type="button"
+                className={`play-view-controls__button play-view-controls__button--gps-route${active || open ? " is-active" : ""}`}
+                aria-label={label}
+                aria-pressed={active || open}
+                data-tooltip={label}
+                data-short={active ? "Stop route" : "Route walk"}
+                onClick={onClick}
+            >
+                <FaRoute className="play-view-controls__svg-icon" aria-hidden="true" />
+            </button>
+            <GpsRouteTestPanel onStart={run} />
+        </>
     );
 }
 
@@ -225,6 +336,9 @@ export default function PlayModeViewControls() {
             </div>
 
             <TopViewButton />
+            <FogButton />
+            <LiveGpsButton />
+            <GpsRouteTestButton enterCharacterView={() => setViewMode("character")} />
 
             <button
                 type="button"

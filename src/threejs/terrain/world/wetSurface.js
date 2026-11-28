@@ -65,7 +65,12 @@ export function applyWetSurface(material, { puddles = true, strength = 1 } = {})
         Object.assign(shader.uniforms, wetSurfaceUniforms);
         shader.vertexShader = shader.vertexShader
             .replace("#include <common>", "#include <common>\nvarying vec3 vWetWorld;")
-            .replace("#include <project_vertex>", "#include <project_vertex>\nvWetWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+            .replace("#include <project_vertex>", `#include <project_vertex>
+                vec4 wetPosition = vec4(transformed, 1.0);
+                #ifdef USE_INSTANCING
+                    wetPosition = instanceMatrix * wetPosition;
+                #endif
+                vWetWorld = (modelMatrix * wetPosition).xyz;`);
         shader.fragmentShader = shader.fragmentShader
             .replace("#include <common>", `#include <common>\n${PARS}`)
             // Wet surfaces are darker (water fills the pores); puddles darkest.

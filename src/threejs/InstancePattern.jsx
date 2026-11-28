@@ -9,6 +9,11 @@ import { applyDslAnimations, clearDslAnimations, readDslAnimations } from './dsl
 import { isGeneratedAssetReference, normalizeSceneAssetName } from './generatedAssetPaths';
 import { enableSpatialInstanceCulling } from './spatialInstanceCulling.js';
 import { mergeColorMaterials } from './mergeColorMaterials.js';
+import { fitBuildingFootprint } from './fitBuildingFootprint.js';
+import { fitSurfaceToMap } from './fitSurfaceToMap.js';
+import { groundMaterial } from './terrain/world/groundMaterial.js';
+import { applyWetSurface } from './terrain/world/wetSurface.js';
+import { prepareBuildingLod } from './lighting/buildingLod';
 import { registerDistanceCulledMesh } from './scene/distanceCulling';
 
 import {
@@ -226,12 +231,35 @@ export default async function InstancedPattern(
     const { halfWidth, halfLength, halfHeight } = dimensions;
 
     const initialQuaternion = object.quaternion;
-    const material = object.material;
+    const surfaceFit = properties?.mapSurfaceFit;
+    const styleMapSurface = (source) => {
+        let blended;
+        if (surfaceFit.asphalt) {
+            blended = applyWetSurface(groundMaterial({ color: surfaceFit.color, side: source.side }), {
+                puddles: false,
+                strength: 0.5,
+            });
+        } else if (surfaceFit.color) {
+            blended = new THREE.MeshBasicMaterial({ color: surfaceFit.color, side: source.side, toneMapped: false });
+        } else {
+            blended = source.clone();
+        }
+        blended.transparent = true;
+        blended.opacity = surfaceFit.opacity;
+        blended.depthWrite = false;
+        return blended;
+    };
+    const material = !surfaceFit ? object.material : Array.isArray(object.material)
+        ? object.material.map(styleMapSurface)
+        : styleMapSurface(object.material);
 
     const pivotBox = new Box3().setFromObject(object);
+    let geometry = object.geometry;
+    if (properties?.footprintFit) geometry = fitBuildingFootprint(geometry, properties.footprintFit);
+    if (surfaceFit) geometry = fitSurfaceToMap(geometry, surfaceFit);
     // Geometry-space box: with an instance matrix applied it gives that instance's world box (labels).
-    if (!object.geometry.boundingBox) object.geometry.computeBoundingBox();
-    const geometryBox = object.geometry.boundingBox.clone();
+    if (!geometry.boundingBox) geometry.computeBoundingBox();
+    const geometryBox = geometry.boundingBox.clone();
     const pivotSize = pivotBox.getSize(new Vector3());
     const hasVerticalCollisionSurface = pivotSize.y >= MIN_GAMEPLAY_COLLIDER_HEIGHT;
 
@@ -246,7 +274,7 @@ export default async function InstancedPattern(
         axis = new Vector3(0, 0, 1);
     }
 
-    const instancedMesh = new THREE.InstancedMesh(object.geometry, material, assets.length);
+    const instancedMesh = new THREE.InstancedMesh(geometry, material, assets.length);
     instancedMesh.frustumCulled = true;
     instancedMesh.userData.instances = [];
     instancedMesh.userData.gameplayColliderHeight = pivotSize.y;
@@ -711,8 +739,9 @@ export default async function InstancedPattern(
     }
 
     instancedMesh.name = name;
+    if (surfaceFit?.renderOrder != null) instancedMesh.renderOrder = surfaceFit.renderOrder;
     instancedMesh.count = index;
-    instancedMesh.castShadow = true;
+    instancedMesh.castShadow = !surfaceFit;
     instancedMesh.receiveShadow = true;
     instanceMesh[name] = instancedMesh;
 
@@ -742,6 +771,9 @@ export default async function InstancedPattern(
                 instancedMesh.userData.xmeBuildingShadowProxy = true;
                 instancedMesh.castShadow = false;
                 for (const batch of batches) batch.castShadow = false;
+                if (/^malaysiaenvironmentbuildings/i.test(cleanKey)) {
+                    await prepareBuildingLod(scene, batches, instancedMesh.geometry);
+                }
             }
         } else if (String(projectID) === '153_L1' && triangleCount >= 100000) {
             // Each spatial batch is also hidden when far from the camera (see distanceCulling.js).

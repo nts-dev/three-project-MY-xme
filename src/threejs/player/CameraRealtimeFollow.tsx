@@ -4,6 +4,7 @@ import * as THREE from "three";
 import useGame from "../../hooks/useGame";
 import { socket } from "../../socket";
 import useLiveRtlsMotion from "./useLiveRtlsMotion";
+import { createGpsSample, gpsTrackFor } from "./gpsTrack";
 
 const CAMERA_FOLLOW_DISTANCE = 8.5;
 const CAMERA_FOLLOW_HEIGHT = 0;
@@ -108,6 +109,7 @@ export default function CameraRealtimeFollow() {
     const followedPlayerRef = useRef<any>(null);
     const lastGpsUpdateAtRef = useRef(0);
     const currentPositionRef = useRef(new THREE.Vector3());
+    const gpsSampleRef = useRef(createGpsSample());
     const previousPositionRef = useRef(new THREE.Vector3());
     const remotePositionRef = useRef(new THREE.Vector3());
     const followDirectionRef = useRef(new THREE.Vector3(0, 0, 1));
@@ -292,7 +294,11 @@ export default function CameraRealtimeFollow() {
 
         const activePlayer = followedPlayerRef.current;
         if (hasFreshGpsUpdate) {
-            toScenePosition(activePlayer, currentPositionRef.current);
+            // On a map: the player's real coordinates, along the path of its fixes (gpsTrack.ts, the
+            // same place its avatar is shown).
+            const gpsSample = gpsTrackFor(activePlayer)?.sample(performance.now(), gpsSampleRef.current);
+            if (gpsSample) currentPositionRef.current.copy(gpsSample.position).setY(gpsSample.position.y + 0.85);
+            else toScenePosition(activePlayer, currentPositionRef.current);
         } else {
             followedPlayerRef.current = null;
         }

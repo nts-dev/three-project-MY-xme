@@ -25,6 +25,7 @@ import AddLabels from "./rack/AddLabels";
 import Building from "./environment/Building1";
 import TerrainSystem from "./terrain/TerrainSystem";
 import TopViewRenderer from "./topview/TopViewRenderer";
+import ProjectRoadLook from "./environment/ProjectRoadLook";
 import { loadProjectTerrainConfig } from "./terrain/terrainData";
 import { getProjectOptimizeOptions, optimizeModel } from "./scene/optimize/modelOptimizer";
 import { AnnotationData } from "./label/AttachLabel";
@@ -1197,10 +1198,10 @@ const configureOriginalMeshMaterial = (material, mesh, keepDoubleSided = false) 
 
          categoryCommands.current.push(categoryStructure)
 
-        return (await InstancePattern(
+        const loadInstances = (assets, meshName, meshProperties) => InstancePattern(
             object,
-            arrayOfObjects,
-            namefbx,
+            assets,
+            meshName,
             sceneObj,
             branchName,
             projectId,
@@ -1208,9 +1209,29 @@ const configureOriginalMeshMaterial = (material, mesh, keepDoubleSided = false) 
             [],
             dimensions,
             fbx,
-            properties,
+            meshProperties,
             category_index || id
-        )) || { commandText: "" };
+        );
+        const footprintFits = properties?.instanceFootprintFits;
+        if (!footprintFits) {
+            return (await loadInstances(arrayOfObjects, namefbx, properties)) || { commandText: "" };
+        }
+
+        // Each distinct footprint needs its own geometry. Unfitted assets can still share a mesh.
+        const shared = arrayOfObjects.filter(asset => !footprintFits[asset.key]);
+        const groups = shared.length ? [{ assets: shared, properties }] : [];
+        for (const asset of arrayOfObjects) {
+            const footprintFit = footprintFits[asset.key];
+            if (footprintFit) groups.push({ assets: [asset], properties: { ...properties, footprintFit } });
+        }
+        const results = await Promise.all(groups.map((group, index) =>
+            loadInstances(group.assets, index === 0 ? namefbx : `${namefbx}__${group.assets[0].key}`, group.properties)
+        ));
+        return {
+            floors: Object.assign([], ...results.map(result => result?.floors || [])),
+            meshKeys: results.flatMap(result => result?.meshKeys || []),
+            commandText: results.map(result => result?.commandText || "").join(""),
+        };
     };
 
     useEffect(() => {
@@ -1473,7 +1494,7 @@ const configureOriginalMeshMaterial = (material, mesh, keepDoubleSided = false) 
         for (const category of orderedCategories) {
             const rawCategory = getCategoryRaw(category);
             const fbx = rawCategory?.fbx;
-            if (!fbx) {
+            if (!fbx || rawCategory.properties?.enabled === false) {
                 continue;
             }
 
@@ -1497,6 +1518,14 @@ const configureOriginalMeshMaterial = (material, mesh, keepDoubleSided = false) 
             const { name, fbx } = rawCategory;
             const branch = category?.branch || "";
             const categoryKey = getCategoryKey(rawCategory);
+            const renderName = normalizeSceneAssetName(fbx).toLowerCase();
+            const categoryName = `${renderName}::${categoryKey}`;
+            if (rawCategory.properties?.enabled === false) {
+                if (categorySignatureRef.current.has(categoryKey)) {
+                    clearCategoryScene(sceneObj, categoryKey, categoryName);
+                }
+                continue;
+            }
             const assets = normalizeCategoryAssets(category?.assets || []).filter((asset) => {
                 const assetId = String(getAssetInstanceId(asset) || "");
                 if (!assetId) {
@@ -1515,9 +1544,6 @@ const configureOriginalMeshMaterial = (material, mesh, keepDoubleSided = false) 
                 usedAssetIds.add(assetId);
                 return true;
             });
-            const renderName = normalizeSceneAssetName(fbx).toLowerCase();
-            const categoryName = `${renderName}::${categoryKey}`;
-
           const assetIds = assets
            .map((asset) => String(getAssetInstanceId(asset)))
            .filter(Boolean);
@@ -2182,6 +2208,8 @@ const configureOriginalMeshMaterial = (material, mesh, keepDoubleSided = false) 
             <CameraPathReplay />
             <CameraRealtimeFollow />
             {(String(projectId) === "33_L0" || String(projectId) === "33") && <RobotTestArea projectID={projectId} />}
+            {/* MY Map roads in the same asphalt look as the 153_L2 roads. */}
+            {String(projectId).split("_")[0] === "33" && <ProjectRoadLook />}
             {/* {showProject135PathAvatar && <Project135PathAvatar />} */}
             {bProjectId > 0 && (bProjectId != 147 && bProjectId != 148 && bProjectId != 153) && <Building bProjectId={bProjectId} />}
             {/* Ground terrain of scenes whose scene JSON has `terrain` (153_L2, the XME map); others render nothing. */}

@@ -1,6 +1,7 @@
 // Terrain height data: loads the tiles written by the backend's scripts/terrain/build-terrain.mjs
 // and answers height queries. Other code (placement, player, snapping) should read the ground
 // through getTerrainHeightAt rather than raycasting the meshes.
+import seriKembangan from "./seriKembangan.json";
 
 /** Resolves a scene's `terrain.manifest` (relative to the backend's /files) to a URL. */
 export function resolveTerrainUrl(manifestPath) {
@@ -10,7 +11,9 @@ export function resolveTerrainUrl(manifestPath) {
 }
 
 export async function loadProjectTerrainConfig(projectId, legacyTerrain, { signal } = {}) {
-    if (String(projectId).trim().toUpperCase() !== "153_L2") return legacyTerrain;
+    const level = String(projectId).trim().toUpperCase();
+    if (level === "33_L0") return legacyTerrain ?? seriKembangan;
+    if (level !== "153_L2") return legacyTerrain;
     try {
         const response = await fetch(resolveTerrainUrl("terrain/153_L2/terrain.json"), { signal, cache: "no-cache" });
         if (response.status === 404) return legacyTerrain;

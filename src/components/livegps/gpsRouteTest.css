@@ -1,0 +1,235 @@
+.gps-route-test {
+    --grt-bg: rgba(15, 23, 32, 0.88);
+    --grt-fg: #eef3f8;
+    --grt-muted: #9fb0c2;
+    --grt-accent: #2f8cff;
+    --grt-fix: #ff8a1f;
+    position: fixed;
+    left: 16px;
+    top: 76px; /* below the top bar; the walk tracker sits bottom left */
+    z-index: 1200;
+    width: min(320px, calc(100vw - 32px));
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: var(--grt-bg);
+    color: var(--grt-fg);
+    font: 13px/1.35 system-ui, sans-serif;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(6px);
+}
+
+.gps-route-test header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.gps-route-test__close {
+    border: 0;
+    background: transparent;
+    color: var(--grt-muted);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.gps-route-test__bar {
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.12);
+    overflow: hidden;
+}
+
+.gps-route-test__bar span {
+    display: block;
+    height: 100%;
+    background: var(--grt-accent);
+    transition: width 0.25s linear;
+}
+
+.gps-route-test__meta {
+    margin: 6px 0;
+    color: var(--grt-muted);
+    font-size: 12px;
+}
+
+.gps-route-test__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.gps-route-test__actions button {
+    padding: 6px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--grt-fg);
+    cursor: pointer;
+}
+
+.gps-route-test__actions button:first-child {
+    background: var(--grt-accent);
+    border-color: var(--grt-accent);
+}
+
+@media (max-width: 760px) {
+    .gps-route-test {
+        top: 12px;
+    }
+}
+
+.gps-route-test__warn {
+    margin: 0 0 8px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(255, 170, 60, 0.16);
+    color: #ffd59a;
+    font-size: 12px;
+}
+
+.gps-route-test__plan {
+    display: grid;
+    gap: 6px;
+    margin: 6px 0 4px;
+}
+
+.gps-route-test__plan label,
+.gps-route-test__path {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    align-items: center;
+    gap: 6px;
+}
+
+.gps-route-test__plan label span,
+.gps-route-test__path > span {
+    color: var(--grt-muted);
+    font-size: 12px;
+}
+
+.gps-route-test__plan input {
+    min-width: 0;
+    padding: 6px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--grt-fg);
+    font: inherit;
+}
+
+/* Path: Google / Map streets (two-button toggle) */
+.gps-route-test__toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.gps-route-test__toggle button {
+    padding: 5px 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--grt-muted);
+    font: inherit;
+    cursor: pointer;
+}
+
+.gps-route-test__toggle button.is-active {
+    background: var(--grt-accent);
+    color: #fff;
+}
+
+.gps-route-test__plan-row {
+    display: flex;
+    gap: 6px;
+}
+
+.gps-route-test__plan-row button {
+    padding: 6px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--grt-fg);
+    cursor: pointer;
+}
+
+.gps-route-test__plan-row button:first-child {
+    flex: 1;
+}
+
+/* From / To suggestions (BuildingField) */
+.gps-route-test__field {
+    position: relative;
+}
+
+.gps-route-test__suggest {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 50px;
+    right: 0;
+    z-index: 2;
+    max-height: 280px;
+    margin: 0;
+    padding: 4px;
+    overflow-y: auto;
+    list-style: none;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 10px;
+    background: #16202b;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+.gps-route-test__suggest button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--grt-fg);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.gps-route-test__suggest button.is-active {
+    background: rgba(47, 140, 255, 0.22);
+}
+
+.gps-route-test__suggest-text {
+    display: grid;
+    min-width: 0;
+}
+
+.gps-route-test__suggest-text > span,
+.gps-route-test__suggest-text small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gps-route-test__suggest-text small {
+    color: var(--grt-muted);
+    font-size: 11px;
+}
+
+.gps-route-test__badge {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--kind, #6b7785);
+    color: #fff;
+    font-size: 12px;
+}

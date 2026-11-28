@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import useGame from "../../hooks/useGame";
 import { farGeometry, weldedGeometry } from "./decorLod";
+import { updateBuildingLod } from "./buildingLod";
 
 // Distance + view culling and level of detail for street decor (pines ~8k triangles each, street
 // lights ~5k): an InstancedMesh always draws every instance, so 266 pines cost ~2.2M triangles a frame
@@ -76,6 +77,7 @@ export default function DecorCulling({ orbitControls, enabled = true }) {
 
     useFrame(() => {
         if (!enabled) return;
+        updateBuildingLod(scene, camera);
         const s = state.current;
         s.frame += 1;
 

@@ -74,3 +74,21 @@ test('frustum rejects distant batches independently without removing geometry', 
     assert.equal(frustum.intersectsObject(batches[1]), false);
     assert.equal(source.count, 2);
 });
+
+test('picking retains full instance geometry when a batch renders a lower level of detail', () => {
+    const geometry = new THREE.BoxGeometry(4, 4, 4);
+    const source = new THREE.InstancedMesh(geometry, new THREE.MeshBasicMaterial(), 2);
+    source.setMatrixAt(0, new THREE.Matrix4().makeTranslation(0, 0, -10));
+    source.setMatrixAt(1, new THREE.Matrix4().makeTranslation(50, 0, -10));
+    const [batch] = enableSpatialInstanceCulling(source);
+    const simplified = new THREE.BoxGeometry(1, 1, 1);
+    batch.geometry = simplified;
+    source.updateMatrixWorld(true);
+
+    const ray = new THREE.Raycaster(new THREE.Vector3(1.5, 0, 0), new THREE.Vector3(0, 0, -1));
+    const [hit] = ray.intersectObject(source, true);
+    assert.equal(hit.object, source);
+    assert.equal(hit.instanceId, 0);
+    assert.equal(hit.distance, 8);
+    assert.equal(batch.geometry, simplified);
+});

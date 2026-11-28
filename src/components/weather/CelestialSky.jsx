@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { getActiveTerrain } from "../../threejs/terrain/terrainData";
 import { moonIllumination, moonPosition, sceneDirection, sunPosition } from "./ephemeris";
 import { daylightFromAltitude, useSkyStore, useWeatherStore } from "./weatherStore";
+import { displayDate } from "./siteClock";
 
 // Real sun and moon for the open map: their positions are worked out from the map's real-world
 // location (terrain anchor) and the current time (ephemeris.js), every few seconds, and published in
@@ -41,23 +42,6 @@ const moonFragment = /* glsl */ `
         gl_FragColor = vec4(color, uOpacity);
     }
 `;
-
-/** UTC offset in hours for the site: from the weather reading's timestamp, else from the longitude. */
-function siteOffsetHours(weather, lon) {
-    const match = /([+-])(\d{2}):(\d{2})$/.exec(String(weather?.observedAt || ""));
-    if (match) return (match[1] === "-" ? -1 : 1) * (Number(match[2]) + Number(match[3]) / 60);
-    return Math.round(lon / 15);
-}
-
-/** The moment to show: now, or today's ?time=HH:MM at the site. */
-function displayDate(timePreview, weather, lon) {
-    const now = new Date();
-    const match = /^(\d{1,2}):(\d{2})$/.exec(String(timePreview || ""));
-    if (!match) return now;
-    const offset = siteOffsetHours(weather, lon);
-    const site = new Date(now.getTime() + offset * 3600000); // site wall clock, read through UTC getters
-    return new Date(Date.UTC(site.getUTCFullYear(), site.getUTCMonth(), site.getUTCDate(), Number(match[1]), Number(match[2])) - offset * 3600000);
-}
 
 export default function CelestialSky() {
     const camera = useThree((state) => state.camera);

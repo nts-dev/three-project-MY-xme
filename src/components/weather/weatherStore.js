@@ -9,10 +9,31 @@ const PREVIEW = (() => {
     return value ? value.toLowerCase() : null;
 })();
 
-export const useWeatherStore = create((set) => ({
+// The haze / fog of the scene can be switched off (play controls), so the map stays visible from
+// high up; remembered per browser.
+const FOG_KEY = "scene-fog-hidden";
+const storedFogHidden = () => {
+    try {
+        return typeof window !== "undefined" && window.localStorage.getItem(FOG_KEY) === "1";
+    } catch {
+        return false;
+    }
+};
+
+export const useWeatherStore = create((set, get) => ({
     weather: null,
     preview: PREVIEW,
     setWeather: (weather) => set({ weather }),
+    fogHidden: storedFogHidden(),
+    toggleFog: () => {
+        const fogHidden = !get().fogHidden;
+        try {
+            window.localStorage.setItem(FOG_KEY, fogHidden ? "1" : "0");
+        } catch {
+            // private window / blocked storage: only for this visit
+        }
+        set({ fogHidden });
+    },
 }));
 
 /**

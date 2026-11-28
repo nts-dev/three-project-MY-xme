@@ -7,6 +7,7 @@ import useGame from "../../hooks/useGame";
 import usePlayerTrackReplay from "./usePlayerTrackReplay";
 import type { PlayerTrackPathGroup } from "./usePlayerTrackReplay";
 import useLiveRtlsMotion from "./useLiveRtlsMotion";
+import { dropGpsTrack } from "./gpsTrack";
 
 function TrackPathDotGroup({ points, color = "#ff1f2f" }: { points: any[]; color?: string }) {
     const geometry = useMemo(
@@ -115,11 +116,16 @@ export default function RemotePlayerList({playerObject}: any) {
             const next = normalizePlayersPayload(payload).filter((player: any) => player?.clientId && hasScenePosition(player));
             const ids = new Set(next.map((player: any) => String(player.clientId)));
             for (const player of next) live.set(String(player.clientId), player);
-            for (const id of [...live.keys()]) if (!ids.has(id)) live.delete(id);
+            for (const id of [...live.keys()]) {
+                if (ids.has(id)) continue;
+                live.delete(id);
+                dropGpsTrack(id);
+            }
             publish();
         };
         const disconnect = (clientID: string) => {
             document.getElementById(clientID)?.remove();
+            dropGpsTrack(clientID);
             if (live.delete(String(clientID))) publish();
         };
         const receiveAvailable = (payload: any) => {

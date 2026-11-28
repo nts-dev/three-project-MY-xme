@@ -16,7 +16,7 @@ const MARK_LIFT = 0.03; // markings above the asphalt
 const MARK_WIDTH = 0.15; // painted line width in metres
 const MARK_STRIP = MARK_WIDTH * 3; // the strip is wider than the line so mipmaps soften it far away
 const DASH_CYCLE = 9; // metres: 3 m dash, 6 m gap (as in roadSurfaces.js)
-const ASPHALT_REPEAT = 6; // metres per asphalt texture repeat
+export const ASPHALT_REPEAT = 6; // metres per asphalt texture repeat
 const END_TRIM = 2; // markings stop this far from road ends
 const GRASS_LIFT = 0.05; // lawn strips (surface "grass") just under the asphalt level
 
@@ -30,7 +30,7 @@ const canvasTexture = (canvas, maxAnisotropy, wrapS) => {
 };
 
 /** Plain asphalt with a fine grain (no markings; those are separate strips). */
-function asphaltTexture(maxAnisotropy) {
+export function asphaltTexture(maxAnisotropy) {
     const size = 256;
     const canvas = document.createElement("canvas");
     canvas.width = size;

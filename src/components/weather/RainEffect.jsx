@@ -265,7 +265,8 @@ export default function RainEffect() {
                 * (1 - lowSunDim * (LOW_SUN_DARKEN + LOW_SUN_DARKEN_OVERCAST * grey))
                 * flashExposure(day); // lightning flash (Lightning.jsx)
             if (b.fog?.isFogExp2) {
-                b.fog.density = b.density + HAZE_OVERCAST * grey + HAZE_RAIN * wet;
+                // Fog switched off (play controls): density 0, the fog object stays (no recompile).
+                b.fog.density = useWeatherStore.getState().fogHidden ? 0 : b.density + HAZE_OVERCAST * grey + HAZE_RAIN * wet;
                 if (b.ownFog) b.fog.color.copy(HAZE_COLOR).lerp(NIGHT_HAZE, 1 - day);
             }
         }
